@@ -24,6 +24,14 @@
           
           <div class="flex items-center gap-3">
             <button
+              v-if="isEditing"
+              @click="handleExport"
+              class="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+            >
+              导出 Word
+            </button>
+            
+            <button
               v-if="isEditing && planStore.currentPlan?.status === 'DRAFT'"
               @click="handlePublish"
               :disabled="planStore.isSaving"
@@ -308,6 +316,35 @@ const handlePublish = async () => {
     alert('教案已发布！')
   } catch (error: any) {
     alert('发布失败: ' + (error.message || '未知错误'))
+  }
+}
+
+const handleExport = async () => {
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`/api/export/word/${planId.value}`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
+    
+    if (!response.ok) {
+      throw new Error('导出失败')
+    }
+    
+    // 下载文件
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${form.title}.docx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error: any) {
+    alert('导出失败: ' + (error.message || '未知错误'))
   }
 }
 </script>
