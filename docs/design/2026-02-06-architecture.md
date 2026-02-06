@@ -83,7 +83,7 @@
 | 组件 | 技术 | 职责 |
 |------|------|------|
 | **Nginx** | nginx:alpine | 反向代理，静态资源服务 |
-| **Frontend** | Vue 3 + Vite + TipTap | 用户界面，富文本编辑 |
+| **Frontend** | Vue 3 + Vite + TipTap/ProseMirror | 用户界面，富文本编辑 |
 | **Backend** | Elysia.js (Bun) | REST API，业务逻辑 |
 | **Database** | PostgreSQL 16 | 数据持久化 |
 | **Backup** | postgres:alpine | 定时数据库备份 |
@@ -101,10 +101,115 @@
 | **Bun** | 比 Node.js 更快的启动速度；内置 bundler；原生 TypeScript |
 | **Prisma** | 类型安全的 ORM；优秀的迁移工具；可视化数据管理 |
 | **Vue 3** | 组件化开发；Composition API；优秀的生态系统 |
-| **TipTap** | 基于 ProseMirror；高度可定制；Vue 3 原生支持 |
+| **TipTap** | 基于 ProseMirror 的封装；Vue 3 原生支持；可扩展性强 |
+| **ProseMirror** | 底层编辑引擎；文档模型严谨；支持复杂编辑场景 |
 | **Tailwind CSS** | 实用优先；快速开发；一致的视觉风格 |
 
-### 3.2 性能考量（小规模部署）
+### 3.2 TipTap + ProseMirror 架构说明
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    前端编辑器架构                            │
+├─────────────────────────────────────────────────────────────┤
+│                                                              │
+│   ┌─────────────────────────────────────────────────────┐   │
+│   │                  Vue 3 组件层                        │   │
+│   │  ┌───────────────────────────────────────────────┐  │   │
+│   │  │            TipTapEditor.vue                    │  │   │
+│   │  │  - 编辑器容器组件                               │  │   │
+│   │  │  - 工具栏 (Toolbar)                            │  │   │
+│   │  │  - 菜单/气泡菜单 (Bubble Menu)                 │  │   │
+│   │  └───────────────────────────────────────────────┘  │   │
+│   └────────────────────────┬────────────────────────────┘   │
+│                            │                                 │
+│   ┌────────────────────────▼────────────────────────────┐   │
+│   │                  TipTap 封装层                       │   │
+│   │  ┌───────────────────────────────────────────────┐  │   │
+│   │  │  @tiptap/vue-3                               │  │   │
+│   │  │  @tiptap/starter-kit                         │  │   │
+│   │  │  @tiptap/extension-image                     │  │   │
+│   │  │  @tiptap/extension-table                     │  │   │
+│   │  │  (其他扩展...)                                │  │   │
+│   │  └───────────────────────────────────────────────┘  │   │
+│   │     职责: 提供 Vue 集成、预设配置、扩展系统          │   │
+│   └────────────────────────┬────────────────────────────┘   │
+│                            │                                 │
+│   ┌────────────────────────▼────────────────────────────┐   │
+│   │                ProseMirror 核心层                    │   │
+│   │  ┌───────────────────────────────────────────────┐  │   │
+│   │  │  prosemirror-model    // 文档模型              │  │   │
+│   │  │  prosemirror-state    // 编辑器状态            │  │   │
+│   │  │  prosemirror-view     // 视图渲染              │  │   │
+│   │  │  prosemirror-transform // 文档转换             │  │   │
+│   │  │  prosemirror-commands // 编辑命令              │  │   │
+│   │  │  prosemirror-keymap   // 快捷键                │  │   │
+│   │  └───────────────────────────────────────────────┘  │   │
+│   │     职责: 文档模型、状态管理、视图渲染、编辑逻辑      │   │
+│   └─────────────────────────────────────────────────────┘   │
+│                                                              │
+│   工作流程:                                                   │
+│   1. 教师在 TipTap 编辑器中输入内容                          │
+│   2. ProseMirror 维护文档模型 (JSON 结构)                    │
+│   3. Vue 3 响应式绑定编辑器状态                              │
+│   4. 保存时将 ProseMirror JSON 发送到后端                    │
+│   5. 导出时 JSON → HTML → WPS API → Word                    │
+│                                                              │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**为什么这样设计？**
+
+1. **ProseMirror 提供坚实基础**
+   - 严谨的文档模型（Document Model）
+   - 支持协同编辑的基础架构
+   - 强大的转换系统（Transform）
+   - 可预测的状态管理
+
+2. **TipTap 提供开发效率**
+   - Vue 3 原生集成（@tiptap/vue-3）
+   - 丰富的预设扩展（Starter Kit）
+   - 简洁的 API 封装
+   - 活跃的社区生态
+
+3. **我们的使用方式**
+   ```typescript
+   // 安装命令
+   npm install @tiptap/vue-3 @tiptap/starter-kit
+   npm install prosemirror-model prosemirror-state // 底层依赖
+   
+   // Vue 组件中使用
+   import { useEditor, EditorContent } from '@tiptap/vue-3'
+   import StarterKit from '@tiptap/starter-kit'
+   
+   const editor = useEditor({
+     content: {
+       type: 'doc',
+       content: [{ type: 'paragraph', content: [{ type: 'text', text: '' }] }]
+     },
+     extensions: [StarterKit],
+     onUpdate: ({ editor }) => {
+       // 获取 ProseMirror JSON 结构
+       const json = editor.getJSON()
+       // 获取 HTML（用于导出）
+       const html = editor.getHTML()
+     }
+   })
+   ```
+
+**数据流：**
+```
+教师编辑
+    ↓
+ProseMirror 文档模型 (JSON)
+    ↓
+Vue 响应式更新
+    ↓
+保存到后端 (JSON 存储)
+    ↓
+导出时: JSON → HTML → WPS API → Word/PDF
+```
+
+### 3.3 性能考量（小规模部署）
 
 - **单实例部署**：< 50 并发，单容器足够
 - **无 Redis**：小规模无需缓存层，数据库查询足够快
