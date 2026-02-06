@@ -16,25 +16,28 @@
             
             <div>
               <h1 class="text-lg font-semibold text-slate-800">{{ isEditing ? '编辑教案' : '新建教案' }}</h1>
-              <p class="text-sm text-slate-500">{{ isEditing ? '最后保存: 刚刚' : '开始创建新教案' }}</p>
+              <p class="text-sm text-slate-500">
+                {{ planStore.isSaving ? '保存中...' : (lastSaved ? `最后保存: ${lastSaved}` : '未保存') }}
+              </p>
             </div>
           </div>
           
           <div class="flex items-center gap-3">
             <button
-              @click="saveDraft"
-              :disabled="isSaving"
-              class="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium disabled:opacity-50"
+              v-if="isEditing && planStore.currentPlan?.status === 'DRAFT'"
+              @click="handlePublish"
+              :disabled="planStore.isSaving"
+              class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50 shadow-sm"
             >
-              {{ isSaving ? '保存中...' : '保存草稿' }}
+              发布
             </button>
             
             <button
-              @click="publishPlan"
-              :disabled="isPublishing"
+              @click="handleSave"
+              :disabled="planStore.isSaving || !isFormValid"
               class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 shadow-sm"
             >
-              {{ isPublishing ? '发布中...' : '发布教案' }}
+              {{ planStore.isSaving ? '保存中...' : '保存' }}
             </button>
           </div>
         </div>
@@ -43,6 +46,14 @@
 
     <!-- Main Content -->
     <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <!-- Error Message -->
+      <div
+        v-if="planStore.error"
+        class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600"
+      >
+        {{ planStore.error }}
+      </div>
+
       <!-- Basic Info -->
       <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
@@ -54,7 +65,9 @@
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-slate-700 mb-2">教案标题 *</label>
+            <label class="block text-sm font-medium text-slate-700 mb-2">
+              教案标题 *
+            </label>
             <input
               v-model="form.title"
               type="text"
@@ -64,7 +77,9 @@
           </div>
           
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">课程名称 *</label>
+            <label class="block text-sm font-medium text-slate-700 mb-2">
+              课程名称 *
+            </label>
             <input
               v-model="form.courseName"
               type="text"
@@ -74,7 +89,9 @@
           </div>
           
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">授课班级 *</label>
+            <label class="block text-sm font-medium text-slate-700 mb-2">
+              授课班级 *
+            </label>
             <input
               v-model="form.className"
               type="text"
@@ -84,7 +101,9 @@
           </div>
           
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">课时长度（分钟）*</label>
+            <label class="block text-sm font-medium text-slate-700 mb-2">
+              课时长度（分钟）*
+            </label>
             <input
               v-model.number="form.duration"
               type="number"
@@ -95,11 +114,25 @@
           </div>
           
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">教学方法</label>
+            <label class="block text-sm font-medium text-slate-700 mb-2">
+              教学方法
+            </label>
             <input
               v-model="form.methods"
               type="text"
               placeholder="例如：讲授法、案例教学"
+              class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">
+              教学资源
+            </label>
+            <input
+              v-model="form.resources"
+              type="text"
+              placeholder="例如：PPT、视频、实验设备"
               class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
           </div>
@@ -170,18 +203,25 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { usePlanStore } from '../stores/plan'
 import TipTapEditor from '../components/TipTapEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
+const planStore = usePlanStore()
 
 const planId = computed(() => route.params.id as string)
 const isEditing = computed(() => !!planId.value)
+const lastSaved = ref('')
 
-const isSaving = ref(false)
-const isPublishing = ref(false)
+const isFormValid = computed(() => {
+  return form.title.trim() && 
+         form.courseName.trim() && 
+         form.className.trim() && 
+         form.duration > 0
+})
 
 const form = reactive({
   title: '',
@@ -189,6 +229,7 @@ const form = reactive({
   className: '',
   duration: 90,
   methods: '',
+  resources: '',
   objectives: '<p></p>',
   keyPoints: '<p></p>',
   process: '<p></p>',
@@ -196,32 +237,77 @@ const form = reactive({
   reflection: '<p></p>',
 })
 
-const saveDraft = async () => {
-  isSaving.value = true
+onMounted(async () => {
+  if (isEditing.value) {
+    await loadPlan()
+  }
+})
+
+const loadPlan = async () => {
   try {
-    // TODO: 调用 API 保存草稿
-    console.log('保存草稿:', form)
-    await new Promise(resolve => setTimeout(resolve, 500))
-    alert('草稿保存成功！')
+    const plan = await planStore.fetchPlan(planId.value)
+    
+    // Populate form
+    form.title = plan.title
+    form.courseName = plan.courseName
+    form.className = plan.className
+    form.duration = plan.duration
+    form.methods = plan.methods || ''
+    form.resources = plan.resources || ''
+    form.objectives = plan.objectives || '<p></p>'
+    form.keyPoints = plan.keyPoints || '<p></p>'
+    form.process = plan.process || '<p></p>'
+    form.blackboard = plan.blackboard || '<p></p>'
+    form.reflection = plan.reflection || '<p></p>'
+    
+    if (plan.updatedAt) {
+      lastSaved.value = new Date(plan.updatedAt).toLocaleString('zh-CN')
+    }
   } catch (error) {
-    alert('保存失败，请重试')
-  } finally {
-    isSaving.value = false
+    console.error('加载教案失败:', error)
+    alert('加载教案失败')
+    router.push('/')
   }
 }
 
-const publishPlan = async () => {
-  isPublishing.value = true
+const handleSave = async () => {
+  if (!isFormValid.value) {
+    alert('请填写所有必填字段')
+    return
+  }
+  
   try {
-    // TODO: 调用 API 发布教案
-    console.log('发布教案:', form)
-    await new Promise(resolve => setTimeout(resolve, 500))
-    alert('教案发布成功！')
-    router.push('/')
-  } catch (error) {
-    alert('发布失败，请重试')
-  } finally {
-    isPublishing.value = false
+    const data = {
+      ...form,
+      htmlContent: form.process, // Use process as main HTML content
+    }
+    
+    if (isEditing.value) {
+      await planStore.updatePlan(planId.value, data)
+    } else {
+      const result = await planStore.createPlan(data)
+      if (result?.id) {
+        // Redirect to edit page after creation
+        router.replace(`/editor/${result.id}`)
+      }
+    }
+    
+    lastSaved.value = new Date().toLocaleString('zh-CN')
+  } catch (error: any) {
+    alert('保存失败: ' + (error.message || '未知错误'))
+  }
+}
+
+const handlePublish = async () => {
+  if (!confirm('确定要发布这个教案吗？发布后所有人都可以查看。')) {
+    return
+  }
+  
+  try {
+    await planStore.publishPlan(planId.value)
+    alert('教案已发布！')
+  } catch (error: any) {
+    alert('发布失败: ' + (error.message || '未知错误'))
   }
 }
 </script>
