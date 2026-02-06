@@ -33,7 +33,7 @@ const router = createRouter({
 })
 
 // 路由守卫 - 检查登录状态
-router.beforeEach((to, from, next) => {
+router.beforeEach((to, _from, next) => {
   const authStore = useAuthStore()
   
   // 初始化用户状态
