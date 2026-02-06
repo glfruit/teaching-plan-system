@@ -2,11 +2,13 @@ import { Elysia } from 'elysia'
 import { cors } from '@elysiajs/cors'
 import { authRoutes } from './routes/auth'
 import { teachingPlanRoutes } from './routes/teaching-plans'
+import { exportRoutes } from './routes/export'
 
 const app = new Elysia()
   .use(cors())
   .use(authRoutes)
   .use(teachingPlanRoutes)
+  .use(exportRoutes)
   .get('/health', () => ({
     status: 'ok',
     timestamp: new Date().toISOString()
