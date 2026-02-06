@@ -1,5 +1,36 @@
 <template>
   <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+    <!-- Image Dialog -->
+    <div v-if="showImageDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showImageDialog = false">
+      <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
+        <h3 class="text-lg font-semibold text-slate-800 mb-4">插入图片</h3>
+        <div class="mb-4">
+          <label class="block text-sm font-medium text-slate-700 mb-2">图片 URL</label>
+          <input
+            v-model="imageUrl"
+            type="text"
+            placeholder="https://example.com/image.jpg"
+            class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            @keyup.enter="addImage"
+          />
+        </div>
+        <div class="flex items-center justify-end gap-3">
+          <button
+            @click="showImageDialog = false"
+            class="px-4 py-2 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            取消
+          </button>
+          <button
+            @click="addImage"
+            class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            插入
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Toolbar -->
     <div class="flex items-center gap-1 p-2 border-b border-slate-200 bg-slate-50/80 flex-wrap">
       <!-- Text Style -->
@@ -122,6 +153,167 @@
 
       <div class="w-px h-6 bg-slate-300 mx-1" />
 
+      <!-- Image -->
+      <div class="flex items-center gap-0.5">
+        <button
+          @click="showImageDialog = true"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="插入图片"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <circle cx="8.5" cy="8.5" r="1.5" />
+            <polyline points="21 15 16 10 5 21" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="w-px h-6 bg-slate-300 mx-1" />
+
+      <!-- Table -->
+      <div class="flex items-center gap-0.5">
+        <button
+          @click="insertTable"
+          :disabled="!editor"
+          :class="{ 'is-active': editor?.isActive('table') }"
+          class="editor-toolbar-btn"
+          title="插入表格"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <line x1="3" y1="9" x2="21" y2="9" />
+            <line x1="3" y1="15" x2="21" y2="15" />
+            <line x1="9" y1="3" x2="9" y2="21" />
+            <line x1="15" y1="3" x2="15" y2="21" />
+          </svg>
+        </button>
+        
+        <button
+          v-if="editor?.isActive('table')"
+          @click="deleteTable"
+          :disabled="!editor"
+          class="editor-toolbar-btn text-red-500 hover:bg-red-50"
+          title="删除表格"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+            <line x1="9" y1="9" x2="15" y2="15" />
+            <line x1="15" y1="9" x2="9" y2="15" />
+          </svg>
+        </button>
+      </div>
+
+      <div v-if="editor?.isActive('table')" class="flex items-center gap-0.5">
+        <div class="w-px h-6 bg-slate-300 mx-1" />
+        
+        <button
+          @click="addColumnBefore"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="在前添加列"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 3v18M15 3v18M3 12h6M21 12h-6" />
+          </svg>
+        </button>
+        
+        <button
+          @click="addColumnAfter"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="在后添加列"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 3v18M15 3v18M15 12h6M3 12h6" />
+          </svg>
+        </button>
+        
+        <button
+          @click="deleteColumn"
+          :disabled="!editor"
+          class="editor-toolbar-btn text-red-500 hover:bg-red-50"
+          title="删除列"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 3v18M15 3v18M19 12H5" />
+          </svg>
+        </button>
+        
+        <button
+          @click="addRowBefore"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="在上添加行"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9h18M3 15h18M12 3v6M12 21v-6" />
+          </svg>
+        </button>
+        
+        <button
+          @click="addRowAfter"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="在下添加行"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9h18M3 15h18M12 15v6M12 3v6" />
+          </svg>
+        </button>
+        
+        <button
+          @click="deleteRow"
+          :disabled="!editor"
+          class="editor-toolbar-btn text-red-500 hover:bg-red-50"
+          title="删除行"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9h18M3 15h18M19 15V9M5 15V9" />
+          </svg>
+        </button>
+
+        <button
+          @click="mergeCells"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="合并单元格"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <line x1="12" y1="3" x2="12" y2="21" />
+          </svg>
+        </button>
+
+        <button
+          @click="splitCell"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="拆分单元格"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+            <line x1="12" y1="3" x2="12" y2="21" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+          </svg>
+        </button>
+
+        <button
+          @click="toggleHeaderCell"
+          :disabled="!editor"
+          :class="{ 'is-active': editor?.isActive('tableHeader') }"
+          class="editor-toolbar-btn"
+          title="切换表头"
+        >
+          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M3 12h18M3 18h18" />
+            <path d="M8 6v12M16 6v12" />
+          </svg>
+        </button>
+      </div>
+
+      <div class="w-px h-6 bg-slate-300 mx-1" />
+
       <!-- Code -->
       <div class="flex items-center gap-0.5">
         <button
@@ -206,7 +398,12 @@
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
 import Underline from '@tiptap/extension-underline'
-import { watch } from 'vue'
+import Image from '@tiptap/extension-image'
+import Table from '@tiptap/extension-table'
+import TableRow from '@tiptap/extension-table-row'
+import TableCell from '@tiptap/extension-table-cell'
+import TableHeader from '@tiptap/extension-table-header'
+import { watch, ref } from 'vue'
 
 const props = defineProps<{
   modelValue: string
@@ -216,10 +413,22 @@ const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
 }>()
 
+const showImageDialog = ref(false)
+const imageUrl = ref('')
+
 const editor = useEditor({
   extensions: [
     StarterKit,
     Underline,
+    Image.configure({
+      allowBase64: true,
+    }),
+    Table.configure({
+      resizable: true,
+    }),
+    TableRow,
+    TableCell,
+    TableHeader,
   ],
   content: props.modelValue,
   onUpdate: ({ editor }) => {
@@ -233,4 +442,68 @@ watch(() => props.modelValue, (newValue) => {
     editor.value.commands.setContent(newValue, false)
   }
 })
+
+// Add image from URL
+const addImage = () => {
+  if (imageUrl.value) {
+    editor.value?.chain().focus().setImage({ src: imageUrl.value }).run()
+    imageUrl.value = ''
+    showImageDialog.value = false
+  }
+}
+
+// Insert table
+const insertTable = () => {
+  editor.value?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+}
+
+// Delete table
+const deleteTable = () => {
+  editor.value?.chain().focus().deleteTable().run()
+}
+
+// Add column before
+const addColumnBefore = () => {
+  editor.value?.chain().focus().addColumnBefore().run()
+}
+
+// Add column after
+const addColumnAfter = () => {
+  editor.value?.chain().focus().addColumnAfter().run()
+}
+
+// Delete column
+const deleteColumn = () => {
+  editor.value?.chain().focus().deleteColumn().run()
+}
+
+// Add row before
+const addRowBefore = () => {
+  editor.value?.chain().focus().addRowBefore().run()
+}
+
+// Add row after
+const addRowAfter = () => {
+  editor.value?.chain().focus().addRowAfter().run()
+}
+
+// Delete row
+const deleteRow = () => {
+  editor.value?.chain().focus().deleteRow().run()
+}
+
+// Toggle header cell
+const toggleHeaderCell = () => {
+  editor.value?.chain().focus().toggleHeaderCell().run()
+}
+
+// Merge cells
+const mergeCells = () => {
+  editor.value?.chain().focus().mergeCells().run()
+}
+
+// Split cell
+const splitCell = () => {
+  editor.value?.chain().focus().splitCell().run()
+}
 </script>
