@@ -3,11 +3,11 @@
     <!-- Header -->
     <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center gap-4">
+        <div class="flex items-center justify-between h-14 sm:h-16">
+          <div class="flex items-center gap-2 sm:gap-4">
             <router-link
               to="/"
-              class="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              class="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-colors"
             >
               <svg class="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -15,63 +15,113 @@
             </router-link>
             
             <div>
-              <h1 class="text-lg font-semibold text-slate-800">{{ isEditing ? '编辑教案' : '新建教案' }}</h1>
-              <p class="text-sm text-slate-500">
+              <h1 class="text-base sm:text-lg font-semibold text-slate-800">{{ isEditing ? '编辑教案' : '新建教案' }}</h1>
+              <p class="text-xs sm:text-sm text-slate-500 hidden sm:block">
                 {{ planStore.isSaving ? '保存中...' : (lastSaved ? `最后保存: ${lastSaved}` : '未保存') }}
               </p>
             </div>
           </div>
           
-          <div class="flex items-center gap-3">
+          <div class="flex items-center gap-2">
+            <!-- Mobile Menu Button -->
             <button
-              v-if="isEditing"
-              @click="handleExport"
-              class="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+              @click="showMobileActions = !showMobileActions"
+              class="sm:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg"
             >
-              导出 Word
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+              </svg>
             </button>
             
-            <button
-              v-if="isEditing && planStore.currentPlan?.status === 'DRAFT'"
-              @click="handlePublish"
-              :disabled="planStore.isSaving"
-              class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50 shadow-sm"
-            >
-              发布
-            </button>
+            <!-- Desktop Buttons -->
+            <div class="hidden sm:flex items-center gap-3">
+              <button
+                v-if="isEditing"
+                @click="handleExport"
+                class="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+              >
+                导出 Word
+              </button>
+              
+              <button
+                v-if="isEditing && planStore.currentPlan?.status === 'DRAFT'"
+                @click="handlePublish"
+                :disabled="planStore.isSaving"
+                class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50 shadow-sm"
+              >
+                发布
+              </button>
+              
+              <button
+                @click="handleSave"
+                :disabled="planStore.isSaving || !isFormValid"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 shadow-sm"
+              >
+                {{ planStore.isSaving ? '保存中...' : '保存' }}
+              </button>
+            </div>
             
+            <!-- Mobile Save Button Only -->
             <button
               @click="handleSave"
               :disabled="planStore.isSaving || !isFormValid"
-              class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 shadow-sm"
+              class="sm:hidden p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
-              {{ planStore.isSaving ? '保存中...' : '保存' }}
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+              </svg>
             </button>
           </div>
+        </div>
+        
+        <!-- Mobile Actions Menu -->
+        <div v-if="showMobileActions" class="sm:hidden border-t border-slate-200 py-3 space-y-2">
+          <button
+            v-if="isEditing"
+            @click="handleExport"
+            class="w-full flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50 rounded-lg"
+          >
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            导出 Word
+          </button>
+          
+          <button
+            v-if="isEditing && planStore.currentPlan?.status === 'DRAFT'"
+            @click="handlePublish"
+            :disabled="planStore.isSaving"
+            class="w-full flex items-center gap-2 px-4 py-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"
+          >
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            发布教案
+          </button>
         </div>
       </div>
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
       <!-- Error Message -->
       <div
         v-if="planStore.error"
-        class="mb-6 p-4 bg-red-50 border border-red-200 rounded-xl text-red-600"
+        class="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm sm:text-base"
       >
         {{ planStore.error }}
       </div>
 
       <!-- Basic Info -->
-      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-6">
-        <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
+      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6 mb-4 sm:mb-6">
+        <h2 class="text-base sm:text-lg font-semibold text-slate-800 mb-3 sm:mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           基本信息
         </h2>
         
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <div class="md:col-span-2">
             <label class="block text-sm font-medium text-slate-700 mb-2">
               教案标题 *
@@ -80,7 +130,7 @@
               v-model="form.title"
               type="text"
               placeholder="例如：Vue 3 基础入门"
-              class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              class="w-full px-3 sm:px-4 py-2 border sm:py-2.5 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
           </div>
           
@@ -92,7 +142,7 @@
               v-model="form.courseName"
               type="text"
               placeholder="例如：前端开发技术"
-              class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              class="w-full px-3 sm:px-4 py-2 border sm:py-2.5 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
           </div>
           
@@ -104,7 +154,7 @@
               v-model="form.className"
               type="text"
               placeholder="例如：计算机2301班"
-              class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              class="w-full px-3 sm:px-4 py-2 border sm:py-2.5 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
           </div>
           
@@ -117,7 +167,7 @@
               type="number"
               min="1"
               max="300"
-              class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              class="w-full px-3 sm:px-4 py-2 border sm:py-2.5 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
           </div>
           
@@ -129,7 +179,7 @@
               v-model="form.methods"
               type="text"
               placeholder="例如：讲授法、案例教学"
-              class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              class="w-full px-3 sm:px-4 py-2 border sm:py-2.5 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
           </div>
 
@@ -141,7 +191,7 @@
               v-model="form.resources"
               type="text"
               placeholder="例如：PPT、视频、实验设备"
-              class="w-full px-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              class="w-full px-3 sm:px-4 py-2 border sm:py-2.5 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
             />
           </div>
         </div>
@@ -223,6 +273,7 @@ const planStore = usePlanStore()
 const planId = computed(() => route.params.id as string)
 const isEditing = computed(() => !!planId.value)
 const lastSaved = ref('')
+const showMobileActions = ref(false)
 
 const isFormValid = computed(() => {
   return form.title.trim() && 
