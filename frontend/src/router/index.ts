@@ -39,18 +39,26 @@ router.beforeEach((to, from, next) => {
   // 初始化用户状态
   authStore.initUser()
   
+  console.log('[Router] Navigating to:', to.path)
+  console.log('[Router] isAuthenticated:', authStore.isAuthenticated)
+  console.log('[Router] Token:', authStore.token)
+  console.log('[Router] User:', authStore.user)
+  
   // 需要登录但未登录
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
+    console.log('[Router] Redirecting to login')
     next('/login')
     return
   }
   
   // 已登录但访问登录页
   if (to.path === '/login' && authStore.isAuthenticated) {
+    console.log('[Router] Redirecting to home')
     next('/')
     return
   }
   
+  console.log('[Router] Navigation allowed')
   next()
 })
 

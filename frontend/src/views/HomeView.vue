@@ -48,6 +48,7 @@
               <router-link
                 to="/editor"
                 class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
+                @click="console.log('[HomeView] New plan button clicked')"
               >
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
@@ -248,7 +249,7 @@
           </div>
           
           <!-- Mobile Plans List (Card Layout) -->
-          <div v-else class="sm:hidden divide-y divide-slate-100">
+          <div v-if="planStore.hasPlans" class="sm:hidden divide-y divide-slate-100">
             <div
               v-for="plan in planStore.plans"
               :key="plan.id"
@@ -381,7 +382,12 @@ const changePage = (page: number) => {
 }
 
 const editPlan = (id: string) => {
-  router.push(`/editor/${id}`)
+  console.log('[HomeView] editPlan called with id:', id)
+  router.push(`/editor/${id}`).then(() => {
+    console.log('[HomeView] Navigation successful')
+  }).catch((err) => {
+    console.error('[HomeView] Navigation failed:', err)
+  })
 }
 
 const deletePlan = async (id: string) => {
