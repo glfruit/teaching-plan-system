@@ -406,7 +406,7 @@ import { TableHeader } from '@tiptap/extension-table-header'
 import { watch, ref } from 'vue'
 
 const props = defineProps<{
-  modelValue: string
+  modelValue: string | object
 }>()
 
 const emit = defineEmits<{

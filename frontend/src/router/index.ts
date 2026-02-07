@@ -17,6 +17,12 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/templates',
+      name: 'templates',
+      component: () => import('../views/TemplatesView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
       path: '/editor',
       name: 'editor',
       component: () => import('../views/EditorView.vue'),

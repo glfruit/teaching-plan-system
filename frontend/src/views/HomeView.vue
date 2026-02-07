@@ -45,27 +45,27 @@
                 </svg>
               </button>
               
-              <router-link
-                to="/editor"
+              <!-- New Plan Button -->
+              <button
+                @click="showTemplateSelector = true"
                 class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-                @click="console.log('[HomeView] New plan button clicked')"
               >
                 <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
                 </svg>
                 <span>新建教案</span>
-              </router-link>
+              </button>
             </div>
             
             <!-- Mobile New Button -->
-            <router-link
-              to="/editor"
+            <button
+              @click="showTemplateSelector = true"
               class="sm:hidden inline-flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
               </svg>
-            </router-link>
+            </button>
           </div>
         </div>
       </div>
@@ -333,6 +333,12 @@
         </div>
       </template>
     </main>
+    
+    <TemplateSelector
+      :show="showTemplateSelector"
+      @close="showTemplateSelector = false"
+      @select="handleTemplateSelect"
+    />
   </div>
 </template>
 
@@ -341,13 +347,25 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { usePlanStore } from '../stores/plan'
+import TemplateSelector from '../components/TemplateSelector.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const planStore = usePlanStore()
 
+const showTemplateSelector = ref(false)
 const searchQuery = ref('')
 const showMobileMenu = ref(false)
+
+const handleTemplateSelect = (template: any) => {
+  showTemplateSelector.value = false
+  if (template) {
+    router.push({ path: '/editor', query: { templateId: template.id } })
+  } else {
+    router.push('/editor')
+  }
+}
+
 
 const draftCount = computed(() => 
   planStore.plans.filter(p => p.status === 'DRAFT').length

@@ -264,11 +264,13 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlanStore } from '../stores/plan'
+import { useTemplateStore } from '../stores/template'
 import TipTapEditor from '../components/TipTapEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
 const planStore = usePlanStore()
+const templateStore = useTemplateStore()
 
 const planId = computed(() => route.params.id as string)
 const isEditing = computed(() => !!planId.value)
@@ -291,7 +293,7 @@ const form = reactive({
   resources: '',
   objectives: '<p></p>',
   keyPoints: '<p></p>',
-  process: '<p></p>',
+  process: '<p></p>' as string | object,
   blackboard: '<p></p>',
   reflection: '<p></p>',
 })
@@ -299,8 +301,37 @@ const form = reactive({
 onMounted(async () => {
   if (isEditing.value) {
     await loadPlan()
+  } else if (route.query.templateId) {
+    await loadTemplate(route.query.templateId as string)
   }
 })
+
+const loadTemplate = async (templateId: string) => {
+  try {
+    const template = await templateStore.fetchTemplate(templateId)
+    // Populate form with template content
+    // We assume the template structure is a JSON object compatible with TipTap
+    // For now, we populate the 'process' field as the main content area
+    // In a future version, templates could support multiple fields
+    
+    if (template.structure) {
+      const s = template.structure
+      // Check if it's our multi-field format
+      if (typeof s === 'object' && !Array.isArray(s) && (s.process || s.objectives)) {
+         form.objectives = s.objectives || '<p></p>'
+         form.keyPoints = s.keyPoints || '<p></p>'
+         form.process = s.process || '<p></p>'
+         form.blackboard = s.blackboard || '<p></p>'
+         form.reflection = s.reflection || '<p></p>'
+      } else {
+         // Single document format (e.g. system templates)
+         form.process = s
+      }
+    }
+  } catch (error) {
+    console.error('Failed to load template:', error)
+  }
+}
 
 const loadPlan = async () => {
   try {
