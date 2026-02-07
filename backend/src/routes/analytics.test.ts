@@ -149,19 +149,35 @@ describe('Analytics API', () => {
     });
   });
 
-  describe('GET /analytics/trend', () => {
-    it('should return monthly trend', async () => {
+  describe('GET /analytics/export', () => {
+    it('should export analytics data as JSON', async () => {
       const response = await app.handle(
-        new Request('http://localhost/analytics/trend', {
+        new Request('http://localhost/analytics/export?format=json', {
           headers: { 'Authorization': `Bearer ${authToken}` }
         })
       );
       
       expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toContain('application/json');
       const data = await response.json();
-      expect(data.success).toBe(true);
-      expect(Array.isArray(data.data.monthlyTrend)).toBe(true);
-      expect(data.data.monthlyTrend.length).toBe(6);
+      expect(data.workload).toBeDefined();
+      expect(data.execution).toBeDefined();
+      expect(data.quality).toBeDefined();
+      expect(data.trend).toBeDefined();
+    });
+
+    it('should export analytics data as CSV', async () => {
+      const response = await app.handle(
+        new Request('http://localhost/analytics/export?format=csv', {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        })
+      );
+      
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toContain('text/csv');
+      const text = await response.text();
+      expect(text).toContain('Metric,Value');
+      expect(text).toContain('Total Plans,3');
     });
   });
 });
