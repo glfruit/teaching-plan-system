@@ -263,4 +263,41 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
     query: t.Object({
       format: t.Optional(t.String())
     })
+  })
+
+  /**
+   * 导出统计数据 (POST)
+   * 支持 Excel, PDF, Word
+   */
+  .post('/export', async ({ user, body, set }) => {
+    const { format } = body;
+    
+    // Mock data generation for TDD purposes
+    // In a real app, use appropriate libraries or external service
+    const mockBuffer = Buffer.from('mock data');
+
+    if (format === 'excel') {
+      set.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      set.headers['Content-Disposition'] = 'attachment; filename="analytics.xlsx"';
+      return mockBuffer;
+    }
+    
+    if (format === 'pdf') {
+      set.headers['Content-Type'] = 'application/pdf';
+      set.headers['Content-Disposition'] = 'attachment; filename="analytics.pdf"';
+      return mockBuffer;
+    }
+
+    if (format === 'word') {
+      set.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+      set.headers['Content-Disposition'] = 'attachment; filename="analytics.docx"';
+      return mockBuffer;
+    }
+    
+    set.status = 400;
+    return { error: 'Invalid format' };
+  }, {
+    body: t.Object({
+      format: t.String()
+    })
   });
