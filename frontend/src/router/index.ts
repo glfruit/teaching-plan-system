@@ -35,6 +35,32 @@ const router = createRouter({
       props: true,
       meta: { requiresAuth: true },
     },
+    {
+      path: '/semester-plans',
+      name: 'semester-plans',
+      component: () => import('../views/SemesterPlanListView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/semester-plans/create',
+      name: 'semester-plans-create',
+      component: () => import('../views/SemesterPlanEditView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/semester-plans/:id',
+      name: 'semester-plans-edit',
+      component: () => import('../views/SemesterPlanEditView.vue'),
+      props: true,
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/weekly-plans/:id',
+      name: 'weekly-plans',
+      component: () => import('../views/WeeklyPlanView.vue'),
+      props: true,
+      meta: { requiresAuth: true },
+    },
   ],
 })
 

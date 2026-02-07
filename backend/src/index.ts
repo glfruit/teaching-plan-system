@@ -3,6 +3,9 @@ import { cors } from '@elysiajs/cors'
 import { authRoutes } from './routes/auth'
 import { teachingPlanRoutes } from './routes/teaching-plans'
 import { templateRoutes } from './routes/templates'
+import { semesterPlanRoutes } from './routes/semester-plans'
+import { weeklyPlanRoutes } from './routes/weekly-plans'
+import { courseScheduleRoutes } from './routes/course-schedules'
 import { exportRoutes } from './routes/export'
 
 const app = new Elysia()
@@ -13,6 +16,9 @@ const app = new Elysia()
   .use(authRoutes)
   .use(teachingPlanRoutes)
   .use(templateRoutes)
+  .use(semesterPlanRoutes)
+  .use(weeklyPlanRoutes)
+  .use(courseScheduleRoutes)
   .use(exportRoutes)
   .get('/health', () => ({
     status: 'ok',
