@@ -2,6 +2,27 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from './auth'
 
+// Mock localStorage
+const localStorageMock = (function() {
+  let store: Record<string, string> = {}
+  return {
+    getItem: function(key: string) {
+      return store[key] || null
+    },
+    setItem: function(key: string, value: string) {
+      store[key] = value.toString()
+    },
+    clear: function() {
+      store = {}
+    },
+    removeItem: function(key: string) {
+      delete store[key]
+    }
+  }
+})()
+
+Object.defineProperty(typeof window !== 'undefined' ? window : globalThis, 'localStorage', { value: localStorageMock })
+
 describe('Auth Store', () => {
   beforeEach(() => {
     // Mock localStorage
