@@ -293,6 +293,57 @@ bun test path/to/test.ts
 | 任务独立、可并行 | `executing-plans` |
 | 任务依赖、需协调 | `subagent-driven-development` |
 
+#### Agent 选择指南
+
+**必须派遣 Friday 的场景**:
+- 任何代码实现任务
+- Bug 修复
+- 功能开发
+- 重构代码
+- 编写测试
+
+**派遣方式**:
+```javascript
+// 标准 Friday 派遣模板
+sessions_spawn({
+  agentId: "friday",
+  task: `
+    ## 任务信息
+    工作目录: /Users/gorin/Projects/teaching-plan-system/.worktrees/[feature]/[task]
+    任务类型: [feature/bugfix/refactor]
+    
+    ## 具体任务
+    [详细描述]
+    
+    ## 必须遵循的流程
+    1. 先写测试 (TDD - RED → GREEN → REFACTOR)
+    2. 使用 systematic-debugging 排查问题
+    3. 每个阶段完成后验证
+    4. 遵循项目代码规范
+    
+    ## 进度报告要求
+    - 开始时: "开始执行 [任务名]..."
+    - 里程碑: "[阶段] 完成，当前状态..."
+    - 遇到问题时: "遇到 [问题]，正在..."
+    - 完成时: "任务完成: [summary]"
+    
+    ## 验证要求
+    - 运行测试: bun test
+    - 构建检查: bun run build
+    - 确认无 TypeScript 错误
+    
+    ## 参考文档
+    - 设计文档: docs/design/
+    - API 文档: docs/api/
+  `
+})
+```
+
+**严禁**:
+- ❌ 直接编辑代码文件
+- ❌ 绕过 Friday 实现功能
+- ❌ 不测试就提交
+
 #### subagent-driven-development 流程
 
 ```

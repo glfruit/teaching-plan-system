@@ -59,3 +59,25 @@ model TeachingPlan {
 
   @@map("teaching_plans")
 }
+
+enum TemplateCategory {
+  THEORY
+  EXPERIMENT
+  PRACTICE
+}
+
+model TeachingTemplate {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  category    TemplateCategory
+  structure   Json
+  isSystem    Boolean  @default(false)
+  creatorId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([category])
+  @@index([creatorId])
+  @@map("teaching_templates")
+}
