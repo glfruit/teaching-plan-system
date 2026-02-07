@@ -2,11 +2,8 @@ import { Elysia } from 'elysia'
 import { cors } from '@elysiajs/cors'
 import { authRoutes } from './routes/auth'
 import { teachingPlanRoutes } from './routes/teaching-plans'
-import { templateRoutes } from './routes/templates'
-import { semesterPlanRoutes } from './routes/semester-plans'
-import { weeklyPlanRoutes } from './routes/weekly-plans'
-import { courseScheduleRoutes } from './routes/course-schedules'
 import { exportRoutes } from './routes/export'
+import { analyticsRoutes } from './routes/analytics'
 
 const app = new Elysia()
   .use(cors({
@@ -15,11 +12,8 @@ const app = new Elysia()
   }))
   .use(authRoutes)
   .use(teachingPlanRoutes)
-  .use(templateRoutes)
-  .use(semesterPlanRoutes)
-  .use(weeklyPlanRoutes)
-  .use(courseScheduleRoutes)
   .use(exportRoutes)
+  .use(analyticsRoutes)
   .get('/health', () => ({
     status: 'ok',
     timestamp: new Date().toISOString()
