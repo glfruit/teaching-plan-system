@@ -183,4 +183,84 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
     };
     cache.set(cacheKey, data);
     return data;
+  })
+
+  /**
+   * 导出统计数据
+   */
+  .get('/export', async ({ user, query, set }) => {
+    // 1. 获取工作量数据
+    const workload = await prisma.teachingPlan.aggregate({
+      _sum: { duration: true },
+      _count: { id: true },
+      where: { teacherId: user!.userId }
+    });
+    
+    // 2. 获取执行状态数据
+    const execution = await prisma.teachingPlan.groupBy({
+      by: ['status'],
+      where: { teacherId: user!.userId },
+      _count: { status: true }
+    });
+    
+    // 3. 简单的质量概览 (仅计算平均分)
+    const plans = await prisma.teachingPlan.findMany({
+      where: { teacherId: user!.userId },
+      select: {
+        objectives: true,
+        keyPoints: true,
+        process: true
+      }
+    });
+    
+    let totalScore = 0;
+    if (plans.length > 0) {
+      for (const plan of plans) {
+        let score = 0;
+        if (plan.objectives?.length > 10) score += 33;
+        if (plan.keyPoints?.length > 5) score += 33;
+        if (plan.process?.length > 20) score += 34;
+        totalScore += Math.min(score, 100);
+      }
+    }
+    const qualityScore = plans.length > 0 ? Math.round(totalScore / plans.length) : 0;
+    
+    // 构造完整数据对象
+    const analyticsData = {
+      workload: {
+        totalPlans: workload._count.id,
+        totalDuration: workload._sum.duration || 0
+      },
+      execution: execution.map(e => ({ status: e.status, count: e._count.status })),
+      quality: {
+        averageScore: qualityScore
+      },
+      trend: {
+        // 简化起见，导出时不重新计算复杂的月度趋势，或者仅导出最近一个月的
+        timestamp: new Date().toISOString()
+      }
+    };
+
+    if (query.format === 'csv') {
+      let csv = 'Metric,Value\n';
+      csv += `Total Plans,${analyticsData.workload.totalPlans}\n`;
+      csv += `Total Duration (min),${analyticsData.workload.totalDuration}\n`;
+      csv += `Average Quality Score,${analyticsData.quality.averageScore}\n`;
+      
+      analyticsData.execution.forEach(e => {
+        csv += `Status: ${e.status},${e.count}\n`;
+      });
+      
+      set.headers['Content-Type'] = 'text/csv';
+      set.headers['Content-Disposition'] = 'attachment; filename="analytics.csv"';
+      return csv;
+    }
+    
+    // Default JSON
+    set.headers['Content-Type'] = 'application/json';
+    return analyticsData;
+  }, {
+    query: t.Object({
+      format: t.Optional(t.String())
+    })
   });
