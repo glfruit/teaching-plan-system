@@ -1,9 +1,34 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { usePlanStore } from './plan'
 
 describe('Plan Store', () => {
   beforeEach(() => {
+    // Mock localStorage
+    const store: Record<string, string> = {}
+    
+    const mockStorage = {
+      getItem: vi.fn((key) => store[key] || null),
+      setItem: vi.fn((key, value) => {
+        store[key] = String(value)
+      }),
+      removeItem: vi.fn((key) => {
+        delete store[key]
+      }),
+      clear: vi.fn(() => {
+        for (const key in store) {
+          delete store[key]
+        }
+      }),
+      length: 0,
+      key: vi.fn(),
+    } as any
+
+    Object.defineProperty(globalThis, 'localStorage', {
+      value: mockStorage,
+      writable: true
+    })
+
     setActivePinia(createPinia())
   })
 
