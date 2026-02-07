@@ -2,6 +2,7 @@ import { Elysia } from 'elysia'
 import { cors } from '@elysiajs/cors'
 import { authRoutes } from './routes/auth'
 import { teachingPlanRoutes } from './routes/teaching-plans'
+import { templateRoutes } from './routes/templates'
 import { exportRoutes } from './routes/export'
 
 const app = new Elysia()
@@ -11,6 +12,7 @@ const app = new Elysia()
   }))
   .use(authRoutes)
   .use(teachingPlanRoutes)
+  .use(templateRoutes)
   .use(exportRoutes)
   .get('/health', () => ({
     status: 'ok',
