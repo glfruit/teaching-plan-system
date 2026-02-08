@@ -37,10 +37,12 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import { useAnalyticsStore } from '../stores/analytics'
-import WorkloadChart from '../components/analytics/WorkloadChart.vue'
-import ExecutionChart from '../components/analytics/ExecutionChart.vue'
-import QualityChart from '../components/analytics/QualityChart.vue'
-import TrendChart from '../components/analytics/TrendChart.vue'
+import {
+  WorkloadChart,
+  ExecutionChart,
+  QualityChart,
+  TrendChart
+} from '../components/analytics'
 
 const store = useAnalyticsStore()
 

@@ -1,15 +1,13 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAnalyticsStore } from './analytics'
-
-// Properly mock the API module
-const { mockGetAnalytics } = vi.hoisted(() => ({
-  mockGetAnalytics: vi.fn()
-}))
+import { getAnalytics } from '../api/analytics'
 
 vi.mock('../api/analytics', () => ({
-  getAnalytics: mockGetAnalytics
+  getAnalytics: vi.fn()
 }))
+
+const mockGetAnalytics = getAnalytics as Mock
 
 describe('Analytics Store', () => {
   beforeEach(() => {
