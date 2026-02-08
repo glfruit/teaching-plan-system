@@ -4,6 +4,7 @@ import { authMiddleware, requireAuth } from '../middleware/auth';
 import { LRUCache } from 'lru-cache';
 import ExcelJS from 'exceljs';
 import PDFDocument from 'pdfkit';
+import { calculatePlanQuality } from '../utils/quality';
 
 const cache = new LRUCache<string, any>({
   max: 500,
@@ -32,6 +33,10 @@ async function fetchAnalyticsData(userId: string) {
       objectives: true,
       keyPoints: true,
       process: true,
+      reflection: true,
+      methods: true,
+      resources: true,
+      blackboard: true,
       createdAt: true
     }
   });
@@ -39,11 +44,8 @@ async function fetchAnalyticsData(userId: string) {
   let totalScore = 0;
   if (plans.length > 0) {
     for (const plan of plans) {
-      let score = 0;
-      if (plan.objectives?.length > 10) score += 33;
-      if (plan.keyPoints?.length > 5) score += 33;
-      if (plan.process?.length > 20) score += 34;
-      totalScore += Math.min(score, 100);
+      const { totalScore: score } = calculatePlanQuality(plan);
+      totalScore += score;
     }
   }
   const qualityScore = plans.length > 0 ? Math.round(totalScore / plans.length) : 0;
@@ -182,19 +184,8 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
     let totalScore = 0;
 
     for (const plan of plans) {
-      let score = 0;
-      // 必填字段检查
-      if (plan.objectives && plan.objectives.length > 10) score += 20;
-      if (plan.keyPoints && plan.keyPoints.length > 5) score += 20;
-      if (plan.process && plan.process.length > 20) score += 20;
-
-      // 选填字段检查
-      if (plan.reflection && plan.reflection.length > 0) score += 10;
-      if (plan.methods && plan.methods.length > 0) score += 10;
-      if (plan.resources && plan.resources.length > 0) score += 10;
-      if (plan.blackboard && plan.blackboard.length > 0) score += 10;
-      
-      totalScore += Math.min(score, 100);
+      const { totalScore: score } = calculatePlanQuality(plan);
+      totalScore += score;
     }
 
     const data = {
