@@ -141,7 +141,7 @@ teaching-plan-system/
 3. **Superpowers 工作流** - 使用 AI Agent 协作开发
 4. **Docker 优先** - 容器化部署
 
-详见 [WORKFLOW.md](./WORKFLOW.md)
+> 💡 **贡献者注意**: 项目使用 AI 辅助开发，相关配置位于 `.ai/` 目录。
 
 ## 🐳 生产部署
 
