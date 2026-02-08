@@ -182,6 +182,24 @@ describe('Analytics API', () => {
   });
 
   describe('POST /analytics/export', () => {
+    it('should export analytics data as CSV via POST', async () => {
+      const response = await app.handle(
+        new Request('http://localhost/analytics/export', {
+          method: 'POST',
+          headers: { 
+            'Authorization': `Bearer ${authToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ format: 'csv' })
+        })
+      );
+      
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toContain('text/csv');
+      const text = await response.text();
+      expect(text).toContain('Metric,Value');
+    });
+
     it('should export analytics data as Excel', async () => {
       const response = await app.handle(
         new Request('http://localhost/analytics/export', {
@@ -196,6 +214,10 @@ describe('Analytics API', () => {
       
       expect(response.status).toBe(200);
       expect(response.headers.get('Content-Type')).toContain('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      // Check for ZIP signature (PK\x03\x04)
+      expect(buffer.toString('hex').startsWith('504b0304')).toBe(true);
     });
 
     it('should export analytics data as PDF', async () => {
@@ -212,6 +234,10 @@ describe('Analytics API', () => {
       
       expect(response.status).toBe(200);
       expect(response.headers.get('Content-Type')).toContain('application/pdf');
+      const arrayBuffer = await response.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      // Check for PDF signature (%PDF)
+      expect(buffer.toString().startsWith('%PDF')).toBe(true);
     });
 
     it('should export analytics data as Word', async () => {

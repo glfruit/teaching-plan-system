@@ -12,16 +12,16 @@ const localStorageMock = (function() {
     setItem: function(key: string, value: string) {
       store[key] = value.toString()
     },
-    clear: function() {
-      store = {}
-    },
     removeItem: function(key: string) {
       delete store[key]
+    },
+    clear: function() {
+      store = {}
     }
   }
 })()
 
-Object.defineProperty(typeof window !== 'undefined' ? window : globalThis, 'localStorage', { value: localStorageMock })
+vi.stubGlobal('localStorage', localStorageMock)
 
 describe('Auth Store', () => {
   beforeEach(() => {
