@@ -59,6 +59,28 @@ export interface TeachingPlan {
   }
 }
 
+const RICH_TEXT_FIELDS = ['objectives', 'keyPoints', 'process', 'blackboard', 'reflection'] as const
+
+export const normalizeTeachingLayoutHtml = (html?: string) => {
+  if (!html || !html.trim()) {
+    return '<p></p>'
+  }
+  return html
+}
+
+export const normalizeTeachingPlanContent = <T extends Partial<TeachingPlan>>(data: T): T => {
+  const normalized = { ...data } as T
+
+  for (const field of RICH_TEXT_FIELDS) {
+    const value = data[field]
+    if (typeof value === 'string' || value === undefined) {
+      ;(normalized[field] as string | undefined) = normalizeTeachingLayoutHtml(value)
+    }
+  }
+
+  return normalized
+}
+
 export interface Pagination {
   page: number
   limit: number
@@ -138,7 +160,7 @@ export const usePlanStore = defineStore('plan', () => {
       const response = await api.get(`/teaching-plans/${id}`)
       
       if (response.data.success) {
-        currentPlan.value = response.data.data
+        currentPlan.value = normalizeTeachingPlanContent(response.data.data)
       }
       
       return response.data.data
@@ -158,7 +180,8 @@ export const usePlanStore = defineStore('plan', () => {
     error.value = null
 
     try {
-      const response = await api.post('/teaching-plans', data)
+      const normalizedData = normalizeTeachingPlanContent(data)
+      const response = await api.post('/teaching-plans', normalizedData)
       
       if (response.data.success) {
         currentPlan.value = response.data.data
@@ -180,7 +203,8 @@ export const usePlanStore = defineStore('plan', () => {
     error.value = null
 
     try {
-      const response = await api.put(`/teaching-plans/${id}`, data)
+      const normalizedData = normalizeTeachingPlanContent(data)
+      const response = await api.put(`/teaching-plans/${id}`, normalizedData)
       
       if (response.data.success) {
         currentPlan.value = response.data.data
