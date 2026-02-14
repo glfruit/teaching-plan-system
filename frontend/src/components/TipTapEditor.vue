@@ -1,5 +1,8 @@
 <template>
   <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+    <div v-if="operationMessage" class="px-3 py-2 text-sm text-amber-700 bg-amber-50 border-b border-amber-200">
+      {{ operationMessage }}
+    </div>
     <!-- Image Dialog -->
     <div v-if="showImageDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showImageDialog = false">
       <div class="bg-white rounded-xl p-6 w-full max-w-md mx-4 shadow-xl">
@@ -400,6 +403,38 @@
         >
           三栏块
         </button>
+        <button
+          @click="copyCurrentBlock"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="复制当前块"
+        >
+          复制块
+        </button>
+        <button
+          @click="deleteCurrentBlock"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="删除当前块"
+        >
+          删除块
+        </button>
+        <button
+          @click="moveCurrentBlockUp"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="上移当前块"
+        >
+          上移块
+        </button>
+        <button
+          @click="moveCurrentBlockDown"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="下移当前块"
+        >
+          下移块
+        </button>
       </div>
 
       <div class="w-px h-6 bg-slate-300 mx-1" />
@@ -417,7 +452,7 @@
       </button>
     </div>
 
-    <TeachingSlashMenu :items="slashMenuItems" @select="onSlashSelect" />
+    <TeachingSlashMenu v-if="isSlashMenuOpen" :items="slashMenuItems" @select="onSlashSelect" />
 
     <!-- Editor Content -->
     <div class="p-4">
@@ -427,10 +462,9 @@
 </template>
 
 <script setup lang="ts">
-import { Extension } from '@tiptap/core'
+import type { JSONContent } from '@tiptap/core'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
-import Suggestion from '@tiptap/suggestion'
 import Underline from '@tiptap/extension-underline'
 import Image from '@tiptap/extension-image'
 import { Table } from '@tiptap/extension-table'
@@ -445,47 +479,35 @@ import {
   insertLessonTimeline,
   insertActivityStepCard,
   insertGoalActivityAssessmentGrid,
+  copyCurrentTeachingNode,
+  deleteCurrentTeachingNode,
+  moveCurrentTeachingNodeUp,
+  moveCurrentTeachingNodeDown,
 } from './editor-nodes'
 import TeachingSlashMenu from './editor-slash/TeachingSlashMenu.vue'
 import {
-  teachingSlashItems,
   filterTeachingSlashItems,
   type TeachingSlashItem,
 } from './editor-slash/slashItems'
 
 const props = defineProps<{
   modelValue: string
+  modelJson?: JSONContent
 }>()
 
 const emit = defineEmits<{
   (e: 'update:modelValue', value: string): void
+  (e: 'update:modelJson', value: JSONContent): void
 }>()
 
 const showImageDialog = ref(false)
 const imageUrl = ref('')
 const slashQuery = ref('')
+const slashSelectedIndex = ref(0)
+const isSlashMenuOpen = ref(false)
+const operationMessage = ref('')
 
 const slashMenuItems = computed(() => filterTeachingSlashItems(slashQuery.value))
-
-const teachingSlash = Extension.create({
-  name: 'teachingSlash',
-  addProseMirrorPlugins() {
-    return [
-      Suggestion({
-        editor: this.editor,
-        char: '/',
-        items: ({ query }) => {
-          slashQuery.value = query
-          return filterTeachingSlashItems(query)
-        },
-        command: ({ editor, props }) => {
-          const item = props as TeachingSlashItem
-          item.command(editor)
-        },
-      }),
-    ]
-  },
-})
 
 const editor = useEditor({
   extensions: [
@@ -503,16 +525,96 @@ const editor = useEditor({
     lessonTimeline,
     activityStepCard,
     goalActivityAssessmentGrid,
-    teachingSlash,
   ],
-  content: props.modelValue,
+  content: props.modelJson || props.modelValue,
+  onCreate: ({ editor }) => {
+    emit('update:modelJson', editor.getJSON())
+    emit('update:modelValue', editor.getHTML())
+  },
+  editorProps: {
+    handleKeyDown: (_, event) => {
+      if (event.key === '/') {
+        isSlashMenuOpen.value = true
+        slashQuery.value = ''
+        slashSelectedIndex.value = 0
+        return false
+      }
+
+      if (!isSlashMenuOpen.value) {
+        return false
+      }
+
+      if (event.key === 'Escape') {
+        isSlashMenuOpen.value = false
+        return true
+      }
+
+      if (event.key === 'ArrowDown') {
+        event.preventDefault()
+        slashSelectedIndex.value = (slashSelectedIndex.value + 1) % Math.max(slashMenuItems.value.length, 1)
+        return true
+      }
+
+      if (event.key === 'ArrowUp') {
+        event.preventDefault()
+        const max = Math.max(slashMenuItems.value.length, 1)
+        slashSelectedIndex.value = (slashSelectedIndex.value - 1 + max) % max
+        return true
+      }
+
+      if (event.key === 'Backspace') {
+        if (!slashQuery.value) {
+          isSlashMenuOpen.value = false
+          return false
+        }
+        slashQuery.value = slashQuery.value.slice(0, -1)
+        slashSelectedIndex.value = 0
+        return false
+      }
+
+      if (event.key === 'Enter') {
+        event.preventDefault()
+        const item = slashMenuItems.value[slashSelectedIndex.value]
+        if (item) {
+          onSlashSelect(item)
+        }
+        return true
+      }
+
+      if (event.key.length === 1 && !event.metaKey && !event.ctrlKey && !event.altKey) {
+        if (/\s/.test(event.key)) {
+          isSlashMenuOpen.value = false
+          return false
+        }
+        slashQuery.value += event.key
+        slashSelectedIndex.value = 0
+      }
+
+      return false
+    },
+  },
   onUpdate: ({ editor }) => {
+    emit('update:modelJson', editor.getJSON())
     emit('update:modelValue', editor.getHTML())
   },
 })
 
-// Watch for external changes
+// Watch for external JSON changes (source of truth)
+watch(() => props.modelJson, (newValue) => {
+  if (!editor.value || !newValue) {
+    return
+  }
+
+  if (JSON.stringify(editor.value.getJSON()) !== JSON.stringify(newValue)) {
+    editor.value.commands.setContent(newValue, false)
+  }
+})
+
+// HTML is kept for preview/export compatibility
 watch(() => props.modelValue, (newValue) => {
+  if (props.modelJson) {
+    return
+  }
   if (editor.value && editor.value.getHTML() !== newValue) {
     editor.value.commands.setContent(newValue, false)
   }
@@ -584,25 +686,59 @@ const splitCell = () => {
 
 const insertTimelineBlock = () => {
   if (editor.value) {
-    insertLessonTimeline(editor.value)
+    const ok = insertLessonTimeline(editor.value)
+    operationMessage.value = ok ? '' : '当前位置不可插入该块，请先调整光标位置后重试。'
   }
 }
 
 const insertStepCardBlock = () => {
   if (editor.value) {
-    insertActivityStepCard(editor.value)
+    const ok = insertActivityStepCard(editor.value)
+    operationMessage.value = ok ? '' : '当前位置不可插入该块，请先调整光标位置后重试。'
   }
 }
 
 const insertGridBlock = () => {
   if (editor.value) {
-    insertGoalActivityAssessmentGrid(editor.value)
+    const ok = insertGoalActivityAssessmentGrid(editor.value)
+    operationMessage.value = ok ? '' : '当前位置不可插入该块，请先调整光标位置后重试。'
   }
 }
 
 const onSlashSelect = (item: TeachingSlashItem) => {
   if (editor.value) {
+    const slashTokenLength = slashQuery.value.length + 1
+    const cursor = editor.value.state.selection.from
+    const from = Math.max(1, cursor - slashTokenLength)
+    editor.value.chain().focus().deleteRange({ from, to: cursor }).run()
     item.command(editor.value)
+    isSlashMenuOpen.value = false
+    slashQuery.value = ''
+    slashSelectedIndex.value = 0
+  }
+}
+
+const copyCurrentBlock = () => {
+  if (editor.value) {
+    copyCurrentTeachingNode(editor.value)
+  }
+}
+
+const deleteCurrentBlock = () => {
+  if (editor.value) {
+    deleteCurrentTeachingNode(editor.value)
+  }
+}
+
+const moveCurrentBlockUp = () => {
+  if (editor.value) {
+    moveCurrentTeachingNodeUp(editor.value)
+  }
+}
+
+const moveCurrentBlockDown = () => {
+  if (editor.value) {
+    moveCurrentTeachingNodeDown(editor.value)
   }
 }
 </script>

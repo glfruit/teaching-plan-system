@@ -51,6 +51,7 @@ model TeachingPlan {
   methods       String?            @db.Text
   resources     String?            @db.Text
   htmlContent   String             @db.Text
+  contentJson   Json?
   status        TeachingPlanStatus @default(DRAFT)
   teacherId     String
   teacher       User               @relation(fields: [teacherId], references: [id], onDelete: Cascade)

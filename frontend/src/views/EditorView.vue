@@ -206,7 +206,7 @@
           教学目标
         </h2>
         
-        <TipTapEditor v-model="form.objectives" />
+        <TipTapEditor v-model="form.objectives" v-model:modelJson="form.contentJson.objectives" />
       </section>
 
       <!-- Key Points -->
@@ -218,7 +218,7 @@
           重点难点
         </h2>
         
-        <TipTapEditor v-model="form.keyPoints" />
+        <TipTapEditor v-model="form.keyPoints" v-model:modelJson="form.contentJson.keyPoints" />
       </section>
 
       <!-- Teaching Process -->
@@ -230,7 +230,7 @@
           教学过程
         </h2>
         
-        <TipTapEditor v-model="form.process" />
+        <TipTapEditor v-model="form.process" v-model:modelJson="form.contentJson.process" />
       </section>
 
       <!-- Blackboard Design -->
@@ -242,7 +242,7 @@
           板书设计
         </h2>
         
-        <TipTapEditor v-model="form.blackboard" />
+        <TipTapEditor v-model="form.blackboard" v-model:modelJson="form.contentJson.blackboard" />
       </section>
 
       <!-- Teaching Reflection -->
@@ -254,7 +254,7 @@
           教学反思
         </h2>
         
-        <TipTapEditor v-model="form.reflection" />
+        <TipTapEditor v-model="form.reflection" v-model:modelJson="form.contentJson.reflection" />
       </section>
     </main>
   </div>
@@ -262,6 +262,11 @@
 
 <script lang="ts">
 import type { TeachingPlan } from '../stores/plan'
+import type { JSONContent } from '@tiptap/core'
+
+export type EditorContentJson = Partial<
+  Record<'objectives' | 'keyPoints' | 'process' | 'blackboard' | 'reflection', JSONContent>
+>
 
 export type EditorPlanForm = {
   title: string
@@ -275,6 +280,7 @@ export type EditorPlanForm = {
   process: string
   blackboard: string
   reflection: string
+  contentJson: EditorContentJson
 }
 
 const fallbackRichText = (value?: string) => value || '<p></p>'
@@ -291,10 +297,12 @@ export const mapFetchedPlanToForm = (plan: Partial<TeachingPlan>): EditorPlanFor
   process: fallbackRichText(plan.process),
   blackboard: fallbackRichText(plan.blackboard),
   reflection: fallbackRichText(plan.reflection),
+  contentJson: plan.contentJson || {},
 })
 
 export const buildPlanPayload = (form: EditorPlanForm) => ({
   ...form,
+  contentJson: form.contentJson,
   htmlContent: form.process,
 })
 </script>
@@ -333,6 +341,7 @@ const form = reactive({
   process: '<p></p>',
   blackboard: '<p></p>',
   reflection: '<p></p>',
+  contentJson: {},
 })
 
 onMounted(async () => {

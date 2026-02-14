@@ -87,7 +87,13 @@ describe('Teaching Plan API', () => {
             blackboard: 'Vue 组件结构',
             methods: '讲授法',
             resources: 'PPT',
-            htmlContent: '<h1>Vue 3</h1>'
+            htmlContent: '<h1>Vue 3</h1>',
+            contentJson: {
+              process: {
+                type: 'doc',
+                content: [{ type: 'paragraph', content: [{ type: 'text', text: '理论+实践' }] }],
+              },
+            },
           })
         })
       );
@@ -99,6 +105,7 @@ describe('Teaching Plan API', () => {
       expect(data.data.courseName).toBe('前端开发');
       expect(data.data.status).toBe('DRAFT');
       expect(data.data.teacherId).toBe(testUserId);
+      expect(data.data.contentJson?.process?.type).toBe('doc');
       
       createdPlanId = data.data.id;
     });

@@ -186,6 +186,7 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
         methods: t.Optional(t.String()),
         resources: t.Optional(t.String()),
         htmlContent: t.String(),
+        contentJson: t.Optional(t.Any()),
         status: t.Optional(TeachingPlanStatus),
       }),
     }
@@ -252,6 +253,7 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
         methods: t.Optional(t.String()),
         resources: t.Optional(t.String()),
         htmlContent: t.Optional(t.String()),
+        contentJson: t.Optional(t.Any()),
         status: t.Optional(TeachingPlanStatus),
       }),
     }

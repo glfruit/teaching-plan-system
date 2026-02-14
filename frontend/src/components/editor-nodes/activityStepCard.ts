@@ -3,7 +3,8 @@ import { mergeAttributes, Node } from '@tiptap/core'
 export const activityStepCard = Node.create({
   name: 'activityStepCard',
   group: 'block',
-  atom: true,
+  content: 'block+',
+  defining: true,
   addAttributes() {
     return {
       title: {
@@ -38,7 +39,7 @@ export const activityStepCard = Node.create({
         ['button', { 'data-action': 'move-up' }, '上移'],
         ['button', { 'data-action': 'move-down' }, '下移'],
       ],
-      ['div', { 'data-node-placeholder': 'true' }, String(HTMLAttributes.starter ?? '')],
+      ['div', { 'data-node-content': 'true' }, 0],
     ]
   },
 })

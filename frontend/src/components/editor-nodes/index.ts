@@ -5,4 +5,8 @@ export {
   insertLessonTimeline,
   insertActivityStepCard,
   insertGoalActivityAssessmentGrid,
+  copyCurrentTeachingNode,
+  deleteCurrentTeachingNode,
+  moveCurrentTeachingNodeUp,
+  moveCurrentTeachingNodeDown,
 } from './commands'

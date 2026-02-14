@@ -112,5 +112,20 @@ describe('Plan Store', () => {
       })
       expect(normalized.process).toContain('data-node-type="goalActivityAssessmentGrid"')
     })
+
+    it('downgrades unknown contentJson node to paragraph and keeps text', () => {
+      const normalized = normalizeTeachingPlanContent({
+        contentJson: {
+          process: {
+            type: 'doc',
+            content: [{ type: 'unknownTeachingNode', attrs: { title: '保留文本' } }],
+          } as any,
+        },
+      })
+
+      const processJson = normalized.contentJson?.process as any
+      expect(processJson.content?.[0]?.type).toBe('paragraph')
+      expect(processJson.content?.[0]?.content?.[0]?.text).toContain('保留文本')
+    })
   })
 })

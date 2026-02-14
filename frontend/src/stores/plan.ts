@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import axios from 'axios'
+import type { JSONContent } from '@tiptap/core'
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
@@ -49,6 +50,9 @@ export interface TeachingPlan {
   methods: string
   resources: string
   htmlContent: string
+  contentJson?: Partial<
+    Record<'objectives' | 'keyPoints' | 'process' | 'blackboard' | 'reflection', JSONContent>
+  >
   status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
   createdAt?: string
   updatedAt?: string
@@ -60,12 +64,90 @@ export interface TeachingPlan {
 }
 
 const RICH_TEXT_FIELDS = ['objectives', 'keyPoints', 'process', 'blackboard', 'reflection'] as const
+const KNOWN_EDITOR_NODE_TYPES = new Set([
+  'doc',
+  'paragraph',
+  'text',
+  'heading',
+  'bulletList',
+  'orderedList',
+  'listItem',
+  'blockquote',
+  'codeBlock',
+  'hardBreak',
+  'horizontalRule',
+  'image',
+  'table',
+  'tableRow',
+  'tableCell',
+  'tableHeader',
+  'lessonTimeline',
+  'activityStepCard',
+  'goalActivityAssessmentGrid',
+])
 
 export const normalizeTeachingLayoutHtml = (html?: string) => {
   if (!html || !html.trim()) {
     return '<p></p>'
   }
   return html
+}
+
+const extractPlainText = (node: any): string => {
+  if (!node) {
+    return ''
+  }
+  if (typeof node.text === 'string') {
+    return node.text
+  }
+  if (typeof node.attrs?.title === 'string') {
+    return node.attrs.title
+  }
+  if (typeof node.attrs?.starter === 'string') {
+    return node.attrs.starter
+  }
+  if (Array.isArray(node.content)) {
+    return node.content.map(extractPlainText).join(' ').trim()
+  }
+  return ''
+}
+
+const downgradeUnknownNode = (node: any): any => ({
+  type: 'paragraph',
+  content: [{ type: 'text', text: extractPlainText(node) || '未识别内容' }],
+})
+
+const normalizeContentJsonNode = (node: any): any => {
+  if (!node || typeof node !== 'object') {
+    return downgradeUnknownNode(node)
+  }
+
+  if (typeof node.type !== 'string') {
+    return downgradeUnknownNode(node)
+  }
+
+  if (!KNOWN_EDITOR_NODE_TYPES.has(node.type)) {
+    return downgradeUnknownNode(node)
+  }
+
+  if (!Array.isArray(node.content)) {
+    return node
+  }
+
+  return {
+    ...node,
+    content: node.content.map(normalizeContentJsonNode),
+  }
+}
+
+const normalizeContentJson = (contentJson?: TeachingPlan['contentJson']) => {
+  if (!contentJson || typeof contentJson !== 'object') {
+    return {}
+  }
+
+  return Object.fromEntries(
+    Object.entries(contentJson).map(([key, value]) => [key, normalizeContentJsonNode(value)])
+  )
 }
 
 export const normalizeTeachingPlanContent = <T extends Partial<TeachingPlan>>(data: T): T => {
@@ -76,6 +158,10 @@ export const normalizeTeachingPlanContent = <T extends Partial<TeachingPlan>>(da
     if (typeof value === 'string' || value === undefined) {
       ;(normalized[field] as string | undefined) = normalizeTeachingLayoutHtml(value)
     }
+  }
+
+  if (data.contentJson && typeof data.contentJson === 'object') {
+    normalized.contentJson = normalizeContentJson(data.contentJson)
   }
 
   return normalized

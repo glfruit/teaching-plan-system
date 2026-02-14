@@ -3,7 +3,8 @@ import { mergeAttributes, Node } from '@tiptap/core'
 export const goalActivityAssessmentGrid = Node.create({
   name: 'goalActivityAssessmentGrid',
   group: 'block',
-  atom: true,
+  content: 'block+',
+  defining: true,
   addAttributes() {
     return {
       goal: {
@@ -43,7 +44,7 @@ export const goalActivityAssessmentGrid = Node.create({
         ['button', { 'data-action': 'move-up' }, '上移'],
         ['button', { 'data-action': 'move-down' }, '下移'],
       ],
-      ['div', { 'data-node-placeholder': 'true' }, String(HTMLAttributes.starter ?? '')],
+      ['div', { 'data-node-content': 'true' }, 0],
     ]
   },
 })
