@@ -209,7 +209,19 @@ Vue 响应式更新
 导出时: JSON → HTML → WPS API → Word/PDF
 ```
 
-### 3.3 性能考量（小规模部署）
+### 3.3 教学排版扩展（课时流程组）
+
+- 在 `frontend/src/components/editor-nodes/` 增加 3 个 TipTap 原子块节点：
+  - `lessonTimeline`（时间轴）
+  - `activityStepCard`（步骤卡）
+  - `goalActivityAssessmentGrid`（目标-活动-评价三栏块）
+- 节点统一使用 `data-node-type` 做 HTML 标记，保证序列化与回显兼容。
+- 插入命令集中在 `editor-nodes/commands.ts`，供两个入口复用：
+  - 工具栏按钮（可视化入口）
+  - Slash 菜单（`/时间轴`、`/步骤卡`、`/三栏块`）
+- 保存流程保持兼容：编辑内容继续经 TipTap HTML 渲染链路进入 `process/htmlContent` 字段，后端接口无需变更。
+
+### 3.4 性能考量（小规模部署）
 
 - **单实例部署**：< 50 并发，单容器足够
 - **无 Redis**：小规模无需缓存层，数据库查询足够快
