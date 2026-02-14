@@ -374,6 +374,36 @@
 
       <div class="w-px h-6 bg-slate-300 mx-1" />
 
+      <!-- Teaching Layout -->
+      <div class="flex items-center gap-0.5">
+        <button
+          @click="insertTimelineBlock"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="插入时间轴"
+        >
+          时间轴
+        </button>
+        <button
+          @click="insertStepCardBlock"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="插入步骤卡"
+        >
+          步骤卡
+        </button>
+        <button
+          @click="insertGridBlock"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="插入三栏块"
+        >
+          三栏块
+        </button>
+      </div>
+
+      <div class="w-px h-6 bg-slate-300 mx-1" />
+
       <!-- Clear -->
       <button
         @click="editor?.chain().focus().clearNodes().unsetAllMarks().run()"
@@ -404,6 +434,14 @@ import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
 import { watch, ref } from 'vue'
+import {
+  lessonTimeline,
+  activityStepCard,
+  goalActivityAssessmentGrid,
+  insertLessonTimeline,
+  insertActivityStepCard,
+  insertGoalActivityAssessmentGrid,
+} from './editor-nodes'
 
 const props = defineProps<{
   modelValue: string
@@ -429,6 +467,9 @@ const editor = useEditor({
     TableRow,
     TableCell,
     TableHeader,
+    lessonTimeline,
+    activityStepCard,
+    goalActivityAssessmentGrid,
   ],
   content: props.modelValue,
   onUpdate: ({ editor }) => {
@@ -505,5 +546,23 @@ const mergeCells = () => {
 // Split cell
 const splitCell = () => {
   editor.value?.chain().focus().splitCell().run()
+}
+
+const insertTimelineBlock = () => {
+  if (editor.value) {
+    insertLessonTimeline(editor.value)
+  }
+}
+
+const insertStepCardBlock = () => {
+  if (editor.value) {
+    insertActivityStepCard(editor.value)
+  }
+}
+
+const insertGridBlock = () => {
+  if (editor.value) {
+    insertGoalActivityAssessmentGrid(editor.value)
+  }
 }
 </script>
