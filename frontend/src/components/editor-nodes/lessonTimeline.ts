@@ -16,12 +16,29 @@ export const lessonTimeline = Node.create({
         parseHTML: (element) => Number(element.getAttribute('data-minutes') ?? 0),
         renderHTML: (attributes) => ({ 'data-minutes': String(attributes.minutes) }),
       },
+      starter: {
+        default: '示例：导入 10 分钟，讲解 20 分钟，练习 10 分钟',
+        parseHTML: (element) => element.getAttribute('data-starter') ?? '',
+        renderHTML: (attributes) => ({ 'data-starter': attributes.starter }),
+      },
     }
   },
   parseHTML() {
     return [{ tag: 'div[data-node-type="lessonTimeline"]' }]
   },
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { 'data-node-type': 'lessonTimeline' })]
+    return [
+      'div',
+      mergeAttributes(HTMLAttributes, { 'data-node-type': 'lessonTimeline' }),
+      [
+        'div',
+        { 'data-node-actions': 'true' },
+        ['button', { 'data-action': 'copy' }, '复制'],
+        ['button', { 'data-action': 'delete' }, '删除'],
+        ['button', { 'data-action': 'move-up' }, '上移'],
+        ['button', { 'data-action': 'move-down' }, '下移'],
+      ],
+      ['div', { 'data-node-placeholder': 'true' }, String(HTMLAttributes.starter ?? '')],
+    ]
   },
 })

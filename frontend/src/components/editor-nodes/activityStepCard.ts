@@ -16,12 +16,29 @@ export const activityStepCard = Node.create({
         parseHTML: (element) => element.getAttribute('data-steps') ?? '[]',
         renderHTML: (attributes) => ({ 'data-steps': attributes.steps }),
       },
+      starter: {
+        default: '示例：步骤1 观察，步骤2 讨论，步骤3 汇报',
+        parseHTML: (element) => element.getAttribute('data-starter') ?? '',
+        renderHTML: (attributes) => ({ 'data-starter': attributes.starter }),
+      },
     }
   },
   parseHTML() {
     return [{ tag: 'div[data-node-type="activityStepCard"]' }]
   },
   renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { 'data-node-type': 'activityStepCard' })]
+    return [
+      'div',
+      mergeAttributes(HTMLAttributes, { 'data-node-type': 'activityStepCard' }),
+      [
+        'div',
+        { 'data-node-actions': 'true' },
+        ['button', { 'data-action': 'copy' }, '复制'],
+        ['button', { 'data-action': 'delete' }, '删除'],
+        ['button', { 'data-action': 'move-up' }, '上移'],
+        ['button', { 'data-action': 'move-down' }, '下移'],
+      ],
+      ['div', { 'data-node-placeholder': 'true' }, String(HTMLAttributes.starter ?? '')],
+    ]
   },
 })
