@@ -374,6 +374,36 @@
 
       <div class="w-px h-6 bg-slate-300 mx-1" />
 
+      <!-- Teaching Layout -->
+      <div class="flex items-center gap-0.5">
+        <button
+          @click="insertTimelineBlock"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="插入时间轴"
+        >
+          时间轴
+        </button>
+        <button
+          @click="insertStepCardBlock"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="插入步骤卡"
+        >
+          步骤卡
+        </button>
+        <button
+          @click="insertGridBlock"
+          :disabled="!editor"
+          class="editor-toolbar-btn"
+          title="插入三栏块"
+        >
+          三栏块
+        </button>
+      </div>
+
+      <div class="w-px h-6 bg-slate-300 mx-1" />
+
       <!-- Clear -->
       <button
         @click="editor?.chain().focus().clearNodes().unsetAllMarks().run()"
@@ -387,6 +417,8 @@
       </button>
     </div>
 
+    <TeachingSlashMenu :items="slashMenuItems" @select="onSlashSelect" />
+
     <!-- Editor Content -->
     <div class="p-4">
       <EditorContent :editor="editor" class="prose max-w-none min-h-[200px]" />
@@ -395,15 +427,31 @@
 </template>
 
 <script setup lang="ts">
+import { Extension } from '@tiptap/core'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
+import Suggestion from '@tiptap/suggestion'
 import Underline from '@tiptap/extension-underline'
 import Image from '@tiptap/extension-image'
 import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
-import { watch, ref } from 'vue'
+import { watch, ref, computed } from 'vue'
+import {
+  lessonTimeline,
+  activityStepCard,
+  goalActivityAssessmentGrid,
+  insertLessonTimeline,
+  insertActivityStepCard,
+  insertGoalActivityAssessmentGrid,
+} from './editor-nodes'
+import TeachingSlashMenu from './editor-slash/TeachingSlashMenu.vue'
+import {
+  teachingSlashItems,
+  filterTeachingSlashItems,
+  type TeachingSlashItem,
+} from './editor-slash/slashItems'
 
 const props = defineProps<{
   modelValue: string
@@ -415,6 +463,29 @@ const emit = defineEmits<{
 
 const showImageDialog = ref(false)
 const imageUrl = ref('')
+const slashQuery = ref('')
+
+const slashMenuItems = computed(() => filterTeachingSlashItems(slashQuery.value))
+
+const teachingSlash = Extension.create({
+  name: 'teachingSlash',
+  addProseMirrorPlugins() {
+    return [
+      Suggestion({
+        editor: this.editor,
+        char: '/',
+        items: ({ query }) => {
+          slashQuery.value = query
+          return filterTeachingSlashItems(query)
+        },
+        command: ({ editor, props }) => {
+          const item = props as TeachingSlashItem
+          item.command(editor)
+        },
+      }),
+    ]
+  },
+})
 
 const editor = useEditor({
   extensions: [
@@ -429,6 +500,10 @@ const editor = useEditor({
     TableRow,
     TableCell,
     TableHeader,
+    lessonTimeline,
+    activityStepCard,
+    goalActivityAssessmentGrid,
+    teachingSlash,
   ],
   content: props.modelValue,
   onUpdate: ({ editor }) => {
@@ -505,5 +580,29 @@ const mergeCells = () => {
 // Split cell
 const splitCell = () => {
   editor.value?.chain().focus().splitCell().run()
+}
+
+const insertTimelineBlock = () => {
+  if (editor.value) {
+    insertLessonTimeline(editor.value)
+  }
+}
+
+const insertStepCardBlock = () => {
+  if (editor.value) {
+    insertActivityStepCard(editor.value)
+  }
+}
+
+const insertGridBlock = () => {
+  if (editor.value) {
+    insertGoalActivityAssessmentGrid(editor.value)
+  }
+}
+
+const onSlashSelect = (item: TeachingSlashItem) => {
+  if (editor.value) {
+    item.command(editor.value)
+  }
 }
 </script>

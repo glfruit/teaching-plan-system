@@ -260,6 +260,45 @@
   </div>
 </template>
 
+<script lang="ts">
+import type { TeachingPlan } from '../stores/plan'
+
+export type EditorPlanForm = {
+  title: string
+  courseName: string
+  className: string
+  duration: number
+  methods: string
+  resources: string
+  objectives: string
+  keyPoints: string
+  process: string
+  blackboard: string
+  reflection: string
+}
+
+const fallbackRichText = (value?: string) => value || '<p></p>'
+
+export const mapFetchedPlanToForm = (plan: Partial<TeachingPlan>): EditorPlanForm => ({
+  title: plan.title || '',
+  courseName: plan.courseName || '',
+  className: plan.className || '',
+  duration: plan.duration || 90,
+  methods: plan.methods || '',
+  resources: plan.resources || '',
+  objectives: fallbackRichText(plan.objectives),
+  keyPoints: fallbackRichText(plan.keyPoints),
+  process: fallbackRichText(plan.process),
+  blackboard: fallbackRichText(plan.blackboard),
+  reflection: fallbackRichText(plan.reflection),
+})
+
+export const buildPlanPayload = (form: EditorPlanForm) => ({
+  ...form,
+  htmlContent: form.process,
+})
+</script>
+
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -305,19 +344,8 @@ onMounted(async () => {
 const loadPlan = async () => {
   try {
     const plan = await planStore.fetchPlan(planId.value)
-    
-    // Populate form
-    form.title = plan.title
-    form.courseName = plan.courseName
-    form.className = plan.className
-    form.duration = plan.duration
-    form.methods = plan.methods || ''
-    form.resources = plan.resources || ''
-    form.objectives = plan.objectives || '<p></p>'
-    form.keyPoints = plan.keyPoints || '<p></p>'
-    form.process = plan.process || '<p></p>'
-    form.blackboard = plan.blackboard || '<p></p>'
-    form.reflection = plan.reflection || '<p></p>'
+    const mapped = mapFetchedPlanToForm(plan)
+    Object.assign(form, mapped)
     
     if (plan.updatedAt) {
       lastSaved.value = new Date(plan.updatedAt).toLocaleString('zh-CN')
@@ -336,10 +364,7 @@ const handleSave = async () => {
   }
   
   try {
-    const data = {
-      ...form,
-      htmlContent: form.process, // Use process as main HTML content
-    }
+    const data = buildPlanPayload(form)
     
     if (isEditing.value) {
       await planStore.updatePlan(planId.value, data)

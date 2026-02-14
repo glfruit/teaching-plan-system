@@ -4,18 +4,12 @@ import { createTestingPinia } from '@pinia/testing'
 import AnalyticsView from './AnalyticsView.vue'
 import { useAnalyticsStore } from '../stores/analytics'
 
-// Mock chart components
-vi.mock('../components/analytics/WorkloadChart.vue', () => ({
-  default: { template: '<div class="workload-chart"></div>' }
-}))
-vi.mock('../components/analytics/ExecutionChart.vue', () => ({
-  default: { template: '<div class="execution-chart"></div>' }
-}))
-vi.mock('../components/analytics/QualityChart.vue', () => ({
-  default: { template: '<div class="quality-chart"></div>' }
-}))
-vi.mock('../components/analytics/TrendChart.vue', () => ({
-  default: { template: '<div class="trend-chart"></div>' }
+// Mock chart exports used by AnalyticsView
+vi.mock('../components/analytics', () => ({
+  WorkloadChart: { template: '<div class="workload-chart"></div>' },
+  ExecutionChart: { template: '<div class="execution-chart"></div>' },
+  QualityChart: { template: '<div class="quality-chart"></div>' },
+  TrendChart: { template: '<div class="trend-chart"></div>' },
 }))
 
 describe('AnalyticsView', () => {

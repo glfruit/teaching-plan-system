@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
-import { usePlanStore } from './plan'
+import { usePlanStore, normalizeTeachingLayoutHtml, normalizeTeachingPlanContent } from './plan'
 
 describe('Plan Store', () => {
   beforeEach(() => {
@@ -97,6 +97,20 @@ describe('Plan Store', () => {
 
       expect(store.currentPlan).toBeNull()
       expect(store.error).toBeNull()
+    })
+  })
+
+  describe('teaching layout compatibility', () => {
+    it('keeps data-node-type markers in html payload', () => {
+      const html = '<div data-node-type="lessonTimeline" data-minutes="10"></div>'
+      expect(normalizeTeachingLayoutHtml(html)).toContain('data-node-type="lessonTimeline"')
+    })
+
+    it('normalizes rich text fields while keeping layout blocks', () => {
+      const normalized = normalizeTeachingPlanContent({
+        process: '<div data-node-type="goalActivityAssessmentGrid"></div>',
+      })
+      expect(normalized.process).toContain('data-node-type="goalActivityAssessmentGrid"')
     })
   })
 })
