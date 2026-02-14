@@ -417,6 +417,8 @@
       </button>
     </div>
 
+    <TeachingSlashMenu :items="slashMenuItems" @select="onSlashSelect" />
+
     <!-- Editor Content -->
     <div class="p-4">
       <EditorContent :editor="editor" class="prose max-w-none min-h-[200px]" />
@@ -425,15 +427,17 @@
 </template>
 
 <script setup lang="ts">
+import { Extension } from '@tiptap/core'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
+import Suggestion from '@tiptap/suggestion'
 import Underline from '@tiptap/extension-underline'
 import Image from '@tiptap/extension-image'
 import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
-import { watch, ref } from 'vue'
+import { watch, ref, computed } from 'vue'
 import {
   lessonTimeline,
   activityStepCard,
@@ -442,6 +446,12 @@ import {
   insertActivityStepCard,
   insertGoalActivityAssessmentGrid,
 } from './editor-nodes'
+import TeachingSlashMenu from './editor-slash/TeachingSlashMenu.vue'
+import {
+  teachingSlashItems,
+  filterTeachingSlashItems,
+  type TeachingSlashItem,
+} from './editor-slash/slashItems'
 
 const props = defineProps<{
   modelValue: string
@@ -453,6 +463,29 @@ const emit = defineEmits<{
 
 const showImageDialog = ref(false)
 const imageUrl = ref('')
+const slashQuery = ref('')
+
+const slashMenuItems = computed(() => filterTeachingSlashItems(slashQuery.value))
+
+const teachingSlash = Extension.create({
+  name: 'teachingSlash',
+  addProseMirrorPlugins() {
+    return [
+      Suggestion({
+        editor: this.editor,
+        char: '/',
+        items: ({ query }) => {
+          slashQuery.value = query
+          return filterTeachingSlashItems(query)
+        },
+        command: ({ editor, props }) => {
+          const item = props as TeachingSlashItem
+          item.command(editor)
+        },
+      }),
+    ]
+  },
+})
 
 const editor = useEditor({
   extensions: [
@@ -470,6 +503,7 @@ const editor = useEditor({
     lessonTimeline,
     activityStepCard,
     goalActivityAssessmentGrid,
+    teachingSlash,
   ],
   content: props.modelValue,
   onUpdate: ({ editor }) => {
@@ -563,6 +597,12 @@ const insertStepCardBlock = () => {
 const insertGridBlock = () => {
   if (editor.value) {
     insertGoalActivityAssessmentGrid(editor.value)
+  }
+}
+
+const onSlashSelect = (item: TeachingSlashItem) => {
+  if (editor.value) {
+    item.command(editor.value)
   }
 }
 </script>
