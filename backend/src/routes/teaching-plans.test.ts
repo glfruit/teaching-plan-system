@@ -4,12 +4,13 @@ import { teachingPlanRoutes } from './teaching-plans';
 import { authRoutes } from './auth';
 import { authMiddleware } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
+import { describeWithDatabase } from '../test-utils/withDatabase';
 
 /**
  * 教案 API 测试套件
  * 测试教案的 CRUD 操作、权限控制等功能
  */
-describe('Teaching Plan API', () => {
+describeWithDatabase('Teaching Plan API', () => {
   // 组合路由（需要认证 + 教案路由）
   const app = new Elysia()
     .use(authMiddleware)

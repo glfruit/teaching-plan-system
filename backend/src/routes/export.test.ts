@@ -5,12 +5,13 @@ import { authRoutes } from './auth';
 import { teachingPlanRoutes } from './teaching-plans';
 import { authMiddleware } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
+import { describeWithDatabase } from '../test-utils/withDatabase';
 
 /**
  * 导出 API 测试套件
  * 测试 Word 导出功能
  */
-describe('Export API', () => {
+describeWithDatabase('Export API', () => {
   // 组合路由
   const app = new Elysia()
     .use(authMiddleware)
@@ -182,17 +183,13 @@ describe('Export API', () => {
         return;
       }
       
-      // 即使导出服务出错，也不应该返回 200
-      // 因为我们还没有启动 Python 导出服务
-      expect([200, 500, 503]).toContain(response.status);
-      
-      if (response.status === 200) {
-        const contentType = response.headers.get('content-type');
-        expect(contentType).toContain('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
-        
-        const contentDisposition = response.headers.get('content-disposition');
-        expect(contentDisposition).toContain('.docx');
-      }
+      expect(response.status).toBe(200);
+
+      const contentType = response.headers.get('content-type');
+      expect(contentType).toContain('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+
+      const contentDisposition = response.headers.get('content-disposition');
+      expect(contentDisposition).toContain('.docx');
     });
   });
 });

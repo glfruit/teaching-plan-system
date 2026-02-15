@@ -23,4 +23,23 @@ describe('teaching layout node serialization', () => {
     expect(JSON.stringify(json)).toContain('minutes')
     expect(JSON.stringify(json)).toContain('环节一')
   })
+
+  it('does not output static data-action buttons in html', () => {
+    const editor = new Editor({
+      extensions: [StarterKit, lessonTimeline, activityStepCard, goalActivityAssessmentGrid],
+      content: {
+        type: 'doc',
+        content: [
+          {
+            type: 'activityStepCard',
+            content: [{ type: 'paragraph', content: [{ type: 'text', text: '步骤内容' }] }],
+          },
+        ],
+      },
+    })
+
+    const html = editor.getHTML()
+    expect(html).not.toContain('data-action=')
+    expect(html).toContain('data-node-type="activityStepCard"')
+  })
 })

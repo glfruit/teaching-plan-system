@@ -36,14 +36,6 @@ export const goalActivityAssessmentGrid = Node.create({
     return [
       'div',
       mergeAttributes(HTMLAttributes, { 'data-node-type': 'goalActivityAssessmentGrid' }),
-      [
-        'div',
-        { 'data-node-actions': 'true' },
-        ['button', { 'data-action': 'copy' }, '复制'],
-        ['button', { 'data-action': 'delete' }, '删除'],
-        ['button', { 'data-action': 'move-up' }, '上移'],
-        ['button', { 'data-action': 'move-down' }, '下移'],
-      ],
       ['div', { 'data-node-content': 'true' }, 0],
     ]
   },

@@ -1,5 +1,5 @@
 import { render, fireEvent, waitFor } from '@testing-library/vue'
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import TipTapEditor from '../TipTapEditor.vue'
 
 describe('TipTapEditor teaching layout toolbar', () => {
@@ -18,5 +18,16 @@ describe('TipTapEditor teaching layout toolbar', () => {
     await waitFor(() => {
       expect(container.querySelector('[data-node-type="lessonTimeline"]')).toBeTruthy()
     })
+  })
+
+  it('does not register duplicate extensions', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    render(TipTapEditor, { props: { modelValue: '<p></p>' } })
+
+    await waitFor(() => {
+      expect(warn).not.toHaveBeenCalledWith(expect.stringContaining('Duplicate extension names found'))
+    })
+
+    warn.mockRestore()
   })
 })

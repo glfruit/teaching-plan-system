@@ -17,26 +17,38 @@ describe('teaching layout commands', () => {
     const editor = new Editor({
       extensions: [StarterKit, lessonTimeline, activityStepCard, goalActivityAssessmentGrid],
     })
-    const ok = insertLessonTimeline(editor)
-    expect(ok).toBe(true)
-    expect(editor.getJSON().content?.[0]?.type).toBe('lessonTimeline')
+    try {
+      const ok = insertLessonTimeline(editor)
+      expect(ok).toBe(true)
+      expect(editor.getJSON().content?.[0]?.type).toBe('lessonTimeline')
+    } finally {
+      editor.destroy()
+    }
   })
 
   it('inserts step card node', () => {
     const editor = new Editor({
       extensions: [StarterKit, lessonTimeline, activityStepCard, goalActivityAssessmentGrid],
     })
-    const ok = insertActivityStepCard(editor)
-    expect(ok).toBe(true)
-    expect(editor.getJSON().content?.[0]?.type).toBe('activityStepCard')
+    try {
+      const ok = insertActivityStepCard(editor)
+      expect(ok).toBe(true)
+      expect(editor.getJSON().content?.[0]?.type).toBe('activityStepCard')
+    } finally {
+      editor.destroy()
+    }
   })
 
   it('inserts goal-activity-assessment grid node', () => {
     const editor = new Editor({
       extensions: [StarterKit, lessonTimeline, activityStepCard, goalActivityAssessmentGrid],
     })
-    const ok = insertGoalActivityAssessmentGrid(editor)
-    expect(ok).toBe(true)
-    expect(editor.getJSON().content?.[0]?.type).toBe('goalActivityAssessmentGrid')
+    try {
+      const ok = insertGoalActivityAssessmentGrid(editor)
+      expect(ok).toBe(true)
+      expect(editor.getJSON().content?.[0]?.type).toBe('goalActivityAssessmentGrid')
+    } finally {
+      editor.destroy()
+    }
   })
 })

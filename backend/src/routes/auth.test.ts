@@ -2,12 +2,13 @@ import { describe, it, expect, beforeAll } from 'bun:test';
 import { Elysia } from 'elysia';
 import { authRoutes } from './auth';
 import { prisma } from '../lib/prisma';
+import { describeWithDatabase } from '../test-utils/withDatabase';
 
 /**
  * 认证 API 测试套件
  * 测试注册、登录、JWT 验证等功能
  */
-describe('Auth API', () => {
+describeWithDatabase('Auth API', () => {
   const app = new Elysia().use(authRoutes);
   
   // 测试前清理测试数据

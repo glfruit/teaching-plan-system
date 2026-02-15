@@ -10,6 +10,7 @@ from docx.oxml.ns import qn
 import io
 import uvicorn
 from typing import Optional
+from urllib.parse import quote
 
 app = FastAPI(title="Teaching Plan Export Service")
 
@@ -210,7 +211,7 @@ async def export_word(data: TeachingPlanData):
             buffer,
             media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
             headers={
-                "Content-Disposition": f"attachment; filename*=UTF-8''{data.title}.docx"
+                "Content-Disposition": f"attachment; filename*=UTF-8''{quote(f'{data.title}.docx')}"
             }
         )
     except Exception as e:

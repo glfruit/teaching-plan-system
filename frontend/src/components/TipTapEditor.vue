@@ -465,7 +465,6 @@
 import type { JSONContent } from '@tiptap/core'
 import { useEditor, EditorContent } from '@tiptap/vue-3'
 import StarterKit from '@tiptap/starter-kit'
-import Underline from '@tiptap/extension-underline'
 import Image from '@tiptap/extension-image'
 import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'
@@ -512,7 +511,6 @@ const slashMenuItems = computed(() => filterTeachingSlashItems(slashQuery.value)
 const editor = useEditor({
   extensions: [
     StarterKit,
-    Underline,
     Image.configure({
       allowBase64: true,
     }),

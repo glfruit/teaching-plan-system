@@ -4,11 +4,12 @@ import { analyticsRoutes } from './analytics';
 import { authRoutes } from './auth';
 import { authMiddleware } from '../middleware/auth';
 import { prisma } from '../lib/prisma';
+import { describeWithDatabase } from '../test-utils/withDatabase';
 
 /**
  * 统计分析 API 测试套件
  */
-describe('Analytics API', () => {
+describeWithDatabase('Analytics API', () => {
   const app = new Elysia()
     .use(authMiddleware)
     .use(authRoutes)
