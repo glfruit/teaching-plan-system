@@ -188,6 +188,12 @@
               套用并覆盖
             </button>
             <button
+              @click="handleOpenTemplateEditor"
+              class="px-4 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50"
+            >
+              编辑模板
+            </button>
+            <button
               @click="handleDeleteTemplate"
               class="px-4 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
             >
@@ -196,6 +202,89 @@
           </div>
         </div>
       </section>
+
+      <div
+        v-if="showTemplateEditDialog"
+        class="fixed inset-0 z-40 bg-slate-900/50 p-4 overflow-y-auto"
+      >
+        <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 p-4 sm:p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-slate-800">编辑模板</h3>
+            <button
+              @click="handleCancelTemplateEdit"
+              class="px-3 py-1.5 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
+            >
+              关闭
+            </button>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-700 mb-2">模板标题</label>
+              <input
+                v-model="templateEditTitle"
+                type="text"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">课程名称</label>
+              <input
+                v-model="templateEditForm.courseName"
+                type="text"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">授课班级</label>
+              <input
+                v-model="templateEditForm.className"
+                type="text"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">教学目标</label>
+              <TipTapEditor
+                v-model="templateEditForm.objectives"
+                v-model:modelJson="templateEditForm.contentJson.objectives"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">重点难点</label>
+              <TipTapEditor
+                v-model="templateEditForm.keyPoints"
+                v-model:modelJson="templateEditForm.contentJson.keyPoints"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">教学过程</label>
+              <TipTapEditor
+                v-model="templateEditForm.process"
+                v-model:modelJson="templateEditForm.contentJson.process"
+              />
+            </div>
+            <div class="flex items-center justify-end gap-2">
+              <button
+                @click="handleCancelTemplateEdit"
+                class="px-4 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50"
+              >
+                取消
+              </button>
+              <button
+                @click="handleSaveTemplateEdits"
+                :disabled="templateStore.isSaving"
+                class="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                保存修改
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <!-- Basic Info -->
       <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6 mb-4 sm:mb-6">
@@ -553,6 +642,28 @@ export const buildPlanPayload = (form: EditorPlanForm) => ({
   contentJson: restoreUnknownNodesInContentJson(ensureCompleteContentJson(form)),
   htmlContent: form.process,
 })
+
+export const buildTemplateUpdatePayload = (
+  form: EditorPlanForm,
+  titleOverride?: string
+): Partial<TeachingPlan> => {
+  const payload = buildPlanPayload(form)
+  return {
+    ...payload,
+    title: titleOverride?.trim() || payload.title,
+  }
+}
+
+export const resolveTemplateEditSubmission = (
+  form: EditorPlanForm,
+  titleOverride: string,
+  shouldSubmit: boolean
+): Partial<TeachingPlan> | null => {
+  if (!shouldSubmit) {
+    return null
+  }
+  return buildTemplateUpdatePayload(form, titleOverride)
+}
 </script>
 
 <script setup lang="ts">
@@ -575,6 +686,9 @@ const showTemplatePanel = ref(false)
 const templateSearch = ref('')
 const selectedTemplateId = ref('')
 const templateTitle = ref('')
+const showTemplateEditDialog = ref(false)
+const editingTemplateId = ref('')
+const templateEditTitle = ref('')
 
 const isFormValid = computed(() => {
   return form.title.trim() && 
@@ -597,6 +711,23 @@ const form = reactive({
   reflection: '<p></p>',
   contentJson: {},
 })
+
+const createDefaultEditorForm = (): EditorPlanForm => ({
+  title: '',
+  courseName: '',
+  className: '',
+  duration: 90,
+  methods: '',
+  resources: '',
+  objectives: '<p></p>',
+  keyPoints: '<p></p>',
+  process: '<p></p>',
+  blackboard: '<p></p>',
+  reflection: '<p></p>',
+  contentJson: {},
+})
+
+const templateEditForm = reactive<EditorPlanForm>(createDefaultEditorForm())
 
 onMounted(async () => {
   if (isEditing.value) {
@@ -713,6 +844,52 @@ const handleDeleteTemplate = async () => {
     alert('模板已删除')
   } catch (error: any) {
     alert('删除模板失败: ' + (error.message || '未知错误'))
+  }
+}
+
+const handleOpenTemplateEditor = async () => {
+  if (!selectedTemplateId.value) {
+    alert('请先选择模板')
+    return
+  }
+  try {
+    const detail = await templateStore.fetchTemplate(selectedTemplateId.value)
+    const mapped = mapFetchedPlanToForm(detail)
+    Object.assign(templateEditForm, mapped)
+    templateEditTitle.value = detail.title || mapped.title
+    editingTemplateId.value = selectedTemplateId.value
+    showTemplateEditDialog.value = true
+  } catch (error: any) {
+    alert('加载模板详情失败: ' + (error.message || '未知错误'))
+  }
+}
+
+const handleSaveTemplateEdits = async () => {
+  if (!editingTemplateId.value) {
+    return
+  }
+  const payload = resolveTemplateEditSubmission(templateEditForm, templateEditTitle.value, true)
+  if (!payload) {
+    return
+  }
+  try {
+    await templateStore.updateTemplate(editingTemplateId.value, payload)
+    showTemplateEditDialog.value = false
+    editingTemplateId.value = ''
+    await loadTemplates()
+    alert('模板修改成功')
+  } catch (error: any) {
+    alert('模板修改失败: ' + (error.message || '未知错误'))
+  }
+}
+
+const handleCancelTemplateEdit = () => {
+  const payload = resolveTemplateEditSubmission(templateEditForm, templateEditTitle.value, false)
+  if (payload === null) {
+    showTemplateEditDialog.value = false
+    editingTemplateId.value = ''
+    Object.assign(templateEditForm, createDefaultEditorForm())
+    templateEditTitle.value = ''
   }
 }
 

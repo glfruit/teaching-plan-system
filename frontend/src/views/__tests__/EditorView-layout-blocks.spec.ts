@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import {
   applyTemplateToForm,
   applyTemplateWithConfirmation,
+  buildTemplateUpdatePayload,
+  resolveTemplateEditSubmission,
   buildPlanPayload,
   mapFetchedPlanToForm,
 } from '../EditorView.vue'
@@ -267,5 +269,46 @@ describe('EditorView teaching layout persistence', () => {
     expect(result).toBe(current)
     expect(result.title).toBe('当前教案')
     expect(result.process).toContain('当前过程')
+  })
+
+  it('builds template update payload with edited title and restorable contentJson', () => {
+    const edited = {
+      title: '原模板标题',
+      courseName: '语文',
+      className: '二班',
+      duration: 40,
+      methods: '讨论法',
+      resources: '讲义',
+      objectives: '<p>模板目标</p>',
+      keyPoints: '<p>模板重点</p>',
+      process: '<p>模板过程</p>',
+      blackboard: '<p>模板板书</p>',
+      reflection: '<p>模板反思</p>',
+      contentJson: {},
+    }
+
+    const payload = buildTemplateUpdatePayload(edited as any, '新模板标题')
+    expect(payload.title).toBe('新模板标题')
+    expect((payload.contentJson?.process as any).type).toBe('doc')
+  })
+
+  it('returns null when template edit submission is canceled', () => {
+    const edited = {
+      title: '原模板标题',
+      courseName: '语文',
+      className: '二班',
+      duration: 40,
+      methods: '讨论法',
+      resources: '讲义',
+      objectives: '<p>模板目标</p>',
+      keyPoints: '<p>模板重点</p>',
+      process: '<p>模板过程</p>',
+      blackboard: '<p>模板板书</p>',
+      reflection: '<p>模板反思</p>',
+      contentJson: {},
+    }
+
+    const canceled = resolveTemplateEditSubmission(edited as any, '新模板标题', false)
+    expect(canceled).toBeNull()
   })
 })
