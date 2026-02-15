@@ -143,4 +143,44 @@ describe('EditorView teaching layout persistence', () => {
     expect((processJson.content?.[0] as any).attrs?.activity).toBe('小组实验')
     expect((processJson.content?.[0] as any).attrs?.assessment).toBe('口头反馈')
   })
+
+  it('restores unknown placeholder node back to original payload on save', () => {
+    const rawUnknownNode = {
+      type: 'futureTeachingBlock',
+      attrs: { version: 'v2', title: '未来节点' },
+      content: [{ type: 'text', text: 'payload' }],
+    }
+
+    const payload = buildPlanPayload({
+      title: 'test',
+      courseName: 'course',
+      className: 'class',
+      duration: 90,
+      methods: '',
+      resources: '',
+      objectives: '<p>obj</p>',
+      keyPoints: '<p>key</p>',
+      process: '<p></p>',
+      blackboard: '<p></p>',
+      reflection: '<p></p>',
+      contentJson: {
+        process: {
+          type: 'doc',
+          content: [
+            {
+              type: 'unknownNodePlaceholder',
+              attrs: {
+                originalType: 'futureTeachingBlock',
+                summary: '未来节点',
+                rawJson: JSON.stringify(rawUnknownNode),
+              },
+            },
+          ],
+        },
+      },
+    })
+
+    const processJson = payload.contentJson?.process as JSONContent
+    expect(processJson.content?.[0]).toEqual(rawUnknownNode as any)
+  })
 })

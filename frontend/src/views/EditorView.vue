@@ -291,6 +291,7 @@ const KNOWN_LAYOUT_NODE_TYPES = new Set([
   'activityStepCard',
   'goalActivityAssessmentGrid',
 ])
+const UNKNOWN_PLACEHOLDER_NODE_TYPE = 'unknownNodePlaceholder'
 
 const createTextParagraph = (text: string): JSONContent => ({
   type: 'paragraph',
@@ -384,6 +385,47 @@ const ensureCompleteContentJson = (form: EditorPlanForm): EditorContentJson => {
   return result
 }
 
+const restoreUnknownPlaceholderNode = (node: any): any => {
+  if (!node || typeof node !== 'object') {
+    return node
+  }
+
+  if (node.type === UNKNOWN_PLACEHOLDER_NODE_TYPE) {
+    const rawJson = typeof node.attrs?.rawJson === 'string' ? node.attrs.rawJson : ''
+    if (rawJson) {
+      try {
+        return JSON.parse(rawJson)
+      } catch {
+        return createTextParagraph(node.attrs?.summary || '未识别内容')
+      }
+    }
+    return createTextParagraph(node.attrs?.summary || '未识别内容')
+  }
+
+  if (!Array.isArray(node.content)) {
+    return node
+  }
+
+  return {
+    ...node,
+    content: node.content.map(restoreUnknownPlaceholderNode),
+  }
+}
+
+const restoreUnknownNodesInContentJson = (contentJson: EditorContentJson): EditorContentJson => {
+  const restored: EditorContentJson = {}
+
+  for (const field of RICH_TEXT_FIELDS) {
+    const section = contentJson[field]
+    if (!section) {
+      continue
+    }
+    restored[field] = restoreUnknownPlaceholderNode(section)
+  }
+
+  return restored
+}
+
 export const mapFetchedPlanToForm = (plan: Partial<TeachingPlan>): EditorPlanForm => ({
   title: plan.title || '',
   courseName: plan.courseName || '',
@@ -401,7 +443,7 @@ export const mapFetchedPlanToForm = (plan: Partial<TeachingPlan>): EditorPlanFor
 
 export const buildPlanPayload = (form: EditorPlanForm) => ({
   ...form,
-  contentJson: ensureCompleteContentJson(form),
+  contentJson: restoreUnknownNodesInContentJson(ensureCompleteContentJson(form)),
   htmlContent: form.process,
 })
 </script>

@@ -113,19 +113,30 @@ describe('Plan Store', () => {
       expect(normalized.process).toContain('data-node-type="goalActivityAssessmentGrid"')
     })
 
-    it('downgrades unknown contentJson node to paragraph and keeps text', () => {
+    it('converts unknown contentJson node to readonly placeholder and preserves raw payload', () => {
       const normalized = normalizeTeachingPlanContent({
         contentJson: {
           process: {
             type: 'doc',
-            content: [{ type: 'unknownTeachingNode', attrs: { title: '保留文本' } }],
+            content: [
+              {
+                type: 'unknownTeachingNode',
+                attrs: { title: '保留文本', score: 1 },
+                content: [{ type: 'text', text: '原始内容' }],
+              },
+            ],
           } as any,
         },
       })
 
       const processJson = normalized.contentJson?.process as any
-      expect(processJson.content?.[0]?.type).toBe('paragraph')
-      expect(processJson.content?.[0]?.content?.[0]?.text).toContain('保留文本')
+      expect(processJson.content?.[0]?.type).toBe('unknownNodePlaceholder')
+      expect(processJson.content?.[0]?.attrs?.originalType).toBe('unknownTeachingNode')
+      expect(processJson.content?.[0]?.attrs?.summary).toContain('保留文本')
+      expect(JSON.parse(processJson.content?.[0]?.attrs?.rawJson)).toMatchObject({
+        type: 'unknownTeachingNode',
+        attrs: { title: '保留文本', score: 1 },
+      })
     })
   })
 })

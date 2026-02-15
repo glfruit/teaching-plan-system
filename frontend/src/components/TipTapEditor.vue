@@ -475,6 +475,7 @@ import {
   lessonTimeline,
   activityStepCard,
   goalActivityAssessmentGrid,
+  unknownNodePlaceholder,
   insertLessonTimeline,
   insertActivityStepCard,
   insertGoalActivityAssessmentGrid,
@@ -523,6 +524,7 @@ const editor = useEditor({
     lessonTimeline,
     activityStepCard,
     goalActivityAssessmentGrid,
+    unknownNodePlaceholder,
   ],
   content: props.modelJson || props.modelValue,
   onCreate: ({ editor }) => {

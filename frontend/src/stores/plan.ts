@@ -84,6 +84,7 @@ const KNOWN_EDITOR_NODE_TYPES = new Set([
   'lessonTimeline',
   'activityStepCard',
   'goalActivityAssessmentGrid',
+  'unknownNodePlaceholder',
 ])
 
 export const normalizeTeachingLayoutHtml = (html?: string) => {
@@ -112,6 +113,28 @@ const extractPlainText = (node: any): string => {
   return ''
 }
 
+const safeStringifyNode = (node: any): string => {
+  try {
+    return JSON.stringify(node)
+  } catch {
+    return JSON.stringify({
+      type: typeof node?.type === 'string' ? node.type : 'unknown',
+      attrs: {},
+      content: [],
+    })
+  }
+}
+
+const createUnknownNodePlaceholder = (node: any): any => ({
+  type: 'unknownNodePlaceholder',
+  attrs: {
+    originalType: typeof node?.type === 'string' ? node.type : 'unknown',
+    summary: extractPlainText(node) || '未识别内容',
+    rawJson: safeStringifyNode(node),
+    readonly: true,
+  },
+})
+
 const downgradeUnknownNode = (node: any): any => ({
   type: 'paragraph',
   content: [{ type: 'text', text: extractPlainText(node) || '未识别内容' }],
@@ -127,7 +150,7 @@ const normalizeContentJsonNode = (node: any): any => {
   }
 
   if (!KNOWN_EDITOR_NODE_TYPES.has(node.type)) {
-    return downgradeUnknownNode(node)
+    return createUnknownNodePlaceholder(node)
   }
 
   if (!Array.isArray(node.content)) {

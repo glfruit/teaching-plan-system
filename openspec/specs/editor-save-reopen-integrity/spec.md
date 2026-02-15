@@ -11,6 +11,11 @@ The system SHALL construct a valid ProseMirror-like document JSON for each rich-
 - **THEN** the payload SHALL include `contentJson.process` as a valid document JSON
 - **AND** known teaching-layout markers SHALL be converted to corresponding node types
 
+#### Scenario: Unknown node exists in section JSON
+- **WHEN** a section JSON contains an unknown node type from a newer/foreign editor version
+- **THEN** save/reopen SHALL not crash the editor workflow
+- **AND** the unknown node SHALL remain restorable through placeholder-based persistence
+
 ### Requirement: Known teaching-layout blocks MUST be preserved in fallback
 The system MUST preserve known teaching-layout block semantics when deriving JSON from HTML fallback data.
 
@@ -26,4 +31,3 @@ The system SHALL keep plain-text compatibility for legacy HTML without block mar
 - **WHEN** section HTML contains plain paragraph text without known markers
 - **THEN** derived section JSON SHALL be a valid document with paragraph/text content
 - **AND** text content SHALL remain readable after reopen
-

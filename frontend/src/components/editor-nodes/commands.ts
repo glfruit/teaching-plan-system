@@ -5,6 +5,7 @@ const TEACHING_NODE_TYPES = new Set([
   'lessonTimeline',
   'activityStepCard',
   'goalActivityAssessmentGrid',
+  'unknownNodePlaceholder',
 ])
 
 const createStarterParagraph = (text: string): JSONContent[] => [

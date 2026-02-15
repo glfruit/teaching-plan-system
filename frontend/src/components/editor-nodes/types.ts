@@ -2,3 +2,4 @@ export type TeachingLayoutNodeName =
   | 'lessonTimeline'
   | 'activityStepCard'
   | 'goalActivityAssessmentGrid'
+  | 'unknownNodePlaceholder'

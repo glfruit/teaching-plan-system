@@ -30,4 +30,45 @@ describe('TipTapEditor teaching layout toolbar', () => {
 
     warn.mockRestore()
   })
+
+  it('renders unknown placeholder as readonly and allows deleting it', async () => {
+    const rawUnknownNode = {
+      type: 'futureTeachingBlock',
+      attrs: { title: '未来节点' },
+      content: [{ type: 'text', text: 'payload' }],
+    }
+
+    const modelJson = {
+      type: 'doc',
+      content: [
+        {
+          type: 'unknownNodePlaceholder',
+          attrs: {
+            originalType: 'futureTeachingBlock',
+            summary: '未来节点',
+            rawJson: JSON.stringify(rawUnknownNode),
+          },
+        },
+      ],
+    }
+
+    const { container, getByTitle } = render(TipTapEditor, {
+      props: { modelValue: '<p></p>', modelJson },
+    })
+
+    await waitFor(() => {
+      const placeholder = container.querySelector('[data-node-type="unknownNodePlaceholder"]') as HTMLElement | null
+      expect(placeholder).toBeTruthy()
+      expect(placeholder?.textContent).toContain('只读')
+      expect(placeholder?.getAttribute('contenteditable')).toBe('false')
+    })
+
+    const placeholder = container.querySelector('[data-node-type="unknownNodePlaceholder"]') as HTMLElement
+    await fireEvent.click(placeholder)
+    await fireEvent.click(getByTitle('删除当前块'))
+
+    await waitFor(() => {
+      expect(container.querySelector('[data-node-type="unknownNodePlaceholder"]')).toBeNull()
+    })
+  })
 })
