@@ -1,9 +1,5 @@
-# personal-plan-templates Specification
+## MODIFIED Requirements
 
-## Purpose
-Provide teacher-owned reusable full-plan templates to reduce repeated lesson plan authoring work.
-
-## Requirements
 ### Requirement: Teacher SHALL manage personal full-plan templates
 The system SHALL provide CRUD capabilities for teacher-owned plan templates, and each template MUST be accessible only by its owner.
 
@@ -38,23 +34,3 @@ The system SHALL provide CRUD capabilities for teacher-owned plan templates, and
 #### Scenario: Filter templates by tag
 - **WHEN** a teacher requests template list with a tag filter
 - **THEN** the system SHALL return only templates containing that tag
-
-### Requirement: System SHALL support save-current-plan-as-template
-The system SHALL allow teachers to save current editor form data as a new personal template, including rich-text HTML and section JSON.
-
-#### Scenario: Save current plan as template from editor
-- **WHEN** a teacher triggers "save as template" in editor with complete form data
-- **THEN** the system SHALL create a template containing all configured plan fields
-- **AND** stored `contentJson` SHALL remain structurally valid for reopen
-
-### Requirement: Applying template SHALL overwrite current plan form
-The system SHALL support full-template application that overwrites the current plan form fields after explicit user confirmation.
-
-#### Scenario: Confirm overwrite and apply
-- **WHEN** a teacher confirms applying a selected template in editor
-- **THEN** the client SHALL replace current form fields with template data in one operation
-- **AND** the editor SHALL reflect the new rich-text and block content immediately
-
-#### Scenario: Cancel overwrite
-- **WHEN** a teacher cancels the apply confirmation
-- **THEN** the current plan form SHALL remain unchanged

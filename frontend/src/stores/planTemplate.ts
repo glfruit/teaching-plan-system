@@ -49,10 +49,14 @@ export interface PlanTemplate {
   contentJson?: Partial<
     Record<'objectives' | 'keyPoints' | 'process' | 'blackboard' | 'reflection', JSONContent>
   >
+  tags?: string[]
   teacherId?: string
   createdAt?: string
   updatedAt?: string
 }
+
+export const normalizeTemplateTags = (tags?: string[]) =>
+  Array.from(new Set((tags || []).map((item) => item.trim()).filter((item) => item.length > 0)))
 
 export const usePlanTemplateStore = defineStore('planTemplate', () => {
   const templates = ref<PlanTemplate[]>([])
@@ -60,7 +64,12 @@ export const usePlanTemplateStore = defineStore('planTemplate', () => {
   const isSaving = ref(false)
   const error = ref<string | null>(null)
 
-  const fetchTemplates = async (params?: { page?: number; limit?: number; search?: string }) => {
+  const fetchTemplates = async (params?: {
+    page?: number
+    limit?: number
+    search?: string
+    tag?: string
+  }) => {
     isLoading.value = true
     error.value = null
     try {
@@ -68,6 +77,7 @@ export const usePlanTemplateStore = defineStore('planTemplate', () => {
       if (params?.page) queryParams.append('page', String(params.page))
       if (params?.limit) queryParams.append('limit', String(params.limit))
       if (params?.search) queryParams.append('search', params.search)
+      if (params?.tag) queryParams.append('tag', params.tag)
       const query = queryParams.toString()
       const response = await api.get(`/plan-templates${query ? `?${query}` : ''}`)
       if (response.data.success) {
@@ -86,7 +96,10 @@ export const usePlanTemplateStore = defineStore('planTemplate', () => {
     isSaving.value = true
     error.value = null
     try {
-      const response = await api.post('/plan-templates', payload)
+      const response = await api.post('/plan-templates', {
+        ...payload,
+        tags: normalizeTemplateTags(payload.tags),
+      })
       if (response.data.success) {
         templates.value.unshift(response.data.data)
         return response.data.data as PlanTemplate
@@ -118,7 +131,10 @@ export const usePlanTemplateStore = defineStore('planTemplate', () => {
     isSaving.value = true
     error.value = null
     try {
-      const response = await api.patch(`/plan-templates/${id}`, payload)
+      const response = await api.patch(`/plan-templates/${id}`, {
+        ...payload,
+        tags: payload.tags ? normalizeTemplateTags(payload.tags) : undefined,
+      })
       if (response.data.success) {
         const index = templates.value.findIndex((item) => item.id === id)
         if (index >= 0) {

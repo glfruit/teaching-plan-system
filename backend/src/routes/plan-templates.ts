@@ -16,6 +16,7 @@ const createBodySchema = t.Object({
   resources: t.Optional(t.String()),
   htmlContent: t.String(),
   contentJson: t.Optional(t.Any()),
+  tags: t.Optional(t.Array(t.String())),
 });
 
 const updateBodySchema = t.Object({
@@ -32,7 +33,21 @@ const updateBodySchema = t.Object({
   resources: t.Optional(t.String()),
   htmlContent: t.Optional(t.String()),
   contentJson: t.Optional(t.Any()),
+  tags: t.Optional(t.Array(t.String())),
 });
+
+const normalizeTags = (tags?: string[]) => {
+  if (!Array.isArray(tags)) {
+    return [];
+  }
+  return Array.from(
+    new Set(
+      tags
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0)
+    )
+  );
+};
 
 export const planTemplateRoutes = new Elysia({ prefix: '/plan-templates' })
   .use(authMiddleware)
@@ -47,6 +62,9 @@ export const planTemplateRoutes = new Elysia({ prefix: '/plan-templates' })
       const where: any = { teacherId: user!.userId };
       if (query?.search) {
         where.title = { contains: query.search };
+      }
+      if (query?.tag) {
+        where.tags = { has: query.tag };
       }
 
       const [items, total] = await Promise.all([
@@ -77,6 +95,7 @@ export const planTemplateRoutes = new Elysia({ prefix: '/plan-templates' })
         page: t.Optional(t.String()),
         limit: t.Optional(t.String()),
         search: t.Optional(t.String()),
+        tag: t.Optional(t.String()),
       }),
     }
   )
@@ -104,6 +123,7 @@ export const planTemplateRoutes = new Elysia({ prefix: '/plan-templates' })
       const template = await prisma.planTemplate.create({
         data: {
           ...body,
+          tags: normalizeTags(body.tags),
           teacherId: user!.userId,
         },
       });
@@ -134,6 +154,7 @@ export const planTemplateRoutes = new Elysia({ prefix: '/plan-templates' })
         where: { id: params.id },
         data: {
           ...body,
+          tags: body.tags ? normalizeTags(body.tags) : undefined,
           updatedAt: new Date(),
         },
       });

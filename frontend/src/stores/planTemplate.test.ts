@@ -23,7 +23,7 @@ vi.mock('axios', () => ({
   },
 }))
 
-import { usePlanTemplateStore } from './planTemplate'
+import { normalizeTemplateTags, usePlanTemplateStore } from './planTemplate'
 
 describe('PlanTemplate Store', () => {
   beforeEach(() => {
@@ -45,9 +45,9 @@ describe('PlanTemplate Store', () => {
     })
     const store = usePlanTemplateStore()
 
-    await store.fetchTemplates({ page: 1, limit: 10, search: '模板' })
+    await store.fetchTemplates({ page: 1, limit: 10, search: '模板', tag: '导入' })
 
-    expect(mockGet).toHaveBeenCalledWith('/plan-templates?page=1&limit=10&search=%E6%A8%A1%E6%9D%BF')
+    expect(mockGet).toHaveBeenCalledWith('/plan-templates?page=1&limit=10&search=%E6%A8%A1%E6%9D%BF&tag=%E5%AF%BC%E5%85%A5')
     expect(store.templates).toHaveLength(1)
     expect(store.templates[0].title).toBe('模板A')
   })
@@ -75,9 +75,14 @@ describe('PlanTemplate Store', () => {
       resources: '',
       htmlContent: '<p>proc</p>',
       contentJson: {},
+      tags: ['导入', '探究', '导入'],
     })
 
     expect(result?.id).toBe('t-2')
+    expect(mockPost).toHaveBeenCalledWith(
+      '/plan-templates',
+      expect.objectContaining({ tags: ['导入', '探究'] })
+    )
     expect(store.templates[0].id).toBe('t-2')
   })
 
@@ -147,5 +152,9 @@ describe('PlanTemplate Store', () => {
     await store.updateTemplate('t-3', { title: '已更新模板' })
     expect(mockPatch).toHaveBeenCalledWith('/plan-templates/t-3', { title: '已更新模板' })
     expect(store.templates[0].title).toBe('已更新模板')
+  })
+
+  it('normalizes tags by trim and dedupe', () => {
+    expect(normalizeTemplateTags([' 导入 ', '探究', '', '导入'])).toEqual(['导入', '探究'])
   })
 })

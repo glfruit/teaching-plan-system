@@ -166,6 +166,41 @@
                 保存模板
               </button>
             </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button
+                v-for="tag in PRESET_TEMPLATE_TAGS"
+                :key="`create-${tag}`"
+                @click="handleAddCreateTag(tag)"
+                class="px-2 py-1 text-xs text-slate-700 bg-slate-100 rounded-full hover:bg-slate-200"
+              >
+                +{{ tag }}
+              </button>
+            </div>
+            <div class="mt-2 flex gap-2">
+              <input
+                v-model="templateTagInput"
+                type="text"
+                placeholder="自定义标签（回车添加）"
+                @keydown.enter.prevent="handleAddCreateTag(templateTagInput)"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+              <button
+                @click="handleAddCreateTag(templateTagInput)"
+                class="px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50"
+              >
+                添加
+              </button>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <span
+                v-for="tag in templateDraftTags"
+                :key="`draft-${tag}`"
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-full"
+              >
+                {{ tag }}
+                <button @click="handleRemoveCreateTag(tag)">×</button>
+              </span>
+            </div>
           </div>
         </div>
 
@@ -198,6 +233,30 @@
               class="px-4 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
             >
               删除模板
+            </button>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button
+              @click="handleSelectTagFilter('')"
+              :class="[
+                'px-2 py-1 text-xs rounded-full border',
+                selectedTagFilter ? 'text-slate-700 border-slate-300' : 'text-blue-700 border-blue-300 bg-blue-50',
+              ]"
+            >
+              全部
+            </button>
+            <button
+              v-for="tag in PRESET_TEMPLATE_TAGS"
+              :key="`filter-${tag}`"
+              @click="handleSelectTagFilter(tag)"
+              :class="[
+                'px-2 py-1 text-xs rounded-full border',
+                selectedTagFilter === tag
+                  ? 'text-blue-700 border-blue-300 bg-blue-50'
+                  : 'text-slate-700 border-slate-300',
+              ]"
+            >
+              {{ tag }}
             </button>
           </div>
         </div>
@@ -242,6 +301,44 @@
                 type="text"
                 class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="block text-sm font-medium text-slate-700 mb-2">模板标签</label>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="tag in PRESET_TEMPLATE_TAGS"
+                :key="`edit-${tag}`"
+                @click="handleAddEditTag(tag)"
+                class="px-2 py-1 text-xs text-slate-700 bg-slate-100 rounded-full hover:bg-slate-200"
+              >
+                +{{ tag }}
+              </button>
+            </div>
+            <div class="mt-2 flex gap-2">
+              <input
+                v-model="templateEditTagInput"
+                type="text"
+                placeholder="自定义标签（回车添加）"
+                @keydown.enter.prevent="handleAddEditTag(templateEditTagInput)"
+                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+              <button
+                @click="handleAddEditTag(templateEditTagInput)"
+                class="px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50"
+              >
+                添加
+              </button>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <span
+                v-for="tag in templateEditTags"
+                :key="`edit-chip-${tag}`"
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-full"
+              >
+                {{ tag }}
+                <button @click="handleRemoveEditTag(tag)">×</button>
+              </span>
             </div>
           </div>
 
@@ -672,6 +769,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { usePlanStore } from '../stores/plan'
 import { usePlanTemplateStore } from '../stores/planTemplate'
 import TipTapEditor from '../components/TipTapEditor.vue'
+import { normalizeTemplateTags } from '../stores/planTemplate'
 
 const route = useRoute()
 const router = useRouter()
@@ -686,9 +784,15 @@ const showTemplatePanel = ref(false)
 const templateSearch = ref('')
 const selectedTemplateId = ref('')
 const templateTitle = ref('')
+const selectedTagFilter = ref('')
+const templateTagInput = ref('')
+const templateDraftTags = ref<string[]>([])
 const showTemplateEditDialog = ref(false)
 const editingTemplateId = ref('')
 const templateEditTitle = ref('')
+const templateEditTagInput = ref('')
+const templateEditTags = ref<string[]>([])
+const PRESET_TEMPLATE_TAGS = ['导入', '探究', '复习', '实验', '评价'] as const
 
 const isFormValid = computed(() => {
   return form.title.trim() && 
@@ -783,6 +887,7 @@ const loadTemplates = async () => {
       page: 1,
       limit: 50,
       search: templateSearch.value.trim() || undefined,
+      tag: selectedTagFilter.value || undefined,
     })
   } catch (error) {
     console.error('加载模板失败:', error)
@@ -804,8 +909,11 @@ const handleSaveAsTemplate = async () => {
     await templateStore.createTemplate({
       ...payload,
       title: templateTitle.value.trim() || `${form.title.trim()} 模板`,
+      tags: templateDraftTags.value,
     })
     templateTitle.value = ''
+    templateDraftTags.value = []
+    templateTagInput.value = ''
     await loadTemplates()
     alert('模板保存成功')
   } catch (error: any) {
@@ -857,6 +965,8 @@ const handleOpenTemplateEditor = async () => {
     const mapped = mapFetchedPlanToForm(detail)
     Object.assign(templateEditForm, mapped)
     templateEditTitle.value = detail.title || mapped.title
+    templateEditTags.value = normalizeTemplateTags(detail.tags)
+    templateEditTagInput.value = ''
     editingTemplateId.value = selectedTemplateId.value
     showTemplateEditDialog.value = true
   } catch (error: any) {
@@ -873,7 +983,10 @@ const handleSaveTemplateEdits = async () => {
     return
   }
   try {
-    await templateStore.updateTemplate(editingTemplateId.value, payload)
+    await templateStore.updateTemplate(editingTemplateId.value, {
+      ...payload,
+      tags: templateEditTags.value,
+    })
     showTemplateEditDialog.value = false
     editingTemplateId.value = ''
     await loadTemplates()
@@ -890,7 +1003,32 @@ const handleCancelTemplateEdit = () => {
     editingTemplateId.value = ''
     Object.assign(templateEditForm, createDefaultEditorForm())
     templateEditTitle.value = ''
+    templateEditTags.value = []
+    templateEditTagInput.value = ''
   }
+}
+
+const handleAddCreateTag = (rawTag: string) => {
+  templateDraftTags.value = normalizeTemplateTags([...templateDraftTags.value, rawTag])
+  templateTagInput.value = ''
+}
+
+const handleRemoveCreateTag = (tag: string) => {
+  templateDraftTags.value = templateDraftTags.value.filter((item) => item !== tag)
+}
+
+const handleAddEditTag = (rawTag: string) => {
+  templateEditTags.value = normalizeTemplateTags([...templateEditTags.value, rawTag])
+  templateEditTagInput.value = ''
+}
+
+const handleRemoveEditTag = (tag: string) => {
+  templateEditTags.value = templateEditTags.value.filter((item) => item !== tag)
+}
+
+const handleSelectTagFilter = async (tag: string) => {
+  selectedTagFilter.value = tag
+  await loadTemplates()
 }
 
 const handlePublish = async () => {

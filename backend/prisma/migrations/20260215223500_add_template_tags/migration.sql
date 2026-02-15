@@ -1,0 +1,2 @@
+ALTER TABLE "plan_templates"
+ADD COLUMN "tags" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[];

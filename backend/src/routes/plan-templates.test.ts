@@ -37,6 +37,7 @@ describeWithDatabase('Plan Template API', () => {
         content: [{ type: 'paragraph', content: [{ type: 'text', text: '流程' }] }],
       },
     },
+    tags: ['导入', '探究'],
   };
 
   beforeAll(async () => {
@@ -117,6 +118,7 @@ describeWithDatabase('Plan Template API', () => {
     expect(data.success).toBe(true);
     expect(data.data.teacherId).toBe(testUserId);
     expect(data.data.title).toBe(templatePayload.title);
+    expect(data.data.tags).toEqual(['导入', '探究']);
     templateId = data.data.id;
   });
 
@@ -148,6 +150,34 @@ describeWithDatabase('Plan Template API', () => {
     expect(data.success).toBe(true);
     expect(Array.isArray(data.data.items)).toBe(true);
     expect(data.data.items.every((item: any) => item.teacherId === testUserId)).toBe(true);
+  });
+
+  it('should filter templates by tag and persist updated tags', async () => {
+    const updateResponse = await app.handle(
+      new Request(`http://localhost/plan-templates/${templateId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ tags: ['复习', '导入'] }),
+      })
+    );
+    expect(updateResponse.status).toBe(200);
+    const updated = await updateResponse.json();
+    expect(updated.data.tags).toEqual(['复习', '导入']);
+
+    const filtered = await app.handle(
+      new Request('http://localhost/plan-templates?tag=复习', {
+        headers: {
+          Authorization: `Bearer ${authToken}`,
+        },
+      })
+    );
+    expect(filtered.status).toBe(200);
+    const filteredData = await filtered.json();
+    expect(filteredData.data.items.length).toBeGreaterThan(0);
+    expect(filteredData.data.items.every((item: any) => item.tags?.includes('复习'))).toBe(true);
   });
 
   it('should reject cross-user access on get/update/delete', async () => {
