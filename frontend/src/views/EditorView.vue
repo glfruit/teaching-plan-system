@@ -267,6 +267,7 @@ import type { JSONContent } from '@tiptap/core'
 export type EditorContentJson = Partial<
   Record<'objectives' | 'keyPoints' | 'process' | 'blackboard' | 'reflection', JSONContent>
 >
+type RichTextField = keyof EditorContentJson
 
 export type EditorPlanForm = {
   title: string
@@ -284,6 +285,104 @@ export type EditorPlanForm = {
 }
 
 const fallbackRichText = (value?: string) => value || '<p></p>'
+const RICH_TEXT_FIELDS: RichTextField[] = ['objectives', 'keyPoints', 'process', 'blackboard', 'reflection']
+const KNOWN_LAYOUT_NODE_TYPES = new Set([
+  'lessonTimeline',
+  'activityStepCard',
+  'goalActivityAssessmentGrid',
+])
+
+const createTextParagraph = (text: string): JSONContent => ({
+  type: 'paragraph',
+  content: [{ type: 'text', text }],
+})
+
+const htmlToText = (html: string): string =>
+  html
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<\/p>/gi, '\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+
+const buildLayoutNodeFromTag = (type: string, tag: string): JSONContent | null => {
+  if (!KNOWN_LAYOUT_NODE_TYPES.has(type)) {
+    return null
+  }
+
+  const starter = tag.match(/data-starter=\"([^\"]*)\"/i)?.[1]
+  const starterText = starter || '示例：请根据本节教学安排补充内容'
+  const baseContent = [createTextParagraph(starterText)]
+
+  if (type === 'lessonTimeline') {
+    const title = tag.match(/data-title=\"([^\"]*)\"/i)?.[1] || '时间轴'
+    const minutesRaw = tag.match(/data-minutes=\"([^\"]*)\"/i)?.[1]
+    const minutes = minutesRaw ? Number(minutesRaw) || 0 : 0
+    return { type, attrs: { title, minutes, starter: starterText }, content: baseContent }
+  }
+
+  if (type === 'activityStepCard') {
+    const title = tag.match(/data-title=\"([^\"]*)\"/i)?.[1] || '步骤卡'
+    const steps = tag.match(/data-steps=\"([^\"]*)\"/i)?.[1] || '[]'
+    return { type, attrs: { title, steps, starter: starterText }, content: baseContent }
+  }
+
+  const goal = tag.match(/data-goal=\"([^\"]*)\"/i)?.[1] || ''
+  const activity = tag.match(/data-activity=\"([^\"]*)\"/i)?.[1] || ''
+  const assessment = tag.match(/data-assessment=\"([^\"]*)\"/i)?.[1] || ''
+  return { type, attrs: { goal, activity, assessment, starter: starterText }, content: baseContent }
+}
+
+const deriveDocFromHtml = (html?: string): JSONContent => {
+  if (!html || !html.trim()) {
+    return { type: 'doc', content: [createTextParagraph('')] }
+  }
+
+  const content: JSONContent[] = []
+  const markerTagRegex = /<[^>]*data-node-type=\"([^\"]+)\"[^>]*>/gi
+  let match: RegExpExecArray | null
+
+  while ((match = markerTagRegex.exec(html)) !== null) {
+    const type = match[1]
+    const tag = match[0]
+    const node = buildLayoutNodeFromTag(type, tag)
+    if (node) {
+      content.push(node)
+    }
+  }
+
+  if (content.length === 0) {
+    const text = htmlToText(html)
+    content.push(createTextParagraph(text))
+  }
+
+  return { type: 'doc', content }
+}
+
+const isValidDoc = (value: unknown): value is JSONContent => {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+  const doc = value as JSONContent
+  return doc.type === 'doc' && Array.isArray(doc.content)
+}
+
+const ensureCompleteContentJson = (form: EditorPlanForm): EditorContentJson => {
+  const result: EditorContentJson = {}
+  const source = form.contentJson || {}
+
+  for (const field of RICH_TEXT_FIELDS) {
+    const existing = source[field]
+    if (isValidDoc(existing)) {
+      result[field] = existing
+      continue
+    }
+    result[field] = deriveDocFromHtml(form[field])
+  }
+
+  return result
+}
 
 export const mapFetchedPlanToForm = (plan: Partial<TeachingPlan>): EditorPlanForm => ({
   title: plan.title || '',
@@ -302,7 +401,7 @@ export const mapFetchedPlanToForm = (plan: Partial<TeachingPlan>): EditorPlanFor
 
 export const buildPlanPayload = (form: EditorPlanForm) => ({
   ...form,
-  contentJson: form.contentJson,
+  contentJson: ensureCompleteContentJson(form),
   htmlContent: form.process,
 })
 </script>
