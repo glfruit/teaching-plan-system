@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest'
-import { buildPlanPayload, mapFetchedPlanToForm } from '../EditorView.vue'
+import {
+  applyTemplateToForm,
+  applyTemplateWithConfirmation,
+  buildPlanPayload,
+  mapFetchedPlanToForm,
+} from '../EditorView.vue'
 import type { JSONContent } from '@tiptap/core'
 
 describe('EditorView teaching layout persistence', () => {
@@ -182,5 +187,85 @@ describe('EditorView teaching layout persistence', () => {
 
     const processJson = payload.contentJson?.process as JSONContent
     expect(processJson.content?.[0]).toEqual(rawUnknownNode as any)
+  })
+
+  it('applies template as full overwrite for editor form', () => {
+    const current = {
+      title: '当前教案',
+      courseName: '数学',
+      className: '一班',
+      duration: 45,
+      methods: '讲授法',
+      resources: 'PPT',
+      objectives: '<p>当前目标</p>',
+      keyPoints: '<p>当前重点</p>',
+      process: '<p>当前过程</p>',
+      blackboard: '<p>当前板书</p>',
+      reflection: '<p>当前反思</p>',
+      contentJson: {},
+    }
+
+    const template = {
+      title: '模板教案',
+      courseName: '语文',
+      className: '二班',
+      duration: 40,
+      methods: '讨论法',
+      resources: '讲义',
+      objectives: '<p>模板目标</p>',
+      keyPoints: '<p>模板重点</p>',
+      process: '<p>模板过程</p>',
+      blackboard: '<p>模板板书</p>',
+      reflection: '<p>模板反思</p>',
+      contentJson: {
+        process: {
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: '模板过程' }] }],
+        },
+      },
+    }
+
+    const merged = applyTemplateToForm(current as any, template as any)
+    expect(merged.title).toBe('模板教案')
+    expect(merged.courseName).toBe('语文')
+    expect(merged.duration).toBe(40)
+    expect(merged.process).toContain('模板过程')
+    expect((merged.contentJson.process as any).type).toBe('doc')
+  })
+
+  it('keeps form unchanged when template apply is not confirmed', () => {
+    const current = {
+      title: '当前教案',
+      courseName: '数学',
+      className: '一班',
+      duration: 45,
+      methods: '讲授法',
+      resources: 'PPT',
+      objectives: '<p>当前目标</p>',
+      keyPoints: '<p>当前重点</p>',
+      process: '<p>当前过程</p>',
+      blackboard: '<p>当前板书</p>',
+      reflection: '<p>当前反思</p>',
+      contentJson: {},
+    }
+    const template = {
+      title: '模板教案',
+      courseName: '语文',
+      className: '二班',
+      duration: 40,
+      methods: '讨论法',
+      resources: '讲义',
+      objectives: '<p>模板目标</p>',
+      keyPoints: '<p>模板重点</p>',
+      process: '<p>模板过程</p>',
+      blackboard: '<p>模板板书</p>',
+      reflection: '<p>模板反思</p>',
+      contentJson: {},
+    }
+
+    const result = applyTemplateWithConfirmation(current as any, template as any, false)
+    expect(result).toBe(current)
+    expect(result.title).toBe('当前教案')
+    expect(result.process).toContain('当前过程')
   })
 })

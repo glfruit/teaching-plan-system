@@ -36,6 +36,13 @@
             <!-- Desktop Buttons -->
             <div class="hidden sm:flex items-center gap-3">
               <button
+                @click="showTemplatePanel = !showTemplatePanel"
+                class="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+              >
+                {{ showTemplatePanel ? '收起模板' : '模板库' }}
+              </button>
+
+              <button
                 v-if="isEditing"
                 @click="handleExport"
                 class="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
@@ -77,6 +84,13 @@
         <!-- Mobile Actions Menu -->
         <div v-if="showMobileActions" class="sm:hidden border-t border-slate-200 py-3 space-y-2">
           <button
+            @click="showTemplatePanel = !showTemplatePanel"
+            class="w-full flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50 rounded-lg"
+          >
+            模板库
+          </button>
+
+          <button
             v-if="isEditing"
             @click="handleExport"
             class="w-full flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50 rounded-lg"
@@ -111,6 +125,77 @@
       >
         {{ planStore.error }}
       </div>
+
+      <section
+        v-if="showTemplatePanel"
+        class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6 mb-4 sm:mb-6"
+      >
+        <h2 class="text-base sm:text-lg font-semibold text-slate-800 mb-4">我的模板</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">模板检索</label>
+            <div class="flex gap-2">
+              <input
+                v-model="templateSearch"
+                type="text"
+                placeholder="输入模板标题关键词"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+              <button
+                @click="handleSearchTemplates"
+                class="px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50"
+              >
+                查询
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-700 mb-2">另存为模板</label>
+            <div class="flex gap-2">
+              <input
+                v-model="templateTitle"
+                type="text"
+                placeholder="默认使用当前教案标题"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+              <button
+                @click="handleSaveAsTemplate"
+                :disabled="templateStore.isSaving"
+                class="px-3 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                保存模板
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4">
+          <label class="block text-sm font-medium text-slate-700 mb-2">选择模板并覆盖当前教案</label>
+          <div class="flex flex-col sm:flex-row gap-2">
+            <select
+              v-model="selectedTemplateId"
+              class="flex-1 px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            >
+              <option value="">请选择模板</option>
+              <option v-for="item in templateStore.templates" :key="item.id" :value="item.id">
+                {{ item.title }}（{{ item.updatedAt ? new Date(item.updatedAt).toLocaleDateString('zh-CN') : '新建' }}）
+              </option>
+            </select>
+            <button
+              @click="handleApplyTemplate"
+              class="px-4 py-2 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
+            >
+              套用并覆盖
+            </button>
+            <button
+              @click="handleDeleteTemplate"
+              class="px-4 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
+            >
+              删除模板
+            </button>
+          </div>
+        </div>
+      </section>
 
       <!-- Basic Info -->
       <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6 mb-4 sm:mb-6">
@@ -441,6 +526,28 @@ export const mapFetchedPlanToForm = (plan: Partial<TeachingPlan>): EditorPlanFor
   contentJson: plan.contentJson || {},
 })
 
+export const applyTemplateToForm = (
+  current: EditorPlanForm,
+  template: Partial<TeachingPlan>
+): EditorPlanForm => {
+  const mapped = mapFetchedPlanToForm(template)
+  return {
+    ...current,
+    ...mapped,
+  }
+}
+
+export const applyTemplateWithConfirmation = (
+  current: EditorPlanForm,
+  template: Partial<TeachingPlan>,
+  confirmed: boolean
+): EditorPlanForm => {
+  if (!confirmed) {
+    return current
+  }
+  return applyTemplateToForm(current, template)
+}
+
 export const buildPlanPayload = (form: EditorPlanForm) => ({
   ...form,
   contentJson: restoreUnknownNodesInContentJson(ensureCompleteContentJson(form)),
@@ -452,16 +559,22 @@ export const buildPlanPayload = (form: EditorPlanForm) => ({
 import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlanStore } from '../stores/plan'
+import { usePlanTemplateStore } from '../stores/planTemplate'
 import TipTapEditor from '../components/TipTapEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
 const planStore = usePlanStore()
+const templateStore = usePlanTemplateStore()
 
 const planId = computed(() => route.params.id as string)
 const isEditing = computed(() => !!planId.value)
 const lastSaved = ref('')
 const showMobileActions = ref(false)
+const showTemplatePanel = ref(false)
+const templateSearch = ref('')
+const selectedTemplateId = ref('')
+const templateTitle = ref('')
 
 const isFormValid = computed(() => {
   return form.title.trim() && 
@@ -489,6 +602,7 @@ onMounted(async () => {
   if (isEditing.value) {
     await loadPlan()
   }
+  await loadTemplates()
 })
 
 const loadPlan = async () => {
@@ -529,6 +643,76 @@ const handleSave = async () => {
     lastSaved.value = new Date().toLocaleString('zh-CN')
   } catch (error: any) {
     alert('保存失败: ' + (error.message || '未知错误'))
+  }
+}
+
+const loadTemplates = async () => {
+  try {
+    await templateStore.fetchTemplates({
+      page: 1,
+      limit: 50,
+      search: templateSearch.value.trim() || undefined,
+    })
+  } catch (error) {
+    console.error('加载模板失败:', error)
+  }
+}
+
+const handleSearchTemplates = async () => {
+  await loadTemplates()
+}
+
+const handleSaveAsTemplate = async () => {
+  if (!form.title.trim() && !templateTitle.value.trim()) {
+    alert('请先填写教案标题或模板标题')
+    return
+  }
+
+  try {
+    const payload = buildPlanPayload(form as EditorPlanForm)
+    await templateStore.createTemplate({
+      ...payload,
+      title: templateTitle.value.trim() || `${form.title.trim()} 模板`,
+    })
+    templateTitle.value = ''
+    await loadTemplates()
+    alert('模板保存成功')
+  } catch (error: any) {
+    alert('模板保存失败: ' + (error.message || '未知错误'))
+  }
+}
+
+const handleApplyTemplate = async () => {
+  const selected = templateStore.templates.find((item) => item.id === selectedTemplateId.value)
+  if (!selected) {
+    alert('请先选择模板')
+    return
+  }
+  const confirmed = confirm('套用模板将覆盖当前表单内容，是否继续？')
+  const nextForm = applyTemplateWithConfirmation(form as EditorPlanForm, selected, confirmed)
+  if (nextForm === form) {
+    return
+  }
+  Object.assign(form, nextForm)
+  alert('模板已覆盖当前教案内容')
+}
+
+const handleDeleteTemplate = async () => {
+  if (!selectedTemplateId.value) {
+    alert('请先选择模板')
+    return
+  }
+  if (!confirm('确定删除该模板吗？')) {
+    return
+  }
+
+  try {
+    await templateStore.deleteTemplate(selectedTemplateId.value)
+    selectedTemplateId.value = ''
+    await loadTemplates()
+    alert('模板已删除')
+  } catch (error: any) {
+    alert('删除模板失败: ' + (error.message || '未知错误'))
   }
 }
 
