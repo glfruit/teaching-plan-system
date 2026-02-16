@@ -1,336 +1,118 @@
 <template>
-  <div class="min-h-screen bg-slate-50">
-    <!-- Header -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center gap-3">
-            <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg">
-              <svg class="w-5 h-5 sm:w-6 sm:h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-            </div>
-            <h1 class="text-lg sm:text-xl font-bold text-slate-800">教案管理系统</h1>
-          </div>
-          
-          <div class="flex items-center gap-2 sm:gap-4">
-            <!-- Mobile Menu Button -->
-            <button
-              @click="showMobileMenu = !showMobileMenu"
-              class="sm:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg"
-            >
-              <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
-            
-            <!-- Desktop Menu -->
-            <div class="hidden sm:flex items-center gap-4">
-              <!-- User Info -->
-              <div class="flex items-center gap-2 text-sm text-slate-600">
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span>{{ authStore.user?.username }}</span>
-              </div>
-              
-              <!-- Logout -->
-              <button
-                @click="handleLogout"
-                class="p-2 text-slate-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                title="退出登录"
-              >
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                </svg>
-              </button>
-              
-              <router-link
-                to="/editor"
-                class="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm"
-                @click="console.log('[HomeView] New plan button clicked')"
-              >
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-                </svg>
-                <span>新建教案</span>
-              </router-link>
-            </div>
-            
-            <!-- Mobile New Button -->
-            <router-link
-              to="/editor"
-              class="sm:hidden inline-flex items-center justify-center w-10 h-10 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-            >
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-              </svg>
-            </router-link>
-          </div>
-        </div>
-      </div>
-      
-      <!-- Mobile Menu -->
-      <div v-if="showMobileMenu" class="sm:hidden border-t border-slate-200 bg-white px-4 py-3">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center gap-2 text-sm text-slate-600">
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            <span>{{ authStore.user?.username }}</span>
-          </div>
-          <button
-            @click="handleLogout"
-            class="flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 rounded-lg"
-          >
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
-            退出登录
-          </button>
-        </div>
-      </div>
-    </header>
+  <div class="min-h-screen bg-warm-50">
+    <NavBar
+      :username="authStore.user?.username || ''"
+      @new="router.push('/editor')"
+      @logout="handleLogout"
+    />
 
-    <!-- Main Content -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-      <!-- Loading State -->
-      <div v-if="planStore.isLoading" class="flex items-center justify-center py-20">
-        <div class="flex items-center gap-3 text-slate-500">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div v-if="planStore.isLoading" class="py-16 text-center">
+        <div class="inline-flex items-center gap-2 text-warm-600">
           <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <span>加载中...</span>
+          加载中...
         </div>
       </div>
 
       <template v-else>
-        <!-- Stats Cards -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
-          <div class="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-slate-100">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-xs sm:text-sm font-medium text-slate-500">总教案数</p>
-                <p class="text-2xl sm:text-3xl font-bold text-slate-800 mt-1">{{ planStore.pagination.total }}</p>
-              </div>
-              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 rounded-xl flex items-center justify-center">
-                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-            </div>
-          </div>
+        <!-- Welcome section -->
+        <PageHeader
+          super-title="Dashboard"
+          :title="`欢迎，${authStore.user?.username || '教师'}`"
+          subtitle="专注教案编写、模板沉淀与导出交付。开始创建您的教学计划吧！"
+        />
 
-          <div class="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-slate-100">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-xs sm:text-sm font-medium text-slate-500">草稿</p>
-                <p class="text-2xl sm:text-3xl font-bold text-slate-800 mt-1">{{ draftCount }}</p>
-              </div>
-              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-amber-50 rounded-xl flex items-center justify-center">
-                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                </svg>
-              </div>
-            </div>
-          </div>
+        <!-- Stats cards -->
+        <section class="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <StatCard label="总教案数" :value="planStore.pagination.total" />
+          <StatCard label="草稿" :value="draftCount" trend="up" trend-value="待完善" />
+          <StatCard label="已发布" :value="publishedCount" trend="up" trend-value="可使用" />
+        </section>
 
-          <div class="bg-white rounded-xl p-4 sm:p-6 shadow-sm border border-slate-100">
-            <div class="flex items-center justify-between">
-              <div>
-                <p class="text-xs sm:text-sm font-medium text-slate-500">已发布</p>
-                <p class="text-2xl sm:text-3xl font-bold text-slate-800 mt-1">{{ publishedCount }}</p>
-              </div>
-              <div class="w-10 h-10 sm:w-12 sm:h-12 bg-emerald-50 rounded-xl flex items-center justify-center">
-                <svg class="w-5 h-5 sm:w-6 sm:h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Plans List -->
-        <div class="bg-white rounded-xl shadow-sm border border-slate-100">
-          <div class="px-4 sm:px-6 py-3 sm:py-4 border-b border-slate-100 flex items-center justify-between">
-            <h2 class="text-base sm:text-lg font-semibold text-slate-800">教案列表</h2>
-            
+        <!-- Plans list -->
+        <BaseCard>
+          <div class="flex flex-col gap-4 border-b border-warm-100 p-6 sm:flex-row sm:items-center sm:justify-between">
+            <h3 class="font-display text-2xl font-bold text-warm-900">教案列表</h3>
             <div class="flex items-center gap-2">
               <input
                 v-model="searchQuery"
                 type="text"
-                placeholder="搜索教案..."
-                class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-32 sm:w-auto"
+                placeholder="搜索教案标题"
+                class="h-11 w-full sm:w-64 bg-warm-50 border border-amber-200 rounded-xl px-4 text-warm-900 placeholder-warm-400 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all"
                 @keyup.enter="handleSearch"
               />
-              <button
-                @click="handleSearch"
-                class="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
-              </button>
+              <BaseButton variant="primary" size="md" @click="handleSearch">
+                搜索
+              </BaseButton>
             </div>
           </div>
-          
-          <!-- Empty State -->
-          <div v-if="!planStore.hasPlans" class="py-12 sm:py-20 text-center">
-            <div class="w-16 h-16 sm:w-20 sm:h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg class="w-8 h-8 sm:w-10 sm:h-10 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+
+          <div v-if="!planStore.hasPlans" class="p-12 text-center">
+            <div class="inline-flex h-16 w-16 items-center justify-center rounded-full bg-warm-100 mb-4">
+              <svg class="h-8 w-8 text-warm-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
-            <p class="text-sm sm:text-base text-slate-500">还没有教案，点击右上角按钮创建</p>
+            <p class="text-warm-600 text-lg">暂无教案</p>
+            <p class="text-warm-500 text-sm mt-1">点击"新建教案"开始创建您的第一个教案</p>
           </div>
-          
-          <!-- Desktop Plans List -->
-          <div v-else class="hidden sm:block divide-y divide-slate-100">
-            <div
-              v-for="plan in planStore.plans"
-              :key="plan.id"
-              class="px-6 py-4 hover:bg-slate-50 transition-colors group"
+
+          <div v-else class="divide-y divide-warm-100">
+            <article 
+              v-for="plan in planStore.plans" 
+              :key="plan.id" 
+              class="p-5 hover:bg-warm-50/50 transition-colors duration-200"
             >
-              <div class="flex items-center justify-between">
-                <div class="flex items-center gap-4 cursor-pointer flex-1" @click="editPlan(plan.id!)">
-                  <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center group-hover:bg-blue-100 transition-colors">
-                    <svg class="w-5 h-5 text-slate-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </div>
-                  
-                  <div class="flex-1">
-                    <h3 class="font-medium text-slate-800 group-hover:text-blue-600 transition-colors">
-                      {{ plan.title }}
-                    </h3>
-                    <p class="text-sm text-slate-500 mt-0.5">
-                      {{ plan.courseName }} · {{ plan.className }} · {{ plan.duration }}分钟
-                    </p>
-                  </div>
-                </div>
-                
-                <div class="flex items-center gap-3">
-                  <span
-                    class="px-2.5 py-1 text-xs font-medium rounded-full"
-                    :class="getStatusClass(plan.status)"
-                  >
+              <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <button class="text-left flex-1" @click="editPlan(plan.id!)">
+                  <h4 class="font-display text-lg font-semibold text-warm-900 hover:text-amber-700 transition-colors">{{ plan.title }}</h4>
+                  <p class="mt-1 text-sm text-warm-600">{{ plan.courseName }} · {{ plan.className }} · {{ plan.duration }}分钟</p>
+                  <p class="mt-1 text-xs text-warm-500">更新于 {{ formatDate(plan.updatedAt) }}</p>
+                </button>
+                <div class="flex flex-wrap items-center gap-2">
+                  <BaseBadge :variant="getStatusVariant(plan.status)">
                     {{ getStatusText(plan.status) }}
-                  </span>
-                  
-                  <span class="text-sm text-slate-400">
-                    {{ formatDate(plan.updatedAt) }}
-                  </span>
-                  
-                  <!-- Export Button -->
-                  <button
-                    @click="exportPlan(plan.id!, plan.title)"
-                    class="p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                    title="导出 Word"
-                  >
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  </button>
-                  
-                  <!-- Delete Button -->
-                  <button
-                    @click="deletePlan(plan.id!)"
-                    class="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
-                    title="删除"
-                  >
-                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
+                  </BaseBadge>
+                  <BaseButton variant="ghost" size="sm" @click="exportPlan(plan.id!, plan.title)">
+                    导出
+                  </BaseButton>
+                  <BaseButton variant="ghost" size="sm" @click="editPlan(plan.id!)">
+                    编辑
+                  </BaseButton>
+                  <BaseButton variant="ghost" size="sm" @click="deletePlan(plan.id!)">
+                    <span class="text-red-600">删除</span>
+                  </BaseButton>
                 </div>
               </div>
-            </div>
+            </article>
           </div>
-          
-          <!-- Mobile Plans List (Card Layout) -->
-          <div v-if="planStore.hasPlans" class="sm:hidden divide-y divide-slate-100">
-            <div
-              v-for="plan in planStore.plans"
-              :key="plan.id"
-              class="p-4 hover:bg-slate-50 transition-colors"
-              @click="editPlan(plan.id!)"
-            >
-              <div class="flex items-start gap-3">
-                <div class="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <svg class="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                </div>
-                
-                <div class="flex-1 min-w-0">
-                  <h3 class="font-medium text-slate-800 truncate">
-                    {{ plan.title }}
-                  </h3>
-                  <p class="text-xs text-slate-500 mt-0.5">
-                    {{ plan.courseName }} · {{ plan.className }}
-                  </p>
-                  <div class="flex items-center justify-between mt-2">
-                    <span
-                      class="px-2 py-0.5 text-xs font-medium rounded-full"
-                      :class="getStatusClass(plan.status)"
-                    >
-                      {{ getStatusText(plan.status) }}
-                    </span>
-                    <span class="text-xs text-slate-400">
-                      {{ formatDate(plan.updatedAt) }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              
-              <!-- Mobile Actions -->
-              <div class="flex items-center gap-2 mt-3 pl-13">
-                <button
-                  @click.stop="exportPlan(plan.id!, plan.title)"
-                  class="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm text-blue-600 bg-blue-50 rounded-lg"
-                >
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  导出
-                </button>
-                <button
-                  @click.stop="deletePlan(plan.id!)"
-                  class="flex-1 flex items-center justify-center gap-1 px-3 py-2 text-sm text-red-600 bg-red-50 rounded-lg"
-                >
-                  <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                  删除
-                </button>
-              </div>
-            </div>
-          </div>
-          
+
           <!-- Pagination -->
-          <div v-if="planStore.pagination.totalPages > 1" class="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-            <button
-              @click="changePage(planStore.pagination.page - 1)"
+          <div v-if="planStore.pagination.totalPages > 1" class="flex items-center justify-between border-t border-warm-100 p-5">
+            <BaseButton
+              variant="secondary"
+              size="sm"
               :disabled="planStore.pagination.page <= 1"
-              class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+              @click="changePage(planStore.pagination.page - 1)"
             >
               上一页
-            </button>
-            
-            <span class="text-sm text-slate-600">
+            </BaseButton>
+            <span class="text-sm text-warm-600">
               第 {{ planStore.pagination.page }} / {{ planStore.pagination.totalPages }} 页
             </span>
-            
-            <button
-              @click="changePage(planStore.pagination.page + 1)"
+            <BaseButton
+              variant="secondary"
+              size="sm"
               :disabled="planStore.pagination.page >= planStore.pagination.totalPages"
-              class="px-3 py-1.5 text-sm border border-slate-300 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+              @click="changePage(planStore.pagination.page + 1)"
             >
               下一页
-            </button>
+            </BaseButton>
           </div>
-        </div>
+        </BaseCard>
       </template>
     </main>
   </div>
@@ -341,13 +123,18 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { usePlanStore } from '../stores/plan'
+import NavBar from '../components/layout/NavBar.vue'
+import PageHeader from '../components/layout/PageHeader.vue'
+import BaseCard from '../components/ui/BaseCard.vue'
+import BaseButton from '../components/ui/BaseButton.vue'
+import BaseBadge from '../components/ui/BaseBadge.vue'
+import StatCard from '../components/ui/StatCard.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
 const planStore = usePlanStore()
 
 const searchQuery = ref('')
-const showMobileMenu = ref(false)
 
 const draftCount = computed(() => 
   planStore.plans.filter(p => p.status === 'DRAFT').length
@@ -382,12 +169,7 @@ const changePage = (page: number) => {
 }
 
 const editPlan = (id: string) => {
-  console.log('[HomeView] editPlan called with id:', id)
-  router.push(`/editor/${id}`).then(() => {
-    console.log('[HomeView] Navigation successful')
-  }).catch((err) => {
-    console.error('[HomeView] Navigation failed:', err)
-  })
+  router.push(`/editor/${id}`)
 }
 
 const deletePlan = async (id: string) => {
@@ -417,7 +199,6 @@ const exportPlan = async (id: string, title: string) => {
       throw new Error('导出失败')
     }
     
-    // 下载文件
     const blob = await response.blob()
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -437,16 +218,16 @@ const handleLogout = () => {
   router.push('/login')
 }
 
-const getStatusClass = (status?: string) => {
+const getStatusVariant = (status?: string) => {
   switch (status) {
     case 'PUBLISHED':
-      return 'bg-emerald-50 text-emerald-600'
+      return 'success'
     case 'DRAFT':
-      return 'bg-amber-50 text-amber-600'
+      return 'warning'
     case 'ARCHIVED':
-      return 'bg-slate-100 text-slate-600'
+      return 'default'
     default:
-      return 'bg-slate-100 text-slate-600'
+      return 'default'
   }
 }
 

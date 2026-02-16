@@ -1,15 +1,15 @@
 <template>
-  <div class="min-h-screen bg-slate-50">
+  <div class="min-h-screen bg-warm-50">
     <!-- Header -->
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-10">
+    <header class="bg-white/80 backdrop-blur-md border-b border-amber-100 sticky top-0 z-20">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-14 sm:h-16">
-          <div class="flex items-center gap-2 sm:gap-4">
+        <div class="flex items-center justify-between h-16">
+          <div class="flex items-center gap-4">
             <router-link
               to="/"
-              class="p-1.5 sm:p-2 hover:bg-slate-100 rounded-lg transition-colors"
+              class="p-2 hover:bg-warm-100 rounded-lg transition-colors text-warm-600 hover:text-warm-800"
             >
-              <svg class="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </router-link>
@@ -507,7 +507,7 @@
       <!-- Blackboard Design -->
       <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-          <svg class="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
           </svg>
           板书设计

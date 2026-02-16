@@ -1,5 +1,5 @@
 <template>
-  <div class="quality-chart" ref="chartRef" style="width: 100%; height: 400px;"></div>
+  <div class="chart-container" ref="chartRef" style="width: 100%; height: 100%;"></div>
 </template>
 
 <script setup lang="ts">
@@ -24,24 +24,47 @@ const updateChart = () => {
   if (!chart) return
 
   const option = {
-    title: {
-      text: 'Quality Metrics'
+    tooltip: {
+      backgroundColor: 'rgba(255, 251, 240, 0.95)',
+      borderColor: '#FDE68A',
+      textStyle: { color: '#451A03' }
     },
-    tooltip: {},
     radar: {
-      indicator: props.data.map(item => ({
-        name: item.metric,
-        max: 100 // Assuming score is out of 100
-      }))
+      indicator: props.data.map(item => ({ name: item.metric, max: 100 })),
+      shape: 'polygon',
+      splitNumber: 4,
+      axisName: {
+        color: '#78350F',
+        fontSize: 12
+      },
+      splitLine: {
+        lineStyle: { color: '#FDE68A' }
+      },
+      splitArea: {
+        areaStyle: {
+          color: ['#FFFBF0', '#FEF3C7', '#FEF3C7', '#FFFBF0']
+        }
+      },
+      axisLine: {
+        lineStyle: { color: '#FDE68A' }
+      }
     },
     series: [
       {
-        name: 'Quality Score',
+        name: '质量评分',
         type: 'radar',
         data: [
           {
             value: props.data.map(item => item.score),
-            name: 'Current Plan'
+            name: '当前教案',
+            areaStyle: {
+              color: new (echarts as any).graphic.RadialGradient(0.5, 0.5, 1, [
+                { offset: 0, color: 'rgba(217, 119, 6, 0.3)' },
+                { offset: 1, color: 'rgba(217, 119, 6, 0.1)' }
+              ])
+            },
+            lineStyle: { color: '#D97706', width: 2 },
+            itemStyle: { color: '#D97706' }
           }
         ]
       }

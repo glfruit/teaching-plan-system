@@ -1,5 +1,5 @@
 <template>
-  <div class="execution-chart" ref="chartRef" style="width: 100%; height: 400px;"></div>
+  <div class="chart-container" ref="chartRef" style="width: 100%; height: 100%;"></div>
 </template>
 
 <script setup lang="ts">
@@ -13,6 +13,8 @@ const props = defineProps<{
 const chartRef = ref<HTMLElement | null>(null)
 let chart: echarts.ECharts | null = null
 
+const warmColors = ['#D97706', '#059669', '#64748B', '#F97316']
+
 const initChart = () => {
   if (chartRef.value) {
     chart = echarts.init(chartRef.value)
@@ -24,33 +26,46 @@ const updateChart = () => {
   if (!chart) return
 
   const option = {
-    title: {
-      text: 'Execution Status',
-      left: 'center'
-    },
     tooltip: {
-      trigger: 'item'
+      trigger: 'item',
+      backgroundColor: 'rgba(255, 251, 240, 0.95)',
+      borderColor: '#FDE68A',
+      textStyle: { color: '#451A03' }
     },
     legend: {
-      orient: 'vertical',
-      left: 'left'
+      bottom: '0%',
+      textStyle: { color: '#78350F' }
     },
     series: [
       {
-        name: 'Status',
+        name: '状态分布',
         type: 'pie',
-        radius: '50%',
-        data: props.data.map(item => ({
-          value: item.count,
-          name: item.status
-        })),
+        radius: ['40%', '70%'],
+        center: ['50%', '45%'],
+        avoidLabelOverlap: false,
+        itemStyle: {
+          borderRadius: 8,
+          borderColor: '#FFFBF0',
+          borderWidth: 2
+        },
+        label: {
+          show: false,
+          position: 'center'
+        },
         emphasis: {
-          itemStyle: {
-            shadowBlur: 10,
-            shadowOffsetX: 0,
-            shadowColor: 'rgba(0, 0, 0, 0.5)'
+          label: {
+            show: true,
+            fontSize: 16,
+            fontWeight: 'bold',
+            color: '#451A03'
           }
-        }
+        },
+        labelLine: { show: false },
+        data: props.data.map((item, index) => ({
+          value: item.count,
+          name: item.status,
+          itemStyle: { color: warmColors[index % warmColors.length] }
+        }))
       }
     ]
   }

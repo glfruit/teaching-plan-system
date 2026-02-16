@@ -1,29 +1,75 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #3b82f6;
-  --color-primary-dark: #2563eb;
-  --color-secondary: #64748b;
-  --color-background: #f8fafc;
-  --color-surface: #ffffff;
+  /* 温暖色系 - Warm Color Palette */
+  --color-warm-50: #FFFBF0;
+  --color-warm-100: #FEF3C7;
+  --color-warm-200: #FDE68A;
+  --color-warm-300: #FCD34D;
+  --color-warm-400: #FBBF24;
+  --color-warm-500: #F59E0B;
+  --color-warm-600: #D97706;
+  --color-warm-700: #B45309;
+  --color-warm-800: #92400E;
+  --color-warm-900: #78350F;
+  
+  /* 功能色 */
+  --color-success: #059669;
+  --color-warning: #D97706;
+  --color-error: #DC2626;
+  --color-info: #2563EB;
+  
+  /* 阴影 */
+  --shadow-warm: 0 4px 20px -2px rgb(217 119 6 / 0.15);
+  --shadow-warm-lg: 0 10px 40px -4px rgb(217 119 6 / 0.2);
+  
+  /* 字体 */
+  --font-display: 'Noto Serif SC', 'Source Han Serif CN', Georgia, serif;
+  --font-body: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
 }
 
+/* 全局样式 */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-  background-color: var(--color-background);
-  color: #1e293b;
+  font-family: var(--font-body);
+  background-color: var(--color-warm-50);
+  color: #451A03;
   line-height: 1.6;
 }
 
 #app {
   width: 100%;
   min-height: 100vh;
+}
+
+/* 字体类 */
+.font-display {
+  font-family: var(--font-display);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+/* 减少动效偏好 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* TipTap Editor Styles */
@@ -41,6 +87,7 @@ body {
   font-weight: 700;
   margin-bottom: 0.5em;
   margin-top: 1em;
+  color: #451A03;
 }
 
 .ProseMirror h2 {
@@ -48,6 +95,7 @@ body {
   font-weight: 600;
   margin-bottom: 0.5em;
   margin-top: 0.75em;
+  color: #451A03;
 }
 
 .ProseMirror h3 {
@@ -55,6 +103,7 @@ body {
   font-weight: 600;
   margin-bottom: 0.5em;
   margin-top: 0.75em;
+  color: #451A03;
 }
 
 .ProseMirror ul {
@@ -70,26 +119,30 @@ body {
 }
 
 .ProseMirror blockquote {
-  border-left: 4px solid #e2e8f0;
+  border-left: 4px solid #FCD34D;
   padding-left: 1em;
   margin-left: 0;
   margin-bottom: 0.75em;
-  color: #64748b;
+  color: #78350F;
+  background-color: #FFFBF0;
+  padding: 0.75em 1em;
+  border-radius: 0 8px 8px 0;
 }
 
 .ProseMirror code {
-  background-color: #f1f5f9;
+  background-color: #FEF3C7;
+  color: #B45309;
   padding: 0.2em 0.4em;
   border-radius: 4px;
-  font-family: 'Monaco', 'Menlo', monospace;
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
   font-size: 0.9em;
 }
 
 .ProseMirror pre {
-  background-color: #1e293b;
-  color: #f8fafc;
+  background-color: #451A03;
+  color: #FEF3C7;
   padding: 1em;
-  border-radius: 8px;
+  border-radius: 12px;
   overflow-x: auto;
   margin-bottom: 0.75em;
 }
@@ -103,7 +156,7 @@ body {
 .ProseMirror img {
   max-width: 100%;
   height: auto;
-  border-radius: 8px;
+  border-radius: 12px;
   margin: 1em 0;
 }
 
@@ -118,28 +171,28 @@ body {
 
 .ProseMirror table th,
 .ProseMirror table td {
-  border: 1px solid #e2e8f0;
+  border: 1px solid #FDE68A;
   padding: 0.5em 0.75em;
   text-align: left;
   min-width: 100px;
 }
 
 .ProseMirror table th {
-  background-color: #f8fafc;
+  background-color: #FEF3C7;
   font-weight: 600;
-  color: #334155;
+  color: #78350F;
 }
 
 .ProseMirror table td {
-  background-color: #ffffff;
+  background-color: #FFFFFF;
 }
 
 .ProseMirror table tr:hover td {
-  background-color: #f8fafc;
+  background-color: #FFFBF0;
 }
 
 .ProseMirror .selectedCell:after {
-  background: rgba(59, 130, 246, 0.2);
+  background: rgba(217, 119, 6, 0.2);
   content: "";
   left: 0;
   right: 0;
@@ -156,9 +209,73 @@ body {
 
 /* Editor Toolbar Button Styles */
 .editor-toolbar-btn {
-  @apply p-2 rounded-md transition-colors duration-200 hover:bg-slate-100 active:bg-slate-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  @apply p-2 rounded-lg transition-all duration-200 hover:bg-amber-100 hover:text-amber-700 active:bg-amber-200 disabled:opacity-50 disabled:cursor-not-allowed;
 }
 
 .editor-toolbar-btn.is-active {
-  @apply bg-blue-100 text-blue-600 hover:bg-blue-200;
+  @apply bg-amber-200 text-amber-800 hover:bg-amber-300;
+}
+
+/* Animation Keyframes */
+@keyframes float {
+  0%, 100% { transform: translate(0, 0) rotate(0deg); }
+  33% { transform: translate(30px, -30px) rotate(2deg); }
+  66% { transform: translate(-20px, 20px) rotate(-2deg); }
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes pulse-warm {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.animate-float {
+  animation: float 20s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: float 25s ease-in-out infinite;
+  animation-delay: -5s;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #FEF3C7 25%, #FDE68A 50%, #FEF3C7 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.animate-pulse-warm {
+  animation: pulse-warm 2s ease-in-out infinite;
+}
+
+/* Utility Classes */
+.text-balance {
+  text-wrap: balance;
+}
+
+/* Hover lift effect */
+.hover-lift {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-warm-lg);
+}
+
+/* Warm gradient backgrounds */
+.bg-gradient-warm {
+  background: linear-gradient(135deg, #FCD34D 0%, #F97316 50%, #F43F5E 100%);
+}
+
+.bg-gradient-soft {
+  background: linear-gradient(180deg, #FFFBF0 0%, #FEF3C7 100%);
+}
+
+.bg-gradient-cream {
+  background: linear-gradient(135deg, #FFFBF0 0%, #FEF3C7 50%, #FDE68A 100%);
 }
