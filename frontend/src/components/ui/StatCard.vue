@@ -1,29 +1,25 @@
 <template>
-  <BaseCard class="p-5" :hoverable="true">
-    <p class="text-sm text-warm-600">{{ label }}</p>
-    <p class="mt-2 text-4xl font-bold text-warm-900">{{ formattedValue }}</p>
-    <div v-if="trend" class="mt-2 flex items-center gap-1 text-sm">
-      <svg 
-        v-if="trend === 'up'" 
-        class="h-4 w-4 text-emerald-600" 
-        fill="none" 
-        viewBox="0 0 24 24" 
-        stroke="currentColor"
-      >
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-      </svg>
-      <svg 
-        v-else 
-        class="h-4 w-4 text-red-600" 
-        fill="none" 
-        viewBox="0 0 24 24" 
-        stroke="currentColor"
-      >
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" />
-      </svg>
-      <span :class="trend === 'up' ? 'text-emerald-600' : 'text-red-600'">
+  <BaseCard :hoverable="true" padding="lg" class="group relative overflow-hidden">
+    <div class="absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-10 transition-transform duration-500 group-hover:scale-110" :class="orbClass"></div>
+
+    <div class="relative flex items-start justify-between gap-3">
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="h-11 w-11 rounded-lg flex items-center justify-center" :class="iconBgClass">
+          <slot name="icon">
+            <svg class="h-5 w-5" :class="iconClass" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+          </slot>
+        </div>
+        <div class="min-w-0">
+          <p class="text-sm text-amber-800/80 truncate">{{ label }}</p>
+          <p class="text-3xl font-semibold font-serif text-amber-950 leading-tight">{{ formattedValue }}</p>
+        </div>
+      </div>
+
+      <div v-if="trend" class="text-xs font-semibold" :class="trendClass">
         {{ trendValue }}
-      </span>
+      </div>
     </div>
   </BaseCard>
 </template>
@@ -37,11 +33,13 @@ interface Props {
   value: string | number
   trend?: 'up' | 'down' | null
   trendValue?: string
+  color?: 'amber' | 'orange' | 'emerald' | 'slate'
 }
 
 const props = withDefaults(defineProps<Props>(), {
   trend: null,
   trendValue: '',
+  color: 'amber',
 })
 
 const formattedValue = computed(() => {
@@ -50,4 +48,33 @@ const formattedValue = computed(() => {
   }
   return props.value
 })
+
+const colorMap = {
+  amber: {
+    orb: 'bg-amber-500',
+    iconBg: 'bg-amber-50',
+    icon: 'text-amber-600',
+  },
+  orange: {
+    orb: 'bg-orange-500',
+    iconBg: 'bg-orange-50',
+    icon: 'text-orange-600',
+  },
+  emerald: {
+    orb: 'bg-emerald-500',
+    iconBg: 'bg-emerald-50',
+    icon: 'text-emerald-600',
+  },
+  slate: {
+    orb: 'bg-slate-500',
+    iconBg: 'bg-slate-100',
+    icon: 'text-slate-500',
+  },
+}
+
+const orbClass = computed(() => colorMap[props.color].orb)
+const iconBgClass = computed(() => colorMap[props.color].iconBg)
+const iconClass = computed(() => colorMap[props.color].icon)
+
+const trendClass = computed(() => (props.trend === 'up' ? 'text-emerald-600' : 'text-red-600'))
 </script>

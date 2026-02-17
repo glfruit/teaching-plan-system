@@ -1,5 +1,5 @@
 <template>
-  <div class="chart-container" ref="chartRef" style="width: 100%; height: 100%;"></div>
+  <div ref="chartRef" class="chart-container w-full h-full"></div>
 </template>
 
 <script setup lang="ts">
@@ -13,8 +13,7 @@ const props = defineProps<{
 const chartRef = ref<HTMLElement | null>(null)
 let chart: echarts.ECharts | null = null
 
-// 温暖色系配色
-const warmColors = ['#D97706', '#F97316', '#F43F5E', '#F59E0B', '#FB923C', '#FCA5A5']
+const colors = ['#2563eb', '#0891b2', '#4f46e5', '#0d9488', '#3b82f6', '#06b6d4']
 
 const initChart = () => {
   if (chartRef.value) {
@@ -30,27 +29,36 @@ const updateChart = () => {
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      backgroundColor: 'rgba(255, 251, 240, 0.95)',
-      borderColor: '#FDE68A',
-      textStyle: { color: '#451A03' }
+      formatter: '{b}: {c} 个教案'
     },
     grid: {
       left: '3%',
       right: '4%',
       bottom: '3%',
+      top: '10%',
       containLabel: true
     },
     xAxis: {
       type: 'category',
       data: props.data.map(item => item.name),
-      axisLine: { lineStyle: { color: '#FDE68A' } },
-      axisLabel: { color: '#78350F' }
+      axisLine: { lineStyle: { color: '#e5e5e5' } },
+      axisLabel: { 
+        color: '#525252',
+        interval: 0,
+        rotate: props.data.length > 5 ? 30 : 0
+      },
+      axisTick: { show: false }
     },
     yAxis: {
       type: 'value',
-      axisLine: { lineStyle: { color: '#FDE68A' } },
-      axisLabel: { color: '#78350F' },
-      splitLine: { lineStyle: { color: '#FEF3C7' } }
+      axisLine: { show: false },
+      axisLabel: { color: '#525252' },
+      splitLine: { 
+        lineStyle: { 
+          color: '#f5f5f5',
+          type: 'dashed'
+        } 
+      }
     },
     series: [
       {
@@ -59,14 +67,10 @@ const updateChart = () => {
         data: props.data.map((item, index) => ({
           value: item.planCount,
           itemStyle: {
-            color: new (echarts as any).graphic.LinearGradient(0, 0, 0, 1, [
-              { offset: 0, color: '#FBBF24' },
-              { offset: 1, color: '#D97706' }
-            ])
+            color: colors[index % colors.length]
           }
         })),
-        barWidth: '60%',
-        borderRadius: [8, 8, 0, 0]
+        barWidth: '50%'
       }
     ]
   }

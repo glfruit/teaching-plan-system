@@ -6,6 +6,9 @@ import {
   resolveTemplateEditSubmission,
   buildPlanPayload,
   mapFetchedPlanToForm,
+  buildEditorDraftSignature,
+  hasEditorDraftChanges,
+  shouldPromptUnsavedChanges,
 } from '../EditorView.vue'
 import type { JSONContent } from '@tiptap/core'
 
@@ -310,5 +313,56 @@ describe('EditorView teaching layout persistence', () => {
 
     const canceled = resolveTemplateEditSubmission(edited as any, '新模板标题', false)
     expect(canceled).toBeNull()
+  })
+
+  it('builds stable draft signatures for equivalent forms', () => {
+    const form = {
+      title: '教案标题',
+      courseName: '课程',
+      className: '1班',
+      duration: 45,
+      methods: '讲授法',
+      resources: 'PPT',
+      objectives: '<p>目标</p>',
+      keyPoints: '<p>重点</p>',
+      process: '<p>过程</p>',
+      blackboard: '<p>板书</p>',
+      reflection: '<p>反思</p>',
+      contentJson: {},
+    }
+
+    expect(buildEditorDraftSignature(form as any)).toBe(buildEditorDraftSignature({ ...form } as any))
+  })
+
+  it('detects unsaved changes against saved draft signature', () => {
+    const savedForm = {
+      title: '教案A',
+      courseName: '课程',
+      className: '1班',
+      duration: 45,
+      methods: '讲授法',
+      resources: '',
+      objectives: '<p>目标</p>',
+      keyPoints: '<p>重点</p>',
+      process: '<p>过程</p>',
+      blackboard: '<p></p>',
+      reflection: '<p></p>',
+      contentJson: {},
+    }
+
+    const changedForm = {
+      ...savedForm,
+      title: '教案A-修改',
+    }
+
+    const savedSignature = buildEditorDraftSignature(savedForm as any)
+    expect(hasEditorDraftChanges(savedForm as any, savedSignature)).toBe(false)
+    expect(hasEditorDraftChanges(changedForm as any, savedSignature)).toBe(true)
+  })
+
+  it('prompts only when there are unsaved changes and save is not in progress', () => {
+    expect(shouldPromptUnsavedChanges(true, false)).toBe(true)
+    expect(shouldPromptUnsavedChanges(true, true)).toBe(false)
+    expect(shouldPromptUnsavedChanges(false, false)).toBe(false)
   })
 })

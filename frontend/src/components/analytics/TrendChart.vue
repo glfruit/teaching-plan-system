@@ -1,5 +1,5 @@
 <template>
-  <div class="chart-container" ref="chartRef" style="width: 100%; height: 100%;"></div>
+  <div ref="chartRef" style="width: 100%; height: 100%;"></div>
 </template>
 
 <script setup lang="ts">
@@ -26,45 +26,61 @@ const updateChart = () => {
   const option = {
     tooltip: {
       trigger: 'axis',
-      backgroundColor: 'rgba(255, 251, 240, 0.95)',
-      borderColor: '#FDE68A',
-      textStyle: { color: '#451A03' }
+      formatter: '{b}: {c} 个'
     },
     grid: {
       left: '3%',
       right: '4%',
       bottom: '3%',
+      top: '10%',
       containLabel: true
     },
     xAxis: {
       type: 'category',
       boundaryGap: false,
       data: props.data.map(item => item.month),
-      axisLine: { lineStyle: { color: '#FDE68A' } },
-      axisLabel: { color: '#78350F' }
+      axisLine: { 
+        lineStyle: { color: '#e5e5e5' } 
+      },
+      axisLabel: { 
+        color: '#525252',
+        fontSize: 11
+      },
+      axisTick: { show: false }
     },
     yAxis: {
       type: 'value',
-      axisLine: { lineStyle: { color: '#FDE68A' } },
-      axisLabel: { color: '#78350F' },
-      splitLine: { lineStyle: { color: '#FEF3C7' } }
+      axisLine: { show: false },
+      axisLabel: { 
+        color: '#525252',
+        fontSize: 11
+      },
+      splitLine: { 
+        lineStyle: { 
+          color: '#f5f5f5',
+          type: 'dashed'
+        } 
+      }
     },
     series: [
       {
         name: '教案数',
         type: 'line',
-        smooth: true,
+        smooth: false,
         symbol: 'circle',
-        symbolSize: 8,
-        sampling: 'average',
-        itemStyle: { color: '#D97706' },
-        areaStyle: {
-          color: new (echarts as any).graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(217, 119, 6, 0.4)' },
-            { offset: 1, color: 'rgba(217, 119, 6, 0.05)' }
-          ])
+        symbolSize: 6,
+        itemStyle: { 
+          color: '#2563eb',
+          borderWidth: 2,
+          borderColor: '#fff'
         },
-        lineStyle: { color: '#D97706', width: 3 },
+        areaStyle: {
+          color: 'rgba(37, 99, 235, 0.1)'
+        },
+        lineStyle: { 
+          color: '#2563eb', 
+          width: 2 
+        },
         data: props.data.map(item => item.count)
       }
     ]

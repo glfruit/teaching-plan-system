@@ -1,0 +1,88 @@
+:root {
+  /* Primary - Amber scale */
+  --color-primary-50: 255 251 240;
+  --color-primary-100: 254 243 199;
+  --color-primary-200: 253 230 138;
+  --color-primary-300: 252 211 77;
+  --color-primary-400: 251 191 36;
+  --color-primary-500: 245 158 11;
+  --color-primary-600: 217 119 6;
+  --color-primary-700: 180 83 9;
+  --color-primary-800: 146 64 14;
+  --color-primary-900: 120 53 15;
+
+  /* Accent */
+  --color-secondary: 249 115 22;
+  --color-tertiary: 244 63 94;
+
+  /* Semantic */
+  --color-success: 5 150 105;
+  --color-warning: 217 119 6;
+  --color-error: 220 38 38;
+  --color-info: 37 99 235;
+
+  /* Text */
+  --text-primary: 69 26 3;
+  --text-secondary: 120 53 15;
+  --text-muted: 161 98 7;
+  --text-inverse: 255 255 255;
+
+  /* Background */
+  --bg-cream: 255 251 240;
+  --bg-warm-white: 254 252 248;
+  --bg-card: 255 255 255;
+  --bg-hover: 254 243 199;
+
+  /* Border */
+  --border-light: 253 230 138;
+  --border-medium: 251 191 36;
+
+  /* Shadow */
+  --shadow-sm: 0 1px 2px 0 rgb(217 119 6 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(217 119 6 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(217 119 6 / 0.1);
+  --shadow-warm: 0 4px 20px -2px rgb(217 119 6 / 0.15);
+  --shadow-warm-lg: 0 10px 40px -4px rgb(217 119 6 / 0.2);
+
+  /* Typography */
+  --font-display: 'Noto Serif SC', 'Source Han Serif CN', Georgia, serif;
+  --font-body: 'Inter', 'Noto Sans SC', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+  --text-4xl: 2.25rem;
+
+  --font-normal: 400;
+  --font-medium: 500;
+  --font-semibold: 600;
+  --font-bold: 700;
+
+  --leading-tight: 1.25;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+
+  /* Radius */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.5rem;
+  --radius-full: 9999px;
+}

@@ -1,25 +1,35 @@
 <template>
   <header class="mb-8">
-    <p v-if="superTitle" class="text-xs font-semibold uppercase tracking-wider text-amber-700">
-      {{ superTitle }}
-    </p>
-    <div class="flex items-center gap-4 mt-2">
-      <router-link
+    <div class="flex items-start gap-3">
+      <button
         v-if="backLink"
-        :to="backLink"
-        class="rounded-lg p-2 text-warm-600 hover:bg-warm-100 transition-colors"
+        type="button"
+        class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-800 hover:bg-amber-50 transition-colors"
+        @click="handleBack"
       >
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
         </svg>
-      </router-link>
-      <h1 class="font-display text-3xl font-bold text-warm-900">{{ title }}</h1>
+      </button>
+
+      <div>
+        <p v-if="superTitle" class="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
+          {{ superTitle }}
+        </p>
+        <h1 class="font-serif text-3xl sm:text-4xl font-semibold text-amber-900 mt-1">
+          {{ title }}
+        </h1>
+        <p v-if="subtitle" class="mt-2 text-amber-800/85 max-w-2xl leading-relaxed">
+          {{ subtitle }}
+        </p>
+      </div>
     </div>
-    <p v-if="subtitle" class="mt-2 text-warm-600 max-w-2xl">{{ subtitle }}</p>
   </header>
 </template>
 
 <script setup lang="ts">
+import { useRouter } from 'vue-router'
+
 interface Props {
   title: string
   subtitle?: string
@@ -27,9 +37,16 @@ interface Props {
   backLink?: string
 }
 
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   subtitle: '',
   superTitle: '',
   backLink: '',
 })
+
+const router = useRouter()
+
+const handleBack = () => {
+  if (!props.backLink) return
+  router.push(props.backLink)
+}
 </script>

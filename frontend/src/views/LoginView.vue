@@ -1,106 +1,82 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center px-4 py-8 sm:px-6 relative overflow-hidden">
-    <!-- Background decoration -->
-    <div class="absolute inset-0 bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
-      <div class="absolute top-20 left-10 w-72 h-72 bg-amber-200/30 rounded-full blur-3xl animate-float"></div>
-      <div class="absolute bottom-20 right-10 w-96 h-96 bg-orange-200/30 rounded-full blur-3xl animate-float-delayed"></div>
-      <div class="absolute top-1/2 left-1/3 w-64 h-64 bg-rose-200/20 rounded-full blur-3xl animate-float"></div>
-    </div>
-    
-    <div class="relative z-10 w-full max-w-5xl">
-      <div class="grid lg:grid-cols-[1.2fr_0.8fr] gap-8 items-center">
-        <!-- Left side - Brand -->
-        <section class="hidden lg:block">
-          <div class="space-y-8">
-            <div>
-              <div class="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-warm-lg mb-6">
-                <svg class="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <h1 class="font-display text-4xl font-bold text-warm-900 leading-tight">教案管理系统</h1>
-              <p class="mt-4 text-lg text-warm-700 leading-relaxed max-w-md">
-                面向高职院校教师的教案编写与管理平台，支持富文本编辑、模板复用与一键导出，让教学准备更高效。
-              </p>
-            </div>
-            
-            <div class="inline-block rounded-2xl border border-amber-200 bg-white/70 backdrop-blur-sm p-6 shadow-warm">
-              <p class="text-sm font-semibold text-amber-800 mb-3">演示账号</p>
-              <div class="space-y-1.5 text-sm text-warm-700">
-                <p>用户名：<span class="font-semibold text-warm-900">testteacher</span></p>
-                <p>密码：<span class="font-semibold text-warm-900">123456</span></p>
-              </div>
-            </div>
+  <div class="relative min-h-screen overflow-hidden bg-gradient-to-br from-amber-50 via-orange-50/80 to-rose-50/70 px-4 py-8 sm:px-6 lg:px-10">
+    <div class="pointer-events-none absolute -top-16 -left-20 h-72 w-72 rounded-full bg-amber-200/35 blur-3xl floating-shape"></div>
+    <div class="pointer-events-none absolute bottom-[-120px] right-[-80px] h-80 w-80 rounded-full bg-orange-300/25 blur-3xl floating-shape-delayed"></div>
+
+    <div class="relative mx-auto grid w-full max-w-6xl grid-cols-1 overflow-hidden rounded-3xl border border-amber-100 bg-white/70 shadow-[var(--shadow-warm-lg)] backdrop-blur-sm lg:grid-cols-[1.05fr_0.95fr]">
+      <section class="relative overflow-hidden bg-gradient-to-br from-amber-100 via-orange-100/80 to-rose-100/70 p-8 sm:p-10 lg:p-12">
+        <div class="absolute -top-16 right-[-60px] h-52 w-52 rounded-full bg-white/45 blur-2xl"></div>
+        <div class="absolute bottom-[-30px] left-[-30px] h-44 w-44 rounded-full bg-amber-300/30 blur-2xl"></div>
+
+        <div class="relative">
+          <div class="mb-8 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-600 to-orange-500 text-white shadow-[var(--shadow-warm)]">
+            <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+            </svg>
           </div>
-        </section>
 
-        <!-- Right side - Login form -->
-        <section>
-          <BaseCard padding="lg" shadow="lg" class="bg-white/90 backdrop-blur-sm">
-            <!-- Mobile header -->
-            <div class="mb-6 lg:hidden text-center">
-              <div class="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 shadow-warm mb-4">
-                <svg class="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <h1 class="font-display text-2xl font-bold text-warm-900">教案管理系统</h1>
-            </div>
+          <h1 class="font-serif text-4xl sm:text-5xl font-semibold text-amber-950 leading-tight">教案管理系统</h1>
+          <p class="mt-4 max-w-md text-amber-900/85 leading-relaxed">
+            面向教师的现代化教案工作台，支持结构化编写、模板复用与数据分析。
+          </p>
 
-            <div class="mb-6">
-              <h2 class="font-display text-2xl font-bold text-warm-900">欢迎回来</h2>
-              <p class="mt-1 text-sm text-warm-600">请使用教师账号登录系统</p>
-            </div>
-
-            <form @submit.prevent="handleLogin" class="space-y-4">
-              <div v-if="authStore.error" class="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-                {{ authStore.error }}
-              </div>
-
-              <BaseInput
-                v-model="form.username"
-                label="用户名"
-                placeholder="请输入用户名"
-                required
-                size="lg"
-              />
-
-              <BaseInput
-                v-model="form.password"
-                type="password"
-                label="密码"
-                placeholder="请输入密码"
-                required
-                size="lg"
-              />
-
-              <BaseButton
-                type="submit"
-                variant="primary"
-                size="lg"
-                :loading="authStore.isLoading"
-                full-width
-                class="mt-2"
-              >
-                {{ authStore.isLoading ? '登录中...' : '进入系统' }}
-              </BaseButton>
-            </form>
-
-            <!-- Mobile demo account -->
-            <div class="mt-5 rounded-xl border border-amber-200 bg-amber-50/70 p-4 text-sm text-amber-900 lg:hidden">
-              <p class="font-semibold mb-2">演示账号</p>
-              <p>用户名：<span class="font-semibold">testteacher</span></p>
-              <p>密码：<span class="font-semibold">123456</span></p>
+          <BaseCard padding="lg" class="mt-10 bg-white/75 border-amber-200">
+            <h2 class="text-sm font-semibold uppercase tracking-[0.14em] text-amber-700 mb-4">演示账号</h2>
+            <div class="space-y-3 text-sm text-amber-900/85">
+              <p><span class="font-semibold">教师：</span><code>testteacher / 123456</code></p>
+              <p><span class="font-semibold">备用：</span><code>teacher1 / teacher123</code></p>
+              <p><span class="font-semibold">管理员：</span><code>admin / admin123</code></p>
             </div>
           </BaseCard>
-        </section>
-      </div>
+        </div>
+      </section>
+
+      <section class="flex items-center p-6 sm:p-10 lg:p-12">
+        <BaseCard padding="xl" class="w-full bg-white/95 border-amber-100 shadow-[var(--shadow-warm)]">
+          <h2 class="font-serif text-3xl font-semibold text-amber-950">欢迎回来</h2>
+          <p class="mt-2 text-sm text-amber-800/80">请使用教师账号进入教案编辑工作台</p>
+
+          <form @submit.prevent="handleLogin" class="mt-8 space-y-5">
+            <BaseInput
+              v-model="form.username"
+              label="用户名"
+              placeholder="请输入用户名"
+              required
+              size="md"
+            />
+
+            <BaseInput
+              v-model="form.password"
+              label="密码"
+              type="password"
+              placeholder="请输入密码"
+              required
+              size="md"
+            />
+
+            <div v-if="authStore.error" class="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+              {{ authStore.error }}
+            </div>
+
+            <BaseButton
+              type="submit"
+              full-width
+              size="lg"
+              :loading="authStore.isLoading"
+              :disabled="authStore.isLoading"
+              class="mt-2"
+            >
+              {{ authStore.isLoading ? '登录中...' : '登录系统' }}
+            </BaseButton>
+          </form>
+        </BaseCard>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, onMounted } from 'vue'
+import { reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import BaseButton from '../components/ui/BaseButton.vue'
@@ -115,20 +91,15 @@ const form = reactive({
   password: '',
 })
 
-onMounted(() => {
-  authStore.initUser()
-  if (authStore.isAuthenticated) {
-    router.push('/')
-  }
-})
-
 const handleLogin = async () => {
   try {
-    authStore.clearError()
-    await authStore.login(form)
+    await authStore.login({
+      username: form.username,
+      password: form.password,
+    })
     router.push('/')
-  } catch (error) {
-    // 错误已在 store 中处理
+  } catch {
+    // error handled by store
   }
 }
 </script>

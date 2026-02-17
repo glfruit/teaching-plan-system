@@ -1,5 +1,5 @@
 <template>
-  <div class="chart-container" ref="chartRef" style="width: 100%; height: 100%;"></div>
+  <div ref="chartRef" style="width: 100%; height: 100%;"></div>
 </template>
 
 <script setup lang="ts">
@@ -25,28 +25,26 @@ const updateChart = () => {
 
   const option = {
     tooltip: {
-      backgroundColor: 'rgba(255, 251, 240, 0.95)',
-      borderColor: '#FDE68A',
-      textStyle: { color: '#451A03' }
+      formatter: '{b}: {c} 分'
     },
     radar: {
       indicator: props.data.map(item => ({ name: item.metric, max: 100 })),
       shape: 'polygon',
       splitNumber: 4,
       axisName: {
-        color: '#78350F',
+        color: '#525252',
         fontSize: 12
       },
       splitLine: {
-        lineStyle: { color: '#FDE68A' }
+        lineStyle: { color: '#e5e5e5' }
       },
       splitArea: {
         areaStyle: {
-          color: ['#FFFBF0', '#FEF3C7', '#FEF3C7', '#FFFBF0']
+          color: ['#fafafa', '#f5f5f5', '#f5f5f5', '#fafafa']
         }
       },
       axisLine: {
-        lineStyle: { color: '#FDE68A' }
+        lineStyle: { color: '#e5e5e5' }
       }
     },
     series: [
@@ -58,13 +56,15 @@ const updateChart = () => {
             value: props.data.map(item => item.score),
             name: '当前教案',
             areaStyle: {
-              color: new (echarts as any).graphic.RadialGradient(0.5, 0.5, 1, [
-                { offset: 0, color: 'rgba(217, 119, 6, 0.3)' },
-                { offset: 1, color: 'rgba(217, 119, 6, 0.1)' }
-              ])
+              color: 'rgba(37, 99, 235, 0.2)'
             },
-            lineStyle: { color: '#D97706', width: 2 },
-            itemStyle: { color: '#D97706' }
+            lineStyle: { 
+              color: '#2563eb', 
+              width: 2 
+            },
+            itemStyle: { 
+              color: '#2563eb'
+            }
           }
         ]
       }

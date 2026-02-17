@@ -8,38 +8,42 @@
 import { computed } from 'vue'
 
 interface Props {
-  padding?: 'none' | 'sm' | 'md' | 'lg'
+  padding?: 'none' | 'sm' | 'md' | 'lg' | 'xl'
   hoverable?: boolean
   shadow?: 'none' | 'sm' | 'md' | 'lg'
+  border?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   padding: 'md',
   hoverable: false,
-  shadow: 'md',
+  shadow: 'sm',
+  border: true,
 })
 
 const cardClasses = computed(() => {
-  const baseClasses = 'bg-white rounded-xl border border-amber-100 transition-all duration-300'
-  
+  const baseClasses = 'bg-white rounded-xl'
+
   const paddingClasses = {
     none: '',
     sm: 'p-4',
-    md: 'p-6',
-    lg: 'p-8',
+    md: 'p-5',
+    lg: 'p-6',
+    xl: 'p-8',
   }
-  
+
   const shadowClasses = {
     none: '',
-    sm: 'shadow-sm',
-    md: 'shadow-warm',
-    lg: 'shadow-warm-lg',
+    sm: 'shadow-[var(--shadow-sm)]',
+    md: 'shadow-[var(--shadow-md)]',
+    lg: 'shadow-[var(--shadow-lg)]',
   }
-  
-  const hoverClasses = props.hoverable 
-    ? 'hover:shadow-warm-lg hover:-translate-y-1 cursor-pointer' 
+
+  const borderClass = props.border ? 'border border-amber-100' : ''
+  const hoverClass = props.hoverable
+    ? 'cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-warm-lg)]'
     : ''
-  
-  return `${baseClasses} ${paddingClasses[props.padding]} ${shadowClasses[props.shadow]} ${hoverClasses}`
+
+  return [baseClasses, paddingClasses[props.padding], shadowClasses[props.shadow], borderClass, hoverClass].join(' ')
 })
 </script>

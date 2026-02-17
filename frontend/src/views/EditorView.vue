@@ -17,22 +17,12 @@
             <div>
               <h1 class="text-base sm:text-lg font-semibold text-slate-800">{{ isEditing ? '编辑教案' : '新建教案' }}</h1>
               <p class="text-xs sm:text-sm text-slate-500 hidden sm:block">
-                {{ planStore.isSaving ? '保存中...' : (lastSaved ? `最后保存: ${lastSaved}` : '未保存') }}
+                {{ planStore.isSaving ? '保存中...' : (hasUnsavedDraft ? '未保存更改' : (lastSaved ? `最后保存: ${lastSaved}` : '未保存')) }}
               </p>
             </div>
           </div>
           
           <div class="flex items-center gap-2">
-            <!-- Mobile Menu Button -->
-            <button
-              @click="showMobileActions = !showMobileActions"
-              class="sm:hidden p-2 text-slate-500 hover:bg-slate-100 rounded-lg"
-            >
-              <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
-              </svg>
-            </button>
-            
             <!-- Desktop Buttons -->
             <div class="hidden sm:flex items-center gap-3">
               <button
@@ -67,57 +57,23 @@
                 {{ planStore.isSaving ? '保存中...' : '保存' }}
               </button>
             </div>
-            
-            <!-- Mobile Save Button Only -->
+
             <button
-              @click="handleSave"
-              :disabled="planStore.isSaving || !isFormValid"
-              class="sm:hidden p-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+              @click="showMobileActions = true"
+              class="sm:hidden h-9 w-9 inline-flex items-center justify-center rounded-xl border border-[#d1ddd5] bg-white text-slate-600"
+              title="更多操作"
             >
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h10" />
               </svg>
             </button>
           </div>
-        </div>
-        
-        <!-- Mobile Actions Menu -->
-        <div v-if="showMobileActions" class="sm:hidden border-t border-slate-200 py-3 space-y-2">
-          <button
-            @click="showTemplatePanel = !showTemplatePanel"
-            class="w-full flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50 rounded-lg"
-          >
-            模板库
-          </button>
-
-          <button
-            v-if="isEditing"
-            @click="handleExport"
-            class="w-full flex items-center gap-2 px-4 py-2 text-slate-700 hover:bg-slate-50 rounded-lg"
-          >
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            导出 Word
-          </button>
-          
-          <button
-            v-if="isEditing && planStore.currentPlan?.status === 'DRAFT'"
-            @click="handlePublish"
-            :disabled="planStore.isSaving"
-            class="w-full flex items-center gap-2 px-4 py-2 text-emerald-600 hover:bg-emerald-50 rounded-lg"
-          >
-            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-            发布教案
-          </button>
         </div>
       </div>
     </header>
 
     <!-- Main Content -->
-    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8 pb-28 sm:pb-8">
       <!-- Error Message -->
       <div
         v-if="planStore.error"
@@ -126,12 +82,15 @@
         {{ planStore.error }}
       </div>
 
-      <section
+      <div class="editor-layout-shell grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
+      <aside
         v-if="showTemplatePanel"
-        class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6 mb-4 sm:mb-6"
+        aria-label="模板工作台"
+        class="editor-template-panel bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6 lg:sticky lg:top-24"
       >
-        <h2 class="text-base sm:text-lg font-semibold text-slate-800 mb-4">我的模板</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+        <h2 class="text-base sm:text-lg font-semibold text-slate-800 mb-1">模板工作台</h2>
+        <p class="text-xs text-slate-500 mb-4">可检索、套用与维护个人模板</p>
+        <div class="grid grid-cols-1 gap-4">
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-2">模板检索</label>
             <div class="flex gap-2">
@@ -206,7 +165,7 @@
 
         <div class="mt-4">
           <label class="block text-sm font-medium text-slate-700 mb-2">选择模板并覆盖当前教案</label>
-          <div class="flex flex-col sm:flex-row gap-2">
+          <div class="flex flex-col gap-2">
             <select
               v-model="selectedTemplateId"
               class="flex-1 px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
@@ -260,7 +219,7 @@
             </button>
           </div>
         </div>
-      </section>
+      </aside>
 
       <div
         v-if="showTemplateEditDialog"
@@ -299,6 +258,34 @@
               <input
                 v-model="templateEditForm.className"
                 type="text"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">课时长度（分钟）</label>
+              <input
+                v-model.number="templateEditForm.duration"
+                type="number"
+                min="1"
+                max="300"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">教学方法</label>
+              <input
+                v-model="templateEditForm.methods"
+                type="text"
+                placeholder="例如：讲授法、案例教学"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-700 mb-2">教学资源</label>
+              <input
+                v-model="templateEditForm.resources"
+                type="text"
+                placeholder="例如：PPT、视频、实验设备"
                 class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
               />
             </div>
@@ -364,6 +351,20 @@
                 v-model:modelJson="templateEditForm.contentJson.process"
               />
             </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">板书设计</label>
+              <TipTapEditor
+                v-model="templateEditForm.blackboard"
+                v-model:modelJson="templateEditForm.contentJson.blackboard"
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-700 mb-2">教学反思</label>
+              <TipTapEditor
+                v-model="templateEditForm.reflection"
+                v-model:modelJson="templateEditForm.contentJson.reflection"
+              />
+            </div>
             <div class="flex items-center justify-end gap-2">
               <button
                 @click="handleCancelTemplateEdit"
@@ -383,8 +384,9 @@
         </div>
       </div>
 
+      <div class="min-w-0 space-y-4 sm:space-y-6">
       <!-- Basic Info -->
-      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6 mb-4 sm:mb-6">
+      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6">
         <h2 class="text-base sm:text-lg font-semibold text-slate-800 mb-3 sm:mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -394,82 +396,70 @@
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <div class="md:col-span-2">
-            <label class="block text-sm font-medium text-slate-700 mb-2">
-              教案标题 *
-            </label>
-            <input
+            <BaseInput
               v-model="form.title"
-              type="text"
+              label="教案标题"
               placeholder="例如：Vue 3 基础入门"
-              class="w-full px-3 sm:px-4 py-2 border sm:py-2.5 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              required
+              size="md"
             />
           </div>
           
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">
-              课程名称 *
-            </label>
-            <input
+            <BaseInput
               v-model="form.courseName"
-              type="text"
+              label="课程名称"
               placeholder="例如：前端开发技术"
-              class="w-full px-3 sm:px-4 py-2 border sm:py-2.5 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              required
+              size="md"
             />
           </div>
           
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">
-              授课班级 *
-            </label>
-            <input
+            <BaseInput
               v-model="form.className"
-              type="text"
+              label="授课班级"
               placeholder="例如：计算机2301班"
-              class="w-full px-3 sm:px-4 py-2 border sm:py-2.5 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              required
+              size="md"
             />
           </div>
           
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">
-              课时长度（分钟）*
-            </label>
-            <input
-              v-model.number="form.duration"
+            <BaseInput
+              v-model="durationText"
+              label="课时长度（分钟）"
               type="number"
-              min="1"
-              max="300"
-              class="w-full px-3 sm:px-4 py-2 border sm:py-2.5 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              placeholder="90"
+              :min="1"
+              :max="300"
+              required
+              size="md"
             />
           </div>
           
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">
-              教学方法
-            </label>
-            <input
+            <BaseInput
               v-model="form.methods"
-              type="text"
+              label="教学方法"
               placeholder="例如：讲授法、案例教学"
-              class="w-full px-3 sm:px-4 py-2 border sm:py-2.5 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              size="md"
             />
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-slate-700 mb-2">
-              教学资源
-            </label>
-            <input
+            <BaseInput
               v-model="form.resources"
-              type="text"
+              label="教学资源"
               placeholder="例如：PPT、视频、实验设备"
-              class="w-full px-3 sm:px-4 py-2 border sm:py-2.5 border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              size="md"
             />
           </div>
         </div>
       </section>
 
       <!-- Teaching Objectives -->
-      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-6">
+      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -481,7 +471,7 @@
       </section>
 
       <!-- Key Points -->
-      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-6">
+      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -493,7 +483,7 @@
       </section>
 
       <!-- Teaching Process -->
-      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-6">
+      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -505,7 +495,7 @@
       </section>
 
       <!-- Blackboard Design -->
-      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6 mb-6">
+      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -527,7 +517,74 @@
         
         <TipTapEditor v-model="form.reflection" v-model:modelJson="form.contentJson.reflection" />
       </section>
+      </div>
+      </div>
     </main>
+
+    <div class="mobile-quick-actions sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-[#d9e1dc] bg-white/95 backdrop-blur">
+      <div class="max-w-6xl mx-auto px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] grid grid-cols-1 gap-2">
+        <button
+          @click="handleMobileToggleTemplatePanel"
+          class="h-10 rounded-xl border text-sm font-medium transition-colors"
+          :class="showTemplatePanel ? 'border-[#647269] bg-[#eef4f0] text-[#1f3128]' : 'border-[#d1ddd5] bg-white text-[#435549]'"
+        >
+          模板库
+        </button>
+        <button
+          @click="handleMobileSave"
+          :disabled="planStore.isSaving || !isFormValid"
+          class="h-10 rounded-xl bg-[#647269] text-white text-sm font-medium disabled:opacity-50"
+        >
+          {{ planStore.isSaving ? '保存中...' : '保存草稿' }}
+        </button>
+        <button
+          @click="showMobileActions = true"
+          class="h-10 rounded-xl border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
+        >
+          更多操作
+        </button>
+      </div>
+    </div>
+
+    <div
+      v-if="showMobileActions"
+      class="sm:hidden fixed inset-0 z-40 bg-slate-900/45"
+      @click.self="closeMobileActions"
+    >
+      <div class="absolute bottom-0 inset-x-0 rounded-t-2xl bg-white border-t border-[#d9e1dc] px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+        <div class="w-10 h-1.5 bg-[#d1ddd5] rounded-full mx-auto mb-3"></div>
+        <p class="text-sm font-semibold text-[#33463c] mb-3">更多操作</p>
+        <div class="space-y-2">
+          <button
+            @click="handleMobileToggleTemplatePanel"
+            class="w-full h-11 rounded-xl border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
+          >
+            {{ showTemplatePanel ? '收起模板库' : '打开模板库' }}
+          </button>
+          <button
+            v-if="isEditing"
+            @click="handleMobileExport"
+            class="w-full h-11 rounded-xl border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
+          >
+            导出 Word
+          </button>
+          <button
+            v-if="isEditing && planStore.currentPlan?.status === 'DRAFT'"
+            @click="handleMobilePublish"
+            :disabled="planStore.isSaving"
+            class="w-full h-11 rounded-xl bg-emerald-600 text-white text-sm font-medium disabled:opacity-50"
+          >
+            发布教案
+          </button>
+          <button
+            @click="closeMobileActions"
+            class="w-full h-11 rounded-xl bg-[#f4f7f5] text-[#435549] text-sm font-medium"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -740,6 +797,24 @@ export const buildPlanPayload = (form: EditorPlanForm) => ({
   htmlContent: form.process,
 })
 
+export const buildEditorDraftSignature = (form: EditorPlanForm): string =>
+  JSON.stringify(buildPlanPayload(form))
+
+export const hasEditorDraftChanges = (
+  current: EditorPlanForm,
+  savedSignature?: string | null
+): boolean => {
+  if (!savedSignature) {
+    return true
+  }
+  return buildEditorDraftSignature(current) !== savedSignature
+}
+
+export const shouldPromptUnsavedChanges = (
+  hasUnsavedChanges: boolean,
+  isSaving: boolean
+): boolean => hasUnsavedChanges && !isSaving
+
 export const buildTemplateUpdatePayload = (
   form: EditorPlanForm,
   titleOverride?: string
@@ -764,11 +839,12 @@ export const resolveTemplateEditSubmission = (
 </script>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { usePlanStore } from '../stores/plan'
 import { usePlanTemplateStore } from '../stores/planTemplate'
 import TipTapEditor from '../components/TipTapEditor.vue'
+import BaseInput from '../components/ui/BaseInput.vue'
 import { normalizeTemplateTags } from '../stores/planTemplate'
 
 const route = useRoute()
@@ -779,6 +855,7 @@ const templateStore = usePlanTemplateStore()
 const planId = computed(() => route.params.id as string)
 const isEditing = computed(() => !!planId.value)
 const lastSaved = ref('')
+const savedDraftSignature = ref('')
 const showMobileActions = ref(false)
 const showTemplatePanel = ref(false)
 const templateSearch = ref('')
@@ -816,6 +893,14 @@ const form = reactive({
   contentJson: {},
 })
 
+const durationText = computed({
+  get: () => (form.duration > 0 ? String(form.duration) : ''),
+  set: (value: string) => {
+    const parsed = Number.parseInt(value, 10)
+    form.duration = Number.isFinite(parsed) ? parsed : 0
+  },
+})
+
 const createDefaultEditorForm = (): EditorPlanForm => ({
   title: '',
   courseName: '',
@@ -833,11 +918,49 @@ const createDefaultEditorForm = (): EditorPlanForm => ({
 
 const templateEditForm = reactive<EditorPlanForm>(createDefaultEditorForm())
 
+const updateSavedDraftSignature = () => {
+  savedDraftSignature.value = buildEditorDraftSignature(form as EditorPlanForm)
+}
+
+const hasUnsavedDraft = computed(() =>
+  hasEditorDraftChanges(form as EditorPlanForm, savedDraftSignature.value)
+)
+
+const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+  if (!shouldPromptUnsavedChanges(hasUnsavedDraft.value, planStore.isSaving)) {
+    return
+  }
+  event.preventDefault()
+  event.returnValue = ''
+}
+
+const confirmLeaveWithUnsavedDraft = (): boolean => {
+  if (!shouldPromptUnsavedChanges(hasUnsavedDraft.value, planStore.isSaving)) {
+    return true
+  }
+  return window.confirm('当前教案有未保存更改，确定离开吗？')
+}
+
+onBeforeRouteLeave((_to, _from, next) => {
+  if (confirmLeaveWithUnsavedDraft()) {
+    next()
+    return
+  }
+  next(false)
+})
+
 onMounted(async () => {
   if (isEditing.value) {
     await loadPlan()
+  } else {
+    updateSavedDraftSignature()
   }
   await loadTemplates()
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onBeforeUnmount(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
 })
 
 const loadPlan = async () => {
@@ -845,6 +968,7 @@ const loadPlan = async () => {
     const plan = await planStore.fetchPlan(planId.value)
     const mapped = mapFetchedPlanToForm(plan)
     Object.assign(form, mapped)
+    updateSavedDraftSignature()
     
     if (plan.updatedAt) {
       lastSaved.value = new Date(plan.updatedAt).toLocaleString('zh-CN')
@@ -869,10 +993,15 @@ const handleSave = async () => {
       await planStore.updatePlan(planId.value, data)
     } else {
       const result = await planStore.createPlan(data)
+      updateSavedDraftSignature()
       if (result?.id) {
         // Redirect to edit page after creation
         router.replace(`/editor/${result.id}`)
       }
+    }
+
+    if (isEditing.value) {
+      updateSavedDraftSignature()
     }
     
     lastSaved.value = new Date().toLocaleString('zh-CN')
@@ -1029,6 +1158,30 @@ const handleRemoveEditTag = (tag: string) => {
 const handleSelectTagFilter = async (tag: string) => {
   selectedTagFilter.value = tag
   await loadTemplates()
+}
+
+const closeMobileActions = () => {
+  showMobileActions.value = false
+}
+
+const handleMobileToggleTemplatePanel = () => {
+  showTemplatePanel.value = !showTemplatePanel.value
+  closeMobileActions()
+}
+
+const handleMobileSave = async () => {
+  await handleSave()
+  closeMobileActions()
+}
+
+const handleMobileExport = async () => {
+  await handleExport()
+  closeMobileActions()
+}
+
+const handleMobilePublish = async () => {
+  await handlePublish()
+  closeMobileActions()
 }
 
 const handlePublish = async () => {

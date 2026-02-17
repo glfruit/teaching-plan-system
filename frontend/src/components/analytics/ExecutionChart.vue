@@ -1,5 +1,5 @@
 <template>
-  <div class="chart-container" ref="chartRef" style="width: 100%; height: 100%;"></div>
+  <div ref="chartRef" style="width: 100%; height: 100%;"></div>
 </template>
 
 <script setup lang="ts">
@@ -13,7 +13,7 @@ const props = defineProps<{
 const chartRef = ref<HTMLElement | null>(null)
 let chart: echarts.ECharts | null = null
 
-const warmColors = ['#D97706', '#059669', '#64748B', '#F97316']
+const colors = ['#2563eb', '#22c55e', '#f59e0b', '#6b7280']
 
 const initChart = () => {
   if (chartRef.value) {
@@ -28,43 +28,44 @@ const updateChart = () => {
   const option = {
     tooltip: {
       trigger: 'item',
-      backgroundColor: 'rgba(255, 251, 240, 0.95)',
-      borderColor: '#FDE68A',
-      textStyle: { color: '#451A03' }
+      formatter: '{b}: {c} ({d}%)'
     },
     legend: {
       bottom: '0%',
-      textStyle: { color: '#78350F' }
+      itemWidth: 12,
+      itemHeight: 12,
+      textStyle: { 
+        color: '#525252',
+        fontSize: 12
+      }
     },
     series: [
       {
         name: '状态分布',
         type: 'pie',
-        radius: ['40%', '70%'],
+        radius: ['40%', '65%'],
         center: ['50%', '45%'],
         avoidLabelOverlap: false,
         itemStyle: {
-          borderRadius: 8,
-          borderColor: '#FFFBF0',
+          borderColor: '#fff',
           borderWidth: 2
         },
         label: {
-          show: false,
-          position: 'center'
+          show: false
         },
         emphasis: {
           label: {
             show: true,
-            fontSize: 16,
+            fontSize: 14,
             fontWeight: 'bold',
-            color: '#451A03'
+            color: '#171717'
           }
         },
         labelLine: { show: false },
         data: props.data.map((item, index) => ({
           value: item.count,
           name: item.status,
-          itemStyle: { color: warmColors[index % warmColors.length] }
+          itemStyle: { color: colors[index % colors.length] }
         }))
       }
     ]

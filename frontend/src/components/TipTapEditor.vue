@@ -1,5 +1,5 @@
 <template>
-  <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+  <div class="tiptap-warm-shell border border-[#e9dbc3] rounded-2xl overflow-hidden bg-[#fffaf2] shadow-[0_10px_28px_-20px_rgba(124,78,36,0.7)]">
     <div v-if="operationMessage" class="px-3 py-2 text-sm text-amber-700 bg-amber-50 border-b border-amber-200">
       {{ operationMessage }}
     </div>
@@ -35,7 +35,7 @@
     </div>
 
     <!-- Toolbar -->
-    <div class="flex items-center gap-1 p-2 border-b border-slate-200 bg-slate-50/80 flex-wrap">
+    <div class="tiptap-warm-toolbar flex items-center gap-1 p-2 border-b border-[#e9dbc3] bg-[#f8f1e6] flex-wrap">
       <!-- Text Style -->
       <div class="flex items-center gap-0.5">
         <button
@@ -77,7 +77,7 @@
         </button>
       </div>
 
-      <div class="w-px h-6 bg-slate-300 mx-1" />
+      <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
 
       <!-- Headings -->
       <div class="flex items-center gap-0.5">
@@ -112,7 +112,7 @@
         </button>
       </div>
 
-      <div class="w-px h-6 bg-slate-300 mx-1" />
+      <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
 
       <!-- Lists -->
       <div class="flex items-center gap-0.5">
@@ -154,7 +154,7 @@
         </button>
       </div>
 
-      <div class="w-px h-6 bg-slate-300 mx-1" />
+      <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
 
       <!-- Image -->
       <div class="flex items-center gap-0.5">
@@ -172,7 +172,7 @@
         </button>
       </div>
 
-      <div class="w-px h-6 bg-slate-300 mx-1" />
+      <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
 
       <!-- Table -->
       <div class="flex items-center gap-0.5">
@@ -208,7 +208,7 @@
       </div>
 
       <div v-if="editor?.isActive('table')" class="flex items-center gap-0.5">
-        <div class="w-px h-6 bg-slate-300 mx-1" />
+        <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
         
         <button
           @click="addColumnBefore"
@@ -315,7 +315,7 @@
         </button>
       </div>
 
-      <div class="w-px h-6 bg-slate-300 mx-1" />
+      <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
 
       <!-- Code -->
       <div class="flex items-center gap-0.5">
@@ -346,7 +346,7 @@
         </button>
       </div>
 
-      <div class="w-px h-6 bg-slate-300 mx-1" />
+      <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
 
       <!-- History -->
       <div class="flex items-center gap-0.5">
@@ -375,7 +375,7 @@
         </button>
       </div>
 
-      <div class="w-px h-6 bg-slate-300 mx-1" />
+      <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
 
       <!-- Teaching Layout -->
       <div class="flex items-center gap-0.5">
@@ -437,7 +437,7 @@
         </button>
       </div>
 
-      <div class="w-px h-6 bg-slate-300 mx-1" />
+      <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
 
       <!-- Clear -->
       <button
@@ -455,7 +455,7 @@
     <TeachingSlashMenu v-if="isSlashMenuOpen" :items="slashMenuItems" @select="onSlashSelect" />
 
     <!-- Editor Content -->
-    <div class="p-4">
+    <div class="tiptap-warm-content p-4 bg-[#fffdf9]">
       <EditorContent :editor="editor" class="prose max-w-none min-h-[200px]" />
     </div>
   </div>
