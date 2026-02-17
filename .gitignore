@@ -24,6 +24,8 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+__pycache__/
+*.pyc
 
 # Database
 *.db
@@ -32,3 +34,6 @@ Thumbs.db
 # Docker
 .docker/
 .worktrees/
+
+# Local testing helpers
+frontend/public/__e2e_auth__.html

@@ -5,6 +5,9 @@ import { teachingPlanRoutes } from './routes/teaching-plans'
 import { exportRoutes } from './routes/export'
 import { analyticsRoutes } from './routes/analytics'
 import { planTemplateRoutes } from './routes/plan-templates'
+import { resolvePort } from './lib/server-config'
+
+const PORT = resolvePort(process.env.PORT)
 
 const app = new Elysia()
   .use(cors({
@@ -22,9 +25,9 @@ const app = new Elysia()
   }))
   .listen({
     hostname: '0.0.0.0',
-    port: 3000
+    port: PORT
   })
 
 console.log(`🦊 Elysia is running at:`)
-console.log(`  - Local:   http://localhost:3000`)
-console.log(`  - Network: http://${process.env.HOSTNAME || '192.168.x.x'}:3000`)
+console.log(`  - Local:   http://localhost:${PORT}`)
+console.log(`  - Network: http://${process.env.HOSTNAME || '192.168.x.x'}:${PORT}`)
