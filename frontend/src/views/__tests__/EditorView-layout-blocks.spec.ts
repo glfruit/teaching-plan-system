@@ -4,6 +4,9 @@ import {
   applyTemplateWithConfirmation,
   buildTemplateUpdatePayload,
   resolveTemplateEditSubmission,
+  buildEditorLocalDraftStorageKey,
+  serializeEditorLocalDraft,
+  parseEditorLocalDraft,
   buildPlanPayload,
   mapFetchedPlanToForm,
   buildEditorDraftSignature,
@@ -364,5 +367,48 @@ describe('EditorView teaching layout persistence', () => {
     expect(shouldPromptUnsavedChanges(true, false)).toBe(true)
     expect(shouldPromptUnsavedChanges(true, true)).toBe(false)
     expect(shouldPromptUnsavedChanges(false, false)).toBe(false)
+  })
+
+  it('builds stable local draft storage keys for new and existing plans', () => {
+    expect(buildEditorLocalDraftStorageKey()).toBe('editor-local-draft:new')
+    expect(buildEditorLocalDraftStorageKey('')).toBe('editor-local-draft:new')
+    expect(buildEditorLocalDraftStorageKey('plan-123')).toBe('editor-local-draft:plan-123')
+  })
+
+  it('serializes and parses local editor draft payload', () => {
+    const form = {
+      title: '本地草稿',
+      courseName: '课程',
+      className: '1班',
+      duration: 45,
+      methods: '讲授法',
+      resources: 'PPT',
+      objectives: '<p>目标</p>',
+      keyPoints: '<p>重点</p>',
+      process: '<p>过程</p>',
+      blackboard: '<p>板书</p>',
+      reflection: '<p>反思</p>',
+      contentJson: {},
+    }
+
+    const raw = serializeEditorLocalDraft(form as any, '2026-02-17T12:00:00.000Z')
+    const parsed = parseEditorLocalDraft(raw)
+    expect(parsed?.savedAt).toBe('2026-02-17T12:00:00.000Z')
+    expect(parsed?.form.title).toBe('本地草稿')
+    expect(parsed?.form.process).toContain('过程')
+  })
+
+  it('returns null for malformed local editor draft payload', () => {
+    expect(parseEditorLocalDraft('')).toBeNull()
+    expect(parseEditorLocalDraft('invalid-json')).toBeNull()
+    expect(
+      parseEditorLocalDraft(
+        JSON.stringify({
+          version: 1,
+          savedAt: '2026-02-17T12:00:00.000Z',
+          form: { title: '缺少字段' },
+        })
+      )
+    ).toBeNull()
   })
 })

@@ -16,9 +16,8 @@
             
             <div>
               <h1 class="text-base sm:text-lg font-semibold text-slate-800">{{ isEditing ? '编辑教案' : '新建教案' }}</h1>
-              <p class="text-xs sm:text-sm text-slate-500 hidden sm:block">
-                {{ planStore.isSaving ? '保存中...' : (hasUnsavedDraft ? '未保存更改' : (lastSaved ? `最后保存: ${lastSaved}` : '未保存')) }}
-              </p>
+              <p class="text-xs sm:text-sm text-slate-500 hidden sm:block">{{ editorStatusText }}</p>
+              <p v-if="localDraftMessage" class="text-[11px] text-emerald-600 hidden sm:block">{{ localDraftMessage }}</p>
             </div>
           </div>
           
@@ -810,6 +809,85 @@ export const hasEditorDraftChanges = (
   return buildEditorDraftSignature(current) !== savedSignature
 }
 
+export const LOCAL_EDITOR_DRAFT_VERSION = 1
+export const LOCAL_EDITOR_DRAFT_PREFIX = 'editor-local-draft:'
+
+export type EditorLocalDraft = {
+  version: number
+  savedAt: string
+  form: EditorPlanForm
+}
+
+const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
+const isEditorPlanFormLike = (value: unknown): value is EditorPlanForm => {
+  if (!isObjectRecord(value)) {
+    return false
+  }
+
+  return (
+    typeof value.title === 'string' &&
+    typeof value.courseName === 'string' &&
+    typeof value.className === 'string' &&
+    typeof value.duration === 'number' &&
+    typeof value.methods === 'string' &&
+    typeof value.resources === 'string' &&
+    typeof value.objectives === 'string' &&
+    typeof value.keyPoints === 'string' &&
+    typeof value.process === 'string' &&
+    typeof value.blackboard === 'string' &&
+    typeof value.reflection === 'string' &&
+    isObjectRecord(value.contentJson)
+  )
+}
+
+export const buildEditorLocalDraftStorageKey = (planId?: string | null): string => {
+  const normalizedId = typeof planId === 'string' && planId.trim() ? planId.trim() : 'new'
+  return `${LOCAL_EDITOR_DRAFT_PREFIX}${normalizedId}`
+}
+
+export const serializeEditorLocalDraft = (
+  form: EditorPlanForm,
+  savedAt = new Date().toISOString()
+): string => {
+  const payload: EditorLocalDraft = {
+    version: LOCAL_EDITOR_DRAFT_VERSION,
+    savedAt,
+    form,
+  }
+  return JSON.stringify(payload)
+}
+
+export const parseEditorLocalDraft = (raw: string | null | undefined): EditorLocalDraft | null => {
+  if (!raw) {
+    return null
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!isObjectRecord(parsed)) {
+      return null
+    }
+
+    if (typeof parsed.savedAt !== 'string' || !parsed.savedAt.trim()) {
+      return null
+    }
+
+    if (!isEditorPlanFormLike(parsed.form)) {
+      return null
+    }
+
+    return {
+      version: typeof parsed.version === 'number' ? parsed.version : LOCAL_EDITOR_DRAFT_VERSION,
+      savedAt: parsed.savedAt,
+      form: parsed.form,
+    }
+  } catch {
+    return null
+  }
+}
+
 export const shouldPromptUnsavedChanges = (
   hasUnsavedChanges: boolean,
   isSaving: boolean
@@ -839,7 +917,7 @@ export const resolveTemplateEditSubmission = (
 </script>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { usePlanStore } from '../stores/plan'
 import { usePlanTemplateStore } from '../stores/planTemplate'
@@ -851,11 +929,13 @@ const route = useRoute()
 const router = useRouter()
 const planStore = usePlanStore()
 const templateStore = usePlanTemplateStore()
+let localDraftPersistTimer: ReturnType<typeof setTimeout> | null = null
 
 const planId = computed(() => route.params.id as string)
 const isEditing = computed(() => !!planId.value)
 const lastSaved = ref('')
 const savedDraftSignature = ref('')
+const localDraftMessage = ref('')
 const showMobileActions = ref(false)
 const showTemplatePanel = ref(false)
 const templateSearch = ref('')
@@ -869,6 +949,7 @@ const editingTemplateId = ref('')
 const templateEditTitle = ref('')
 const templateEditTagInput = ref('')
 const templateEditTags = ref<string[]>([])
+const isDraftPersistenceReady = ref(false)
 const PRESET_TEMPLATE_TAGS = ['导入', '探究', '复习', '实验', '评价'] as const
 
 const isFormValid = computed(() => {
@@ -926,6 +1007,82 @@ const hasUnsavedDraft = computed(() =>
   hasEditorDraftChanges(form as EditorPlanForm, savedDraftSignature.value)
 )
 
+const editorStatusText = computed(() => {
+  if (planStore.isSaving) {
+    return '保存中...'
+  }
+  if (hasUnsavedDraft.value) {
+    return '未保存更改'
+  }
+  return lastSaved.value ? `最后保存: ${lastSaved.value}` : '未保存'
+})
+
+const localDraftStorageKey = computed(() =>
+  buildEditorLocalDraftStorageKey(isEditing.value ? planId.value : null)
+)
+
+const formatDraftTimestamp = (value: string): string => {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) {
+    return ''
+  }
+  return parsed.toLocaleString('zh-CN')
+}
+
+const clearLocalDraft = () => {
+  localStorage.removeItem(localDraftStorageKey.value)
+  localDraftMessage.value = ''
+}
+
+const persistLocalDraft = () => {
+  if (!hasUnsavedDraft.value || planStore.isSaving) {
+    return
+  }
+
+  const raw = serializeEditorLocalDraft(form as EditorPlanForm)
+  localStorage.setItem(localDraftStorageKey.value, raw)
+  const parsed = parseEditorLocalDraft(raw)
+  const timeLabel = parsed ? formatDraftTimestamp(parsed.savedAt) : ''
+  localDraftMessage.value = timeLabel
+    ? `本地草稿已自动保存：${timeLabel}`
+    : '本地草稿已自动保存'
+}
+
+const schedulePersistLocalDraft = () => {
+  if (!isDraftPersistenceReady.value) {
+    return
+  }
+
+  if (localDraftPersistTimer) {
+    clearTimeout(localDraftPersistTimer)
+  }
+
+  localDraftPersistTimer = setTimeout(() => {
+    persistLocalDraft()
+  }, 600)
+}
+
+const restoreLocalDraftIfNeeded = (): boolean => {
+  const rawDraft = localStorage.getItem(localDraftStorageKey.value)
+  const draft = parseEditorLocalDraft(rawDraft)
+  if (!draft) {
+    return false
+  }
+
+  const timeLabel = formatDraftTimestamp(draft.savedAt) || '未知时间'
+  const message = isEditing.value
+    ? `检测到本地未保存草稿（${timeLabel}），是否恢复？`
+    : `检测到上次未完成草稿（${timeLabel}），是否恢复？`
+
+  if (!window.confirm(message)) {
+    return false
+  }
+
+  Object.assign(form, draft.form)
+  localDraftMessage.value = `已恢复本地草稿：${timeLabel}`
+  return true
+}
+
 const handleBeforeUnload = (event: BeforeUnloadEvent) => {
   if (!shouldPromptUnsavedChanges(hasUnsavedDraft.value, planStore.isSaving)) {
     return
@@ -955,12 +1112,18 @@ onMounted(async () => {
   } else {
     updateSavedDraftSignature()
   }
+  restoreLocalDraftIfNeeded()
+  isDraftPersistenceReady.value = true
   await loadTemplates()
   window.addEventListener('beforeunload', handleBeforeUnload)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  if (localDraftPersistTimer) {
+    clearTimeout(localDraftPersistTimer)
+    localDraftPersistTimer = null
+  }
 })
 
 const loadPlan = async () => {
@@ -980,6 +1143,13 @@ const loadPlan = async () => {
   }
 }
 
+watch(
+  () => buildEditorDraftSignature(form as EditorPlanForm),
+  () => {
+    schedulePersistLocalDraft()
+  }
+)
+
 const handleSave = async () => {
   if (!isFormValid.value) {
     alert('请填写所有必填字段')
@@ -993,7 +1163,7 @@ const handleSave = async () => {
       await planStore.updatePlan(planId.value, data)
     } else {
       const result = await planStore.createPlan(data)
-      updateSavedDraftSignature()
+      clearLocalDraft()
       if (result?.id) {
         // Redirect to edit page after creation
         router.replace(`/editor/${result.id}`)
@@ -1001,8 +1171,9 @@ const handleSave = async () => {
     }
 
     if (isEditing.value) {
-      updateSavedDraftSignature()
+      clearLocalDraft()
     }
+    updateSavedDraftSignature()
     
     lastSaved.value = new Date().toLocaleString('zh-CN')
   } catch (error: any) {
