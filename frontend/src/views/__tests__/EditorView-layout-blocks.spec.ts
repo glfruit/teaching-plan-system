@@ -7,6 +7,8 @@ import {
   buildEditorLocalDraftStorageKey,
   serializeEditorLocalDraft,
   parseEditorLocalDraft,
+  resolveEditorContentSourceLabel,
+  shouldPersistLocalDraftOnLeave,
   buildPlanPayload,
   mapFetchedPlanToForm,
   buildEditorDraftSignature,
@@ -410,5 +412,17 @@ describe('EditorView teaching layout persistence', () => {
         })
       )
     ).toBeNull()
+  })
+
+  it('resolves content source label for local/server/new', () => {
+    expect(resolveEditorContentSourceLabel('local')).toBe('内容来源：本地草稿')
+    expect(resolveEditorContentSourceLabel('server')).toBe('内容来源：服务器')
+    expect(resolveEditorContentSourceLabel('new')).toBe('内容来源：新建教案')
+  })
+
+  it('persists local draft on leave only when unsaved and not saving', () => {
+    expect(shouldPersistLocalDraftOnLeave(true, false)).toBe(true)
+    expect(shouldPersistLocalDraftOnLeave(true, true)).toBe(false)
+    expect(shouldPersistLocalDraftOnLeave(false, false)).toBe(false)
   })
 })

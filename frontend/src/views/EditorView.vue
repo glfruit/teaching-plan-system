@@ -16,6 +16,7 @@
             
             <div>
               <h1 class="text-base sm:text-lg font-semibold text-slate-800">{{ isEditing ? '编辑教案' : '新建教案' }}</h1>
+              <p class="text-[11px] sm:text-xs text-[#647269] hidden sm:block">{{ contentSourceLabel }}</p>
               <p class="text-xs sm:text-sm text-slate-500 hidden sm:block">{{ editorStatusText }}</p>
               <p v-if="localDraftMessage" class="text-[11px] text-emerald-600 hidden sm:block">{{ localDraftMessage }}</p>
             </div>
@@ -46,6 +47,13 @@
                 class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50 shadow-sm"
               >
                 发布
+              </button>
+
+              <button
+                @click="handleOpenDraftDialog"
+                class="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+              >
+                草稿箱
               </button>
               
               <button
@@ -561,6 +569,12 @@
             {{ showTemplatePanel ? '收起模板库' : '打开模板库' }}
           </button>
           <button
+            @click="handleMobileOpenDraftDialog"
+            class="w-full h-11 rounded-xl border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
+          >
+            草稿箱
+          </button>
+          <button
             v-if="isEditing"
             @click="handleMobileExport"
             class="w-full h-11 rounded-xl border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
@@ -578,6 +592,46 @@
           <button
             @click="closeMobileActions"
             class="w-full h-11 rounded-xl bg-[#f4f7f5] text-[#435549] text-sm font-medium"
+          >
+            关闭
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="showDraftDialog"
+      class="fixed inset-0 z-40 bg-slate-900/45 p-4 overflow-y-auto"
+      @click.self="showDraftDialog = false"
+    >
+      <div class="max-w-md mx-auto mt-10 rounded-2xl border border-slate-200 bg-white shadow-xl p-5 sm:p-6">
+        <h3 class="text-base font-semibold text-slate-800">本地草稿箱</h3>
+        <p class="mt-1 text-xs text-slate-500">用于恢复未保存内容，数据仅保存在当前浏览器。</p>
+        <div v-if="currentLocalDraft" class="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-sm text-[#2f5f4f]">
+          <p>草稿时间：{{ formatDraftTimestamp(currentLocalDraft.savedAt) || currentLocalDraft.savedAt }}</p>
+          <p class="mt-1">内容来源将变更为：本地草稿</p>
+        </div>
+        <div v-else class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+          暂无本地草稿
+        </div>
+        <div class="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <button
+            @click="handleRestoreLocalDraft"
+            :disabled="!currentLocalDraft"
+            class="h-10 rounded-xl bg-[#647269] text-white text-sm font-medium disabled:opacity-50"
+          >
+            恢复草稿
+          </button>
+          <button
+            @click="handleClearLocalDraft"
+            :disabled="!currentLocalDraft"
+            class="h-10 rounded-xl border border-red-200 bg-red-50 text-red-600 text-sm font-medium disabled:opacity-50"
+          >
+            清空草稿
+          </button>
+          <button
+            @click="showDraftDialog = false"
+            class="h-10 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-medium sm:col-span-2"
           >
             关闭
           </button>
@@ -888,6 +942,23 @@ export const parseEditorLocalDraft = (raw: string | null | undefined): EditorLoc
   }
 }
 
+export type EditorContentSource = 'server' | 'local' | 'new'
+
+export const resolveEditorContentSourceLabel = (source: EditorContentSource): string => {
+  if (source === 'local') {
+    return '内容来源：本地草稿'
+  }
+  if (source === 'server') {
+    return '内容来源：服务器'
+  }
+  return '内容来源：新建教案'
+}
+
+export const shouldPersistLocalDraftOnLeave = (
+  hasUnsavedChanges: boolean,
+  isSaving: boolean
+): boolean => hasUnsavedChanges && !isSaving
+
 export const shouldPromptUnsavedChanges = (
   hasUnsavedChanges: boolean,
   isSaving: boolean
@@ -936,6 +1007,9 @@ const isEditing = computed(() => !!planId.value)
 const lastSaved = ref('')
 const savedDraftSignature = ref('')
 const localDraftMessage = ref('')
+const currentLocalDraft = ref<EditorLocalDraft | null>(null)
+const showDraftDialog = ref(false)
+const contentSource = ref<EditorContentSource>('new')
 const showMobileActions = ref(false)
 const showTemplatePanel = ref(false)
 const templateSearch = ref('')
@@ -1017,6 +1091,8 @@ const editorStatusText = computed(() => {
   return lastSaved.value ? `最后保存: ${lastSaved.value}` : '未保存'
 })
 
+const contentSourceLabel = computed(() => resolveEditorContentSourceLabel(contentSource.value))
+
 const localDraftStorageKey = computed(() =>
   buildEditorLocalDraftStorageKey(isEditing.value ? planId.value : null)
 )
@@ -1031,10 +1107,11 @@ const formatDraftTimestamp = (value: string): string => {
 
 const clearLocalDraft = () => {
   localStorage.removeItem(localDraftStorageKey.value)
+  currentLocalDraft.value = null
   localDraftMessage.value = ''
 }
 
-const persistLocalDraft = () => {
+const persistLocalDraft = (force = false) => {
   if (!hasUnsavedDraft.value || planStore.isSaving) {
     return
   }
@@ -1042,10 +1119,15 @@ const persistLocalDraft = () => {
   const raw = serializeEditorLocalDraft(form as EditorPlanForm)
   localStorage.setItem(localDraftStorageKey.value, raw)
   const parsed = parseEditorLocalDraft(raw)
+  currentLocalDraft.value = parsed
   const timeLabel = parsed ? formatDraftTimestamp(parsed.savedAt) : ''
-  localDraftMessage.value = timeLabel
-    ? `本地草稿已自动保存：${timeLabel}`
-    : '本地草稿已自动保存'
+  localDraftMessage.value = force
+    ? timeLabel
+      ? `已离开前保存本地草稿：${timeLabel}`
+      : '已离开前保存本地草稿'
+    : timeLabel
+      ? `本地草稿已自动保存：${timeLabel}`
+      : '本地草稿已自动保存'
 }
 
 const schedulePersistLocalDraft = () => {
@@ -1063,8 +1145,8 @@ const schedulePersistLocalDraft = () => {
 }
 
 const restoreLocalDraftIfNeeded = (): boolean => {
-  const rawDraft = localStorage.getItem(localDraftStorageKey.value)
-  const draft = parseEditorLocalDraft(rawDraft)
+  const draft = parseEditorLocalDraft(localStorage.getItem(localDraftStorageKey.value))
+  currentLocalDraft.value = draft
   if (!draft) {
     return false
   }
@@ -1080,10 +1162,44 @@ const restoreLocalDraftIfNeeded = (): boolean => {
 
   Object.assign(form, draft.form)
   localDraftMessage.value = `已恢复本地草稿：${timeLabel}`
+  contentSource.value = 'local'
   return true
 }
 
+const refreshLocalDraft = () => {
+  currentLocalDraft.value = parseEditorLocalDraft(localStorage.getItem(localDraftStorageKey.value))
+}
+
+const handleOpenDraftDialog = () => {
+  refreshLocalDraft()
+  showDraftDialog.value = true
+}
+
+const handleRestoreLocalDraft = () => {
+  if (!currentLocalDraft.value) {
+    return
+  }
+  Object.assign(form, currentLocalDraft.value.form)
+  const timeLabel = formatDraftTimestamp(currentLocalDraft.value.savedAt)
+  localDraftMessage.value = timeLabel ? `已恢复本地草稿：${timeLabel}` : '已恢复本地草稿'
+  contentSource.value = 'local'
+  showDraftDialog.value = false
+}
+
+const handleClearLocalDraft = () => {
+  clearLocalDraft()
+  showDraftDialog.value = false
+}
+
+const persistLocalDraftBeforeLeave = () => {
+  if (!shouldPersistLocalDraftOnLeave(hasUnsavedDraft.value, planStore.isSaving)) {
+    return
+  }
+  persistLocalDraft(true)
+}
+
 const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+  persistLocalDraftBeforeLeave()
   if (!shouldPromptUnsavedChanges(hasUnsavedDraft.value, planStore.isSaving)) {
     return
   }
@@ -1099,6 +1215,7 @@ const confirmLeaveWithUnsavedDraft = (): boolean => {
 }
 
 onBeforeRouteLeave((_to, _from, next) => {
+  persistLocalDraftBeforeLeave()
   if (confirmLeaveWithUnsavedDraft()) {
     next()
     return
@@ -1107,6 +1224,7 @@ onBeforeRouteLeave((_to, _from, next) => {
 })
 
 onMounted(async () => {
+  contentSource.value = isEditing.value ? 'server' : 'new'
   if (isEditing.value) {
     await loadPlan()
   } else {
@@ -1131,6 +1249,7 @@ const loadPlan = async () => {
     const plan = await planStore.fetchPlan(planId.value)
     const mapped = mapFetchedPlanToForm(plan)
     Object.assign(form, mapped)
+    contentSource.value = 'server'
     updateSavedDraftSignature()
     
     if (plan.updatedAt) {
@@ -1338,6 +1457,11 @@ const closeMobileActions = () => {
 const handleMobileToggleTemplatePanel = () => {
   showTemplatePanel.value = !showTemplatePanel.value
   closeMobileActions()
+}
+
+const handleMobileOpenDraftDialog = () => {
+  closeMobileActions()
+  handleOpenDraftDialog()
 }
 
 const handleMobileSave = async () => {

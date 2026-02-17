@@ -11,6 +11,7 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('sm:hidden fixed bottom-0')
     expect(editorViewSource).toContain('模板库')
     expect(editorViewSource).toContain('保存草稿')
+    expect(editorViewSource).toContain('草稿箱')
     expect(editorViewSource).toContain('更多操作')
   })
 
@@ -23,5 +24,7 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain("window.addEventListener('beforeunload', handleBeforeUnload)")
     expect(editorViewSource).toContain("window.removeEventListener('beforeunload', handleBeforeUnload)")
     expect(editorViewSource).toContain('当前教案有未保存更改，确定离开吗？')
+    expect(editorViewSource).toContain('persistLocalDraftBeforeLeave')
+    expect(editorViewSource).toContain('shouldPersistLocalDraftOnLeave')
   })
 })
