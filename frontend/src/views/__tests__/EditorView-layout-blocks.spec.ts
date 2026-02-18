@@ -29,6 +29,7 @@ import {
   pickEditorLocalDraftsForImport,
   selectEditorLocalDraftImportSavedAtByStrategy,
   buildEditorLocalDraftImportConflictItems,
+  buildEditorLocalDraftImportConflictDiffItems,
   buildEditorLocalDraftExportFileName,
   normalizeEditorLocalDraftSearchQuery,
   filterEditorLocalDraftHistory,
@@ -1101,6 +1102,38 @@ describe('EditorView teaching layout persistence', () => {
     expect(items[0].savedAt).toBe('2026-02-17T12:00:00.000Z')
     expect(items[0].localDisplayName).toBe('Local Draft')
     expect(items[0].importedDisplayName).toBe('Imported Draft')
+  })
+
+  it('builds import conflict diff items with changed field labels', () => {
+    const existing = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Local', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p>old</p>', keyPoints: '<p></p>', process: '<p>流程A</p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Local Draft', title: 'Local', courseName: '', className: '' },
+        pinned: false,
+      },
+    ]
+    const candidates = [
+      {
+        draft: {
+          version: 1,
+          savedAt: '2026-02-17T12:00:00.000Z',
+          form: { title: 'Imported', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p>new</p>', keyPoints: '<p></p>', process: '<p>流程B</p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+          snapshot: { displayName: 'Imported Draft', title: 'Imported', courseName: '', className: '' },
+          pinned: false,
+        },
+        conflict: true,
+      },
+    ]
+
+    const items = buildEditorLocalDraftImportConflictDiffItems(existing as any, candidates as any)
+    expect(items).toHaveLength(1)
+    expect(items[0].savedAt).toBe('2026-02-17T12:00:00.000Z')
+    expect(items[0].changedCount).toBeGreaterThan(0)
+    expect(items[0].fields).toContain('教案标题')
+    expect(items[0].fields).toContain('教学目标')
+    expect(items[0].fields).toContain('教学过程')
   })
 
   it('builds export filename with plan id and timestamp', () => {
