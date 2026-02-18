@@ -38,6 +38,8 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('导入草稿预览')
     expect(editorViewSource).toContain('仅导入勾选草稿')
     expect(editorViewSource).toContain('全选')
+    expect(editorViewSource).toContain('仅冲突')
+    expect(editorViewSource).toContain('仅新增')
     expect(editorViewSource).toContain('清空选择')
     expect(editorViewSource).toContain('确认导入')
     expect(editorViewSource).toContain('置顶 {{ pinnedDraftCount }} / 未置顶 {{ unpinnedDraftCount }}')

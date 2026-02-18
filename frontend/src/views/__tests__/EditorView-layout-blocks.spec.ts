@@ -27,6 +27,7 @@ import {
   buildEditorLocalDraftImportPreviewMessage,
   buildEditorLocalDraftImportCandidates,
   pickEditorLocalDraftsForImport,
+  selectEditorLocalDraftImportSavedAtByStrategy,
   buildEditorLocalDraftExportFileName,
   normalizeEditorLocalDraftSearchQuery,
   filterEditorLocalDraftHistory,
@@ -1022,6 +1023,43 @@ describe('EditorView teaching layout persistence', () => {
     const selected = pickEditorLocalDraftsForImport(candidates as any, ['2026-02-17T13:00:00.000Z'])
     expect(selected).toHaveLength(1)
     expect(selected[0].snapshot.displayName).toBe('B')
+  })
+
+  it('selects import draft savedAt by strategy', () => {
+    const candidates = [
+      {
+        draft: {
+          version: 1,
+          savedAt: '2026-02-17T12:00:00.000Z',
+          form: { title: 'Conflict', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+          snapshot: { displayName: 'Conflict', title: 'Conflict', courseName: '', className: '' },
+          pinned: false,
+        },
+        conflict: true,
+      },
+      {
+        draft: {
+          version: 1,
+          savedAt: '2026-02-17T13:00:00.000Z',
+          form: { title: 'New', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+          snapshot: { displayName: 'New', title: 'New', courseName: '', className: '' },
+          pinned: false,
+        },
+        conflict: false,
+      },
+    ]
+
+    expect(selectEditorLocalDraftImportSavedAtByStrategy(candidates as any, 'all')).toEqual([
+      '2026-02-17T12:00:00.000Z',
+      '2026-02-17T13:00:00.000Z',
+    ])
+    expect(selectEditorLocalDraftImportSavedAtByStrategy(candidates as any, 'conflict')).toEqual([
+      '2026-02-17T12:00:00.000Z',
+    ])
+    expect(selectEditorLocalDraftImportSavedAtByStrategy(candidates as any, 'new')).toEqual([
+      '2026-02-17T13:00:00.000Z',
+    ])
+    expect(selectEditorLocalDraftImportSavedAtByStrategy(candidates as any, 'none')).toEqual([])
   })
 
   it('builds export filename with plan id and timestamp', () => {

@@ -790,6 +790,18 @@
                 全选
               </button>
               <button
+                @click="handleSelectConflictImportDrafts"
+                class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+              >
+                仅冲突
+              </button>
+              <button
+                @click="handleSelectNewImportDrafts"
+                class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+              >
+                仅新增
+              </button>
+              <button
                 @click="handleClearImportDraftSelection"
                 class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
               >
@@ -1135,6 +1147,8 @@ export type EditorLocalDraftImportCandidate = {
   draft: EditorLocalDraft
   conflict: boolean
 }
+
+export type EditorLocalDraftImportSelectionStrategy = 'all' | 'conflict' | 'new' | 'none'
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
@@ -1540,6 +1554,25 @@ export const pickEditorLocalDraftsForImport = (
   return candidates
     .filter((item) => selected.has(item.draft.savedAt))
     .map((item) => item.draft)
+}
+
+export const selectEditorLocalDraftImportSavedAtByStrategy = (
+  candidates: EditorLocalDraftImportCandidate[],
+  strategy: EditorLocalDraftImportSelectionStrategy
+): string[] => {
+  if (strategy === 'none') {
+    return []
+  }
+
+  if (strategy === 'all') {
+    return candidates.map((item) => item.draft.savedAt)
+  }
+
+  if (strategy === 'conflict') {
+    return candidates.filter((item) => item.conflict).map((item) => item.draft.savedAt)
+  }
+
+  return candidates.filter((item) => !item.conflict).map((item) => item.draft.savedAt)
 }
 
 export const buildEditorLocalDraftImportPreview = (
@@ -2049,11 +2082,31 @@ const handleToggleImportDraftSelection = (savedAt: string) => {
 }
 
 const handleSelectAllImportDrafts = () => {
-  selectedImportDraftSavedAt.value = localDraftImportCandidates.value.map((item) => item.draft.savedAt)
+  selectedImportDraftSavedAt.value = selectEditorLocalDraftImportSavedAtByStrategy(
+    localDraftImportCandidates.value,
+    'all'
+  )
+}
+
+const handleSelectConflictImportDrafts = () => {
+  selectedImportDraftSavedAt.value = selectEditorLocalDraftImportSavedAtByStrategy(
+    localDraftImportCandidates.value,
+    'conflict'
+  )
+}
+
+const handleSelectNewImportDrafts = () => {
+  selectedImportDraftSavedAt.value = selectEditorLocalDraftImportSavedAtByStrategy(
+    localDraftImportCandidates.value,
+    'new'
+  )
 }
 
 const handleClearImportDraftSelection = () => {
-  selectedImportDraftSavedAt.value = []
+  selectedImportDraftSavedAt.value = selectEditorLocalDraftImportSavedAtByStrategy(
+    localDraftImportCandidates.value,
+    'none'
+  )
 }
 
 const handleConfirmImportPreview = () => {
