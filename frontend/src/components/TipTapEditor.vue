@@ -458,6 +458,11 @@
     <div class="tiptap-warm-content p-4 bg-[#fffdf9]">
       <EditorContent :editor="editor" class="prose max-w-none min-h-[200px]" />
     </div>
+
+    <div class="flex items-center justify-between border-t border-[#e9dbc3] bg-[#fdf7ee] px-3 py-1.5 text-[11px] text-[#7a6b56]">
+      <span>字数 {{ editorMetrics.characters }}</span>
+      <span>段落 {{ editorMetrics.paragraphs }}</span>
+    </div>
   </div>
 </template>
 
@@ -508,6 +513,25 @@ const isSlashMenuOpen = ref(false)
 const operationMessage = ref('')
 
 const slashMenuItems = computed(() => filterTeachingSlashItems(slashQuery.value))
+
+const stripHtmlToText = (html: string): string =>
+  html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+
+const countParagraphs = (html: string): number => {
+  const matched = html.match(/<p[\s>]/gi)
+  if (matched?.length) {
+    return matched.length
+  }
+  return stripHtmlToText(html) ? 1 : 0
+}
+
+const editorMetrics = computed(() => {
+  const text = stripHtmlToText(props.modelValue || '')
+  return {
+    characters: text.replace(/\s+/g, '').length,
+    paragraphs: countParagraphs(props.modelValue || ''),
+  }
+})
 
 const editor = useEditor({
   extensions: [

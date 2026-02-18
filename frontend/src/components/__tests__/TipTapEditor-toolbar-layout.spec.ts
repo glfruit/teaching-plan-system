@@ -71,4 +71,15 @@ describe('TipTapEditor teaching layout toolbar', () => {
       expect(container.querySelector('[data-node-type="unknownNodePlaceholder"]')).toBeNull()
     })
   })
+
+  it('shows realtime content metrics in footer', async () => {
+    const { getByText } = render(TipTapEditor, {
+      props: { modelValue: '<p>abc</p><p>de</p>' },
+    })
+
+    await waitFor(() => {
+      expect(getByText('字数 5')).toBeTruthy()
+      expect(getByText('段落 2')).toBeTruthy()
+    })
+  })
 })
