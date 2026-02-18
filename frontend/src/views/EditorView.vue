@@ -886,11 +886,33 @@
                   v-if="item.conflict && isLocalDraftImportConflictExpanded(item.draft.savedAt)"
                   class="mt-1.5 rounded-md border border-slate-200 bg-slate-50 p-2 space-y-1"
                 >
+                  <div class="flex items-center gap-1 pb-1">
+                    <button
+                      @click.prevent="handleSelectAllLocalDraftImportConflictFields(item.draft.savedAt)"
+                      class="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] text-slate-600"
+                    >
+                      字段全选
+                    </button>
+                    <button
+                      @click.prevent="handleClearLocalDraftImportConflictFields(item.draft.savedAt)"
+                      class="rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[10px] text-slate-600"
+                    >
+                      清空字段
+                    </button>
+                  </div>
                   <template
                     v-for="detail in localDraftImportConflictDetailItemMap.get(item.draft.savedAt)?.details || []"
                     :key="`${item.draft.savedAt}-${detail.label}`"
                   >
-                    <p class="text-[10px] text-slate-700 font-medium">{{ detail.label }}</p>
+                    <div class="flex items-start gap-1.5">
+                      <input
+                        type="checkbox"
+                        :checked="resolveLocalDraftImportSelectedFields(item.draft.savedAt).includes(detail.field)"
+                        class="mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                        @change="handleToggleLocalDraftImportConflictField(item.draft.savedAt, detail.field)"
+                      />
+                      <p class="text-[10px] text-slate-700 font-medium">{{ detail.label }}</p>
+                    </div>
                     <p class="text-[10px] text-slate-500">当前：{{ detail.currentPreview }}</p>
                     <p class="text-[10px] text-emerald-700">导入：{{ detail.importedPreview }}</p>
                   </template>
@@ -1210,6 +1232,7 @@ export type EditorLocalDraftImportCandidateFilterOptions = {
   onlySelected: boolean
   selectedSavedAt: string[]
 }
+export type EditorLocalDraftImportFieldSelections = Record<string, EditorDraftComparableField[]>
 
 export type EditorLocalDraftImportConflictItem = {
   savedAt: string
@@ -1224,6 +1247,7 @@ export type EditorLocalDraftImportConflictDiffItem = {
 }
 
 export type EditorLocalDraftImportConflictDetailLine = {
+  field: EditorDraftComparableField
   label: string
   currentPreview: string
   importedPreview: string
@@ -1233,6 +1257,11 @@ export type EditorLocalDraftImportConflictDetailItem = {
   savedAt: string
   changedCount: number
   details: EditorLocalDraftImportConflictDetailLine[]
+}
+
+export type EditorLocalDraftImportPreparedDrafts = {
+  importedDrafts: EditorLocalDraft[]
+  effectiveMode: EditorLocalDraftMergeMode
 }
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
@@ -1641,6 +1670,27 @@ export const pickEditorLocalDraftsForImport = (
     .map((item) => item.draft)
 }
 
+export const mergeEditorDraftFormBySelectedFields = (
+  localForm: EditorPlanForm,
+  importedForm: EditorPlanForm,
+  selectedFields: EditorDraftComparableField[]
+): EditorPlanForm => {
+  const merged = {
+    ...localForm,
+    contentJson: { ...localForm.contentJson },
+  } as EditorPlanForm
+
+  const uniqueFields = [...new Set(selectedFields)]
+  for (const field of uniqueFields) {
+    if (field === 'contentJson') {
+      continue
+    }
+    ;(merged as Record<string, unknown>)[field] = importedForm[field] as unknown
+  }
+
+  return merged
+}
+
 export const selectEditorLocalDraftImportSavedAtByStrategy = (
   candidates: EditorLocalDraftImportCandidate[],
   strategy: EditorLocalDraftImportSelectionStrategy
@@ -1674,6 +1724,66 @@ export const filterEditorLocalDraftImportCandidates = (
     }
     return true
   })
+}
+
+export const buildEditorLocalDraftImportPreparedDrafts = (
+  existing: EditorLocalDraft[],
+  candidates: EditorLocalDraftImportCandidate[],
+  selectedSavedAt: string[],
+  mode: EditorLocalDraftMergeMode,
+  fieldSelections: EditorLocalDraftImportFieldSelections
+): EditorLocalDraftImportPreparedDrafts => {
+  const selectedSet = new Set(selectedSavedAt)
+  const existingMap = new Map<string, EditorLocalDraft>()
+  for (const item of existing) {
+    const parsed = parseEditorLocalDraftItem(item)
+    if (parsed) {
+      existingMap.set(parsed.savedAt, parsed)
+    }
+  }
+
+  const importedDrafts: EditorLocalDraft[] = []
+  let mergedConflictCount = 0
+
+  for (const candidate of candidates) {
+    if (!selectedSet.has(candidate.draft.savedAt)) {
+      continue
+    }
+
+    if (!candidate.conflict) {
+      importedDrafts.push(candidate.draft)
+      continue
+    }
+
+    const selectedFields = fieldSelections[candidate.draft.savedAt] || []
+    const localDraft = existingMap.get(candidate.draft.savedAt)
+    if (selectedFields.length > 0 && localDraft) {
+      const mergedForm = mergeEditorDraftFormBySelectedFields(
+        localDraft.form,
+        candidate.draft.form,
+        selectedFields
+      )
+      importedDrafts.push({
+        ...candidate.draft,
+        form: mergedForm,
+        snapshot: buildEditorLocalDraftSnapshot(mergedForm),
+      })
+      mergedConflictCount += 1
+      continue
+    }
+
+    if (mode === 'prefer-imported') {
+      importedDrafts.push(candidate.draft)
+    }
+  }
+
+  const effectiveMode: EditorLocalDraftMergeMode =
+    mode === 'prefer-imported' || mergedConflictCount > 0 ? 'prefer-imported' : 'keep-existing'
+
+  return {
+    importedDrafts,
+    effectiveMode,
+  }
 }
 
 export const buildEditorLocalDraftImportConflictItems = (
@@ -1757,6 +1867,7 @@ export const buildEditorLocalDraftImportConflictDetailItems = (
         savedAt: item.draft.savedAt,
         changedCount: diff.changedCount,
         details: diff.items.map((detail) => ({
+          field: detail.field,
           label: detail.label,
           currentPreview: detail.currentPreview,
           importedPreview: detail.draftPreview,
@@ -2003,6 +2114,7 @@ const showImportPreviewDialog = ref(false)
 const localDraftImportCandidates = ref<EditorLocalDraftImportCandidate[]>([])
 const selectedImportDraftSavedAt = ref<string[]>([])
 const localDraftImportMode = ref<EditorLocalDraftMergeMode>('prefer-imported')
+const localDraftImportFieldSelections = ref<EditorLocalDraftImportFieldSelections>({})
 const showOnlyConflictImportDrafts = ref(false)
 const showOnlySelectedImportDrafts = ref(false)
 const expandedImportConflictSavedAt = ref<string[]>([])
@@ -2130,8 +2242,14 @@ const selectedLocalDraftDiff = computed(() =>
   buildEditorDraftDiffSummary(form as EditorPlanForm, selectedLocalDraft.value)
 )
 
-const selectedImportDrafts = computed(() =>
-  pickEditorLocalDraftsForImport(localDraftImportCandidates.value, selectedImportDraftSavedAt.value)
+const localDraftImportPreparedDrafts = computed(() =>
+  buildEditorLocalDraftImportPreparedDrafts(
+    localDraftHistory.value,
+    localDraftImportCandidates.value,
+    selectedImportDraftSavedAt.value,
+    localDraftImportMode.value,
+    localDraftImportFieldSelections.value
+  )
 )
 
 const filteredLocalDraftImportCandidates = computed(() =>
@@ -2149,9 +2267,9 @@ const localDraftImportConflictCount = computed(() =>
 const localDraftImportPreview = computed(() =>
   buildEditorLocalDraftImportPreview(
     localDraftHistory.value,
-    selectedImportDrafts.value,
+    localDraftImportPreparedDrafts.value.importedDrafts,
     LOCAL_EDITOR_DRAFT_HISTORY_LIMIT,
-    localDraftImportMode.value
+    localDraftImportPreparedDrafts.value.effectiveMode
   )
 )
 
@@ -2208,6 +2326,46 @@ const handleToggleLocalDraftImportConflictExpanded = (savedAt: string) => {
     return
   }
   expandedImportConflictSavedAt.value = [...expandedImportConflictSavedAt.value, savedAt]
+}
+
+const resolveLocalDraftImportSelectedFields = (savedAt: string): EditorDraftComparableField[] =>
+  localDraftImportFieldSelections.value[savedAt] || []
+
+const handleToggleLocalDraftImportConflictField = (
+  savedAt: string,
+  field: EditorDraftComparableField
+) => {
+  const current = resolveLocalDraftImportSelectedFields(savedAt)
+  if (current.includes(field)) {
+    localDraftImportFieldSelections.value = {
+      ...localDraftImportFieldSelections.value,
+      [savedAt]: current.filter((item) => item !== field),
+    }
+    return
+  }
+
+  localDraftImportFieldSelections.value = {
+    ...localDraftImportFieldSelections.value,
+    [savedAt]: [...current, field],
+  }
+}
+
+const handleSelectAllLocalDraftImportConflictFields = (savedAt: string) => {
+  const detail = localDraftImportConflictDetailItemMap.value.get(savedAt)
+  if (!detail) {
+    return
+  }
+  localDraftImportFieldSelections.value = {
+    ...localDraftImportFieldSelections.value,
+    [savedAt]: detail.details.map((item) => item.field),
+  }
+}
+
+const handleClearLocalDraftImportConflictFields = (savedAt: string) => {
+  localDraftImportFieldSelections.value = {
+    ...localDraftImportFieldSelections.value,
+    [savedAt]: [],
+  }
 }
 
 const resolveLocalDraftDisplayNameForView = (draft: EditorLocalDraft): string =>
@@ -2314,6 +2472,7 @@ const resetLocalDraftImportState = () => {
   showImportPreviewDialog.value = false
   localDraftImportCandidates.value = []
   selectedImportDraftSavedAt.value = []
+  localDraftImportFieldSelections.value = {}
   localDraftImportMode.value = 'prefer-imported'
   showOnlyConflictImportDrafts.value = false
   showOnlySelectedImportDrafts.value = false
@@ -2460,7 +2619,11 @@ const handleImportLocalDrafts = async (event: Event) => {
 
     localDraftImportCandidates.value = candidates
     selectedImportDraftSavedAt.value = candidates.map((item) => item.draft.savedAt)
+    localDraftImportFieldSelections.value = {}
     localDraftImportMode.value = 'prefer-imported'
+    showOnlyConflictImportDrafts.value = false
+    showOnlySelectedImportDrafts.value = false
+    expandedImportConflictSavedAt.value = []
     showImportPreviewDialog.value = true
   } catch {
     alert('导入失败：请检查文件格式')

@@ -32,6 +32,8 @@ import {
   buildEditorLocalDraftImportConflictItems,
   buildEditorLocalDraftImportConflictDiffItems,
   buildEditorLocalDraftImportConflictDetailItems,
+  mergeEditorDraftFormBySelectedFields,
+  buildEditorLocalDraftImportPreparedDrafts,
   buildEditorLocalDraftExportFileName,
   normalizeEditorLocalDraftSearchQuery,
   filterEditorLocalDraftHistory,
@@ -1208,6 +1210,87 @@ describe('EditorView teaching layout persistence', () => {
         selectedSavedAt: ['2026-02-17T13:00:00.000Z'],
       }).map((item) => item.draft.savedAt)
     ).toEqual(['2026-02-17T13:00:00.000Z'])
+  })
+
+  it('merges draft forms by selected fields only', () => {
+    const localForm = {
+      title: '本地标题',
+      courseName: '课程A',
+      className: '1班',
+      duration: 45,
+      methods: '讲授法',
+      resources: 'PPT',
+      objectives: '<p>本地目标</p>',
+      keyPoints: '<p>本地重点</p>',
+      process: '<p>本地过程</p>',
+      blackboard: '<p>本地板书</p>',
+      reflection: '<p>本地反思</p>',
+      contentJson: {},
+    }
+    const importedForm = {
+      ...localForm,
+      title: '导入标题',
+      process: '<p>导入过程</p>',
+      objectives: '<p>导入目标</p>',
+    }
+
+    const merged = mergeEditorDraftFormBySelectedFields(localForm as any, importedForm as any, [
+      'title',
+      'process',
+    ])
+    expect(merged.title).toBe('导入标题')
+    expect(merged.process).toBe('<p>导入过程</p>')
+    expect(merged.objectives).toBe('<p>本地目标</p>')
+  })
+
+  it('prepares selected import drafts with per-field conflict merge in keep-existing mode', () => {
+    const existing = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Local', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p>old</p>', keyPoints: '<p></p>', process: '<p>A</p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Local Draft', title: 'Local', courseName: '', className: '' },
+        pinned: false,
+      },
+    ]
+    const candidates = [
+      {
+        draft: {
+          version: 1,
+          savedAt: '2026-02-17T12:00:00.000Z',
+          form: { title: 'Imported', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p>new</p>', keyPoints: '<p></p>', process: '<p>B</p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+          snapshot: { displayName: 'Imported Draft', title: 'Imported', courseName: '', className: '' },
+          pinned: false,
+        },
+        conflict: true,
+      },
+      {
+        draft: {
+          version: 1,
+          savedAt: '2026-02-17T13:00:00.000Z',
+          form: { title: 'Non Conflict', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+          snapshot: { displayName: 'Non Conflict', title: 'Non Conflict', courseName: '', className: '' },
+          pinned: false,
+        },
+        conflict: false,
+      },
+    ]
+
+    const prepared = buildEditorLocalDraftImportPreparedDrafts(
+      existing as any,
+      candidates as any,
+      ['2026-02-17T12:00:00.000Z', '2026-02-17T13:00:00.000Z'],
+      'keep-existing',
+      {
+        '2026-02-17T12:00:00.000Z': ['title'],
+      } as any
+    )
+
+    expect(prepared.effectiveMode).toBe('prefer-imported')
+    expect(prepared.importedDrafts).toHaveLength(2)
+    const mergedConflict = prepared.importedDrafts.find((item) => item.savedAt === '2026-02-17T12:00:00.000Z')
+    expect(mergedConflict?.form.title).toBe('Imported')
+    expect(mergedConflict?.form.process).toBe('<p>A</p>')
   })
 
   it('builds export filename with plan id and timestamp', () => {
