@@ -785,6 +785,14 @@
         >
           <p class="text-xs font-medium text-amber-700">冲突字段策略</p>
           <p class="mt-0.5 text-[11px] text-amber-700">一键批量设置所有冲突项的字段覆盖范围</p>
+          <label class="mt-2 flex items-center gap-1.5 text-[11px] text-amber-700">
+            <input
+              v-model="applyPresetToSelectedConflictOnly"
+              type="checkbox"
+              class="h-3.5 w-3.5 rounded border-amber-300 text-emerald-600 focus:ring-emerald-500"
+            />
+            仅对已勾选冲突项应用
+          </label>
           <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <button
               @click="handleApplyLocalDraftImportConflictPreset('all')"
@@ -1782,6 +1790,18 @@ export const buildEditorLocalDraftImportFieldSelectionsByPreset = (
   return selection
 }
 
+export const pickEditorLocalDraftImportConflictDetailsBySelection = (
+  conflictItems: EditorLocalDraftImportConflictDetailItem[],
+  selectedSavedAt: string[],
+  selectedOnly: boolean
+): EditorLocalDraftImportConflictDetailItem[] => {
+  if (!selectedOnly) {
+    return conflictItems
+  }
+  const selectedSet = new Set(selectedSavedAt)
+  return conflictItems.filter((item) => selectedSet.has(item.savedAt))
+}
+
 export const selectEditorLocalDraftImportSavedAtByStrategy = (
   candidates: EditorLocalDraftImportCandidate[],
   strategy: EditorLocalDraftImportSelectionStrategy
@@ -2242,6 +2262,7 @@ const localDraftImportMode = ref<EditorLocalDraftMergeMode>('prefer-imported')
 const localDraftImportFieldSelections = ref<EditorLocalDraftImportFieldSelections>({})
 const showOnlyConflictImportDrafts = ref(false)
 const showOnlySelectedImportDrafts = ref(false)
+const applyPresetToSelectedConflictOnly = ref(true)
 const expandedImportConflictSavedAt = ref<string[]>([])
 const contentSource = ref<EditorContentSource>('new')
 const showMobileActions = ref(false)
@@ -2501,7 +2522,11 @@ const handleClearLocalDraftImportConflictFields = (savedAt: string) => {
 const handleApplyLocalDraftImportConflictPreset = (
   preset: EditorLocalDraftImportConflictFieldPreset
 ) => {
-  const conflictItems = [...localDraftImportConflictDetailItemMap.value.values()]
+  const conflictItems = pickEditorLocalDraftImportConflictDetailsBySelection(
+    [...localDraftImportConflictDetailItemMap.value.values()],
+    selectedImportDraftSavedAt.value,
+    applyPresetToSelectedConflictOnly.value
+  )
   if (!conflictItems.length) {
     return
   }
@@ -2621,6 +2646,7 @@ const resetLocalDraftImportState = () => {
   localDraftImportMode.value = 'prefer-imported'
   showOnlyConflictImportDrafts.value = false
   showOnlySelectedImportDrafts.value = false
+  applyPresetToSelectedConflictOnly.value = true
   expandedImportConflictSavedAt.value = []
 }
 
@@ -2769,6 +2795,7 @@ const handleImportLocalDrafts = async (event: Event) => {
     localDraftImportMode.value = 'prefer-imported'
     showOnlyConflictImportDrafts.value = false
     showOnlySelectedImportDrafts.value = false
+    applyPresetToSelectedConflictOnly.value = true
     expandedImportConflictSavedAt.value = []
     showImportPreviewDialog.value = true
   } catch {

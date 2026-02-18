@@ -34,6 +34,7 @@ import {
   buildEditorLocalDraftImportConflictDiffItems,
   buildEditorLocalDraftImportConflictDetailItems,
   buildEditorLocalDraftImportFieldSelectionsByPreset,
+  pickEditorLocalDraftImportConflictDetailsBySelection,
   mergeEditorDraftFormBySelectedFields,
   buildEditorLocalDraftImportPreparedDrafts,
   buildEditorLocalDraftExportFileName,
@@ -1431,6 +1432,37 @@ describe('EditorView teaching layout persistence', () => {
     expect(prepared.importedDrafts[0].form.objectives).toBe('<p>new</p>')
     expect(prepared.importedDrafts[0].form.keyPoints).toBe('<p>new-key</p>')
     expect(prepared.importedDrafts[0].form.process).toBe('<p>导入过程</p>')
+  })
+
+  it('picks conflict detail items by selected drafts when requested', () => {
+    const conflictDetails = [
+      {
+        savedAt: '2026-02-17T12:00:00.000Z',
+        changedCount: 1,
+        details: [{ field: 'title', label: '教案标题', currentPreview: 'A', importedPreview: 'B' }],
+      },
+      {
+        savedAt: '2026-02-17T13:00:00.000Z',
+        changedCount: 1,
+        details: [{ field: 'process', label: '教学过程', currentPreview: 'P1', importedPreview: 'P2' }],
+      },
+    ]
+
+    expect(
+      pickEditorLocalDraftImportConflictDetailsBySelection(
+        conflictDetails as any,
+        ['2026-02-17T12:00:00.000Z'],
+        true
+      ).map((item) => item.savedAt)
+    ).toEqual(['2026-02-17T12:00:00.000Z'])
+
+    expect(
+      pickEditorLocalDraftImportConflictDetailsBySelection(
+        conflictDetails as any,
+        ['2026-02-17T12:00:00.000Z'],
+        false
+      ).map((item) => item.savedAt)
+    ).toEqual(['2026-02-17T12:00:00.000Z', '2026-02-17T13:00:00.000Z'])
   })
 
   it('builds export filename with plan id and timestamp', () => {

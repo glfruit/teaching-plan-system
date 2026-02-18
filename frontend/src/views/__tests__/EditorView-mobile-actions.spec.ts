@@ -46,6 +46,7 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('冲突全覆盖')
     expect(editorViewSource).toContain('仅基础信息')
     expect(editorViewSource).toContain('仅正文')
+    expect(editorViewSource).toContain('仅对已勾选冲突项应用')
     expect(editorViewSource).toContain('清空冲突字段')
     expect(editorViewSource).toContain('清空选择')
     expect(editorViewSource).toContain('确认导入')

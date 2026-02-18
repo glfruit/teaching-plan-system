@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
 import {
@@ -7,9 +7,24 @@ import {
   goalActivityAssessmentGrid,
 } from '../editor-nodes'
 
+const editors: Editor[] = []
+
+afterEach(() => {
+  while (editors.length > 0) {
+    const editor = editors.pop()
+    editor?.destroy()
+  }
+})
+
+const createEditor = (options: ConstructorParameters<typeof Editor>[0]): Editor => {
+  const editor = new Editor(options)
+  editors.push(editor)
+  return editor
+}
+
 describe('teaching layout node serialization', () => {
   it('can insert editable timeline and keep attrs', () => {
-    const editor = new Editor({
+    const editor = createEditor({
       extensions: [StarterKit, lessonTimeline, activityStepCard, goalActivityAssessmentGrid],
       content: '<p></p>',
     })
@@ -25,7 +40,7 @@ describe('teaching layout node serialization', () => {
   })
 
   it('does not output static data-action buttons in html', () => {
-    const editor = new Editor({
+    const editor = createEditor({
       extensions: [StarterKit, lessonTimeline, activityStepCard, goalActivityAssessmentGrid],
       content: {
         type: 'doc',
