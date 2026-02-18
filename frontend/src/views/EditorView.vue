@@ -779,6 +779,40 @@
           </button>
         </div>
 
+        <div
+          v-if="localDraftImportConflictCount > 0"
+          class="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3"
+        >
+          <p class="text-xs font-medium text-amber-700">冲突字段策略</p>
+          <p class="mt-0.5 text-[11px] text-amber-700">一键批量设置所有冲突项的字段覆盖范围</p>
+          <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <button
+              @click="handleApplyLocalDraftImportConflictPreset('all')"
+              class="rounded-md border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-50"
+            >
+              冲突全覆盖
+            </button>
+            <button
+              @click="handleApplyLocalDraftImportConflictPreset('metadata')"
+              class="rounded-md border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-50"
+            >
+              仅基础信息
+            </button>
+            <button
+              @click="handleApplyLocalDraftImportConflictPreset('content')"
+              class="rounded-md border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-50"
+            >
+              仅正文
+            </button>
+            <button
+              @click="handleApplyLocalDraftImportConflictPreset('none')"
+              class="rounded-md border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-50"
+            >
+              清空冲突字段
+            </button>
+          </div>
+        </div>
+
         <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
           <div class="flex items-center justify-between gap-2">
             <p class="text-xs font-medium text-slate-700">仅导入勾选草稿</p>
@@ -1233,6 +1267,11 @@ export type EditorLocalDraftImportCandidateFilterOptions = {
   selectedSavedAt: string[]
 }
 export type EditorLocalDraftImportFieldSelections = Record<string, EditorDraftComparableField[]>
+export type EditorLocalDraftImportConflictFieldPreset =
+  | 'all'
+  | 'metadata'
+  | 'content'
+  | 'none'
 
 export type EditorLocalDraftImportConflictItem = {
   savedAt: string
@@ -1689,6 +1728,52 @@ export const mergeEditorDraftFormBySelectedFields = (
   }
 
   return merged
+}
+
+const EDITOR_LOCAL_DRAFT_METADATA_FIELDS: EditorDraftComparableField[] = [
+  'title',
+  'courseName',
+  'className',
+  'duration',
+  'methods',
+  'resources',
+]
+
+const EDITOR_LOCAL_DRAFT_CONTENT_FIELDS: EditorDraftComparableField[] = [
+  'objectives',
+  'keyPoints',
+  'process',
+  'blackboard',
+  'reflection',
+]
+
+const EDITOR_LOCAL_DRAFT_METADATA_FIELD_SET = new Set(EDITOR_LOCAL_DRAFT_METADATA_FIELDS)
+const EDITOR_LOCAL_DRAFT_CONTENT_FIELD_SET = new Set(EDITOR_LOCAL_DRAFT_CONTENT_FIELDS)
+
+export const buildEditorLocalDraftImportFieldSelectionsByPreset = (
+  conflictItems: EditorLocalDraftImportConflictDetailItem[],
+  preset: EditorLocalDraftImportConflictFieldPreset
+): EditorLocalDraftImportFieldSelections => {
+  const selection: EditorLocalDraftImportFieldSelections = {}
+
+  for (const item of conflictItems) {
+    const fields = [...new Set(item.details.map((detail) => detail.field))]
+    if (preset === 'none') {
+      selection[item.savedAt] = []
+      continue
+    }
+    if (preset === 'all') {
+      selection[item.savedAt] = fields
+      continue
+    }
+    if (preset === 'metadata') {
+      selection[item.savedAt] = fields.filter((field) => EDITOR_LOCAL_DRAFT_METADATA_FIELD_SET.has(field))
+      continue
+    }
+    selection[item.savedAt] = fields.filter((field) => EDITOR_LOCAL_DRAFT_CONTENT_FIELD_SET.has(field))
+  }
+
+  return selection
 }
 
 export const selectEditorLocalDraftImportSavedAtByStrategy = (
@@ -2365,6 +2450,20 @@ const handleClearLocalDraftImportConflictFields = (savedAt: string) => {
   localDraftImportFieldSelections.value = {
     ...localDraftImportFieldSelections.value,
     [savedAt]: [],
+  }
+}
+
+const handleApplyLocalDraftImportConflictPreset = (
+  preset: EditorLocalDraftImportConflictFieldPreset
+) => {
+  const conflictItems = [...localDraftImportConflictDetailItemMap.value.values()]
+  if (!conflictItems.length) {
+    return
+  }
+  const selection = buildEditorLocalDraftImportFieldSelectionsByPreset(conflictItems, preset)
+  localDraftImportFieldSelections.value = {
+    ...localDraftImportFieldSelections.value,
+    ...selection,
   }
 }
 

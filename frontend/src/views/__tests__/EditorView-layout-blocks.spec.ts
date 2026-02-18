@@ -32,6 +32,7 @@ import {
   buildEditorLocalDraftImportConflictItems,
   buildEditorLocalDraftImportConflictDiffItems,
   buildEditorLocalDraftImportConflictDetailItems,
+  buildEditorLocalDraftImportFieldSelectionsByPreset,
   mergeEditorDraftFormBySelectedFields,
   buildEditorLocalDraftImportPreparedDrafts,
   buildEditorLocalDraftExportFileName,
@@ -1291,6 +1292,96 @@ describe('EditorView teaching layout persistence', () => {
     const mergedConflict = prepared.importedDrafts.find((item) => item.savedAt === '2026-02-17T12:00:00.000Z')
     expect(mergedConflict?.form.title).toBe('Imported')
     expect(mergedConflict?.form.process).toBe('<p>A</p>')
+  })
+
+  it('builds conflict field selections by preset for all conflicts', () => {
+    const items = [
+      {
+        savedAt: '2026-02-17T12:00:00.000Z',
+        changedCount: 3,
+        details: [
+          { field: 'title', label: '教案标题', currentPreview: 'A', importedPreview: 'B' },
+          { field: 'process', label: '教学过程', currentPreview: 'P1', importedPreview: 'P2' },
+          { field: 'objectives', label: '教学目标', currentPreview: 'O1', importedPreview: 'O2' },
+        ],
+      },
+      {
+        savedAt: '2026-02-17T13:00:00.000Z',
+        changedCount: 2,
+        details: [
+          { field: 'courseName', label: '课程名称', currentPreview: 'C1', importedPreview: 'C2' },
+          { field: 'resources', label: '教学资源', currentPreview: 'R1', importedPreview: 'R2' },
+        ],
+      },
+    ]
+
+    const allPreset = buildEditorLocalDraftImportFieldSelectionsByPreset(items as any, 'all')
+    expect(allPreset['2026-02-17T12:00:00.000Z']).toEqual(['title', 'process', 'objectives'])
+    expect(allPreset['2026-02-17T13:00:00.000Z']).toEqual(['courseName', 'resources'])
+
+    const metadataPreset = buildEditorLocalDraftImportFieldSelectionsByPreset(items as any, 'metadata')
+    expect(metadataPreset['2026-02-17T12:00:00.000Z']).toEqual(['title'])
+    expect(metadataPreset['2026-02-17T13:00:00.000Z']).toEqual(['courseName', 'resources'])
+
+    const contentPreset = buildEditorLocalDraftImportFieldSelectionsByPreset(items as any, 'content')
+    expect(contentPreset['2026-02-17T12:00:00.000Z']).toEqual(['process', 'objectives'])
+    expect(contentPreset['2026-02-17T13:00:00.000Z']).toEqual([])
+
+    const nonePreset = buildEditorLocalDraftImportFieldSelectionsByPreset(items as any, 'none')
+    expect(nonePreset['2026-02-17T12:00:00.000Z']).toEqual([])
+    expect(nonePreset['2026-02-17T13:00:00.000Z']).toEqual([])
+  })
+
+  it('applies content preset when preparing drafts in keep-existing mode', () => {
+    const existing = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Local', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p>old</p>', keyPoints: '<p>old-key</p>', process: '<p>本地过程</p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Local Draft', title: 'Local', courseName: '', className: '' },
+        pinned: false,
+      },
+    ]
+    const candidates = [
+      {
+        draft: {
+          version: 1,
+          savedAt: '2026-02-17T12:00:00.000Z',
+          form: { title: 'Imported', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p>new</p>', keyPoints: '<p>new-key</p>', process: '<p>导入过程</p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+          snapshot: { displayName: 'Imported Draft', title: 'Imported', courseName: '', className: '' },
+          pinned: false,
+        },
+        conflict: true,
+      },
+    ]
+    const detailItems = [
+      {
+        savedAt: '2026-02-17T12:00:00.000Z',
+        changedCount: 4,
+        details: [
+          { field: 'title', label: '教案标题', currentPreview: 'Local', importedPreview: 'Imported' },
+          { field: 'objectives', label: '教学目标', currentPreview: 'old', importedPreview: 'new' },
+          { field: 'keyPoints', label: '教学重点', currentPreview: 'old-key', importedPreview: 'new-key' },
+          { field: 'process', label: '教学过程', currentPreview: '本地过程', importedPreview: '导入过程' },
+        ],
+      },
+    ]
+
+    const selections = buildEditorLocalDraftImportFieldSelectionsByPreset(detailItems as any, 'content')
+    const prepared = buildEditorLocalDraftImportPreparedDrafts(
+      existing as any,
+      candidates as any,
+      ['2026-02-17T12:00:00.000Z'],
+      'keep-existing',
+      selections
+    )
+
+    expect(prepared.effectiveMode).toBe('prefer-imported')
+    expect(prepared.importedDrafts).toHaveLength(1)
+    expect(prepared.importedDrafts[0].form.title).toBe('Local')
+    expect(prepared.importedDrafts[0].form.objectives).toBe('<p>new</p>')
+    expect(prepared.importedDrafts[0].form.keyPoints).toBe('<p>new-key</p>')
+    expect(prepared.importedDrafts[0].form.process).toBe('<p>导入过程</p>')
   })
 
   it('builds export filename with plan id and timestamp', () => {
