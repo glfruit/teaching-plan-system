@@ -44,6 +44,8 @@ import {
   resolveEditorContentSourceLabel,
   buildEditorCompletionSummary,
   buildEditorQualityTips,
+  applyEditorLessonSkeleton,
+  buildEditorExportPrecheck,
   shouldPersistLocalDraftOnLeave,
   buildPlanPayload,
   mapFetchedPlanToForm,
@@ -1614,6 +1616,93 @@ describe('EditorView teaching layout persistence', () => {
     } as any)
 
     expect(tips).toEqual([])
+  })
+
+  it('applies lesson skeleton in fill-empty mode without overriding existing values', () => {
+    const next = applyEditorLessonSkeleton(
+      {
+        title: '已有标题',
+        courseName: '课程A',
+        className: '1班',
+        duration: 90,
+        methods: '',
+        resources: '',
+        objectives: '<p></p>',
+        keyPoints: '<p></p>',
+        process: '<p>已有过程</p>',
+        blackboard: '',
+        reflection: '',
+        contentJson: {},
+      } as any,
+      'lecture',
+      'fill-empty'
+    )
+
+    expect(next.title).toBe('已有标题')
+    expect(next.process).toBe('<p>已有过程</p>')
+    expect(next.methods.length).toBeGreaterThan(0)
+    expect(next.objectives).not.toBe('<p></p>')
+  })
+
+  it('applies lesson skeleton in overwrite mode for selected preset', () => {
+    const next = applyEditorLessonSkeleton(
+      {
+        title: '旧标题',
+        courseName: '课程A',
+        className: '1班',
+        duration: 90,
+        methods: '旧方法',
+        resources: '旧资源',
+        objectives: '<p>旧目标</p>',
+        keyPoints: '<p>旧重点</p>',
+        process: '<p>旧过程</p>',
+        blackboard: '<p>旧板书</p>',
+        reflection: '<p>旧反思</p>',
+        contentJson: {},
+      } as any,
+      'lab',
+      'overwrite'
+    )
+
+    expect(next.methods).not.toBe('旧方法')
+    expect(next.resources).not.toBe('旧资源')
+    expect(next.process).toContain('实验')
+  })
+
+  it('builds export precheck report with blocking and warning issues', () => {
+    const completion = buildEditorCompletionSummary({
+      title: '',
+      courseName: '课程A',
+      className: '',
+      duration: 0,
+      methods: '',
+      resources: '',
+      objectives: '<p></p>',
+      keyPoints: '<p></p>',
+      process: '<p>过程很短</p>',
+      blackboard: '',
+      reflection: '',
+      contentJson: {},
+    } as any)
+    const qualityTips = buildEditorQualityTips({
+      title: '',
+      courseName: '课程A',
+      className: '',
+      duration: 0,
+      methods: '',
+      resources: '',
+      objectives: '<p>短</p>',
+      keyPoints: '<p></p>',
+      process: '<p>短</p>',
+      blackboard: '',
+      reflection: '',
+      contentJson: {},
+    } as any)
+    const report = buildEditorExportPrecheck(completion, qualityTips)
+
+    expect(report.blockingIssues.length).toBeGreaterThan(0)
+    expect(report.warningIssues.length).toBeGreaterThan(0)
+    expect(report.passed).toBe(false)
   })
 
   it('resolves content source label for local/server/new', () => {

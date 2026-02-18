@@ -128,6 +128,57 @@
             </li>
           </ul>
         </div>
+        <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-medium text-slate-700">导出前预检</p>
+            <span
+              class="text-[11px] font-medium"
+              :class="editorExportPrecheck.passed ? 'text-emerald-700' : 'text-red-600'"
+            >
+              {{ editorExportPrecheck.passed ? '通过' : '未通过' }}
+            </span>
+          </div>
+          <p v-if="editorExportPrecheck.blockingIssues.length === 0" class="mt-1 text-[11px] text-emerald-700">
+            未发现阻塞项，可直接导出。
+          </p>
+          <ul
+            v-else
+            class="mt-1 space-y-1"
+          >
+            <li
+              v-for="issue in editorExportPrecheck.blockingIssues"
+              :key="issue"
+              class="text-[11px] text-red-600"
+            >
+              {{ issue }}
+            </li>
+          </ul>
+          <ul
+            v-if="editorExportPrecheck.warningIssues.length > 0"
+            class="mt-1 space-y-1"
+          >
+            <li
+              v-for="warning in editorExportPrecheck.warningIssues.slice(0, 2)"
+              :key="warning"
+              class="text-[11px] text-amber-700"
+            >
+              {{ warning }}
+            </li>
+          </ul>
+          <div
+            v-if="editorExportPrecheck.focusSections.length > 0"
+            class="mt-2 flex flex-wrap gap-1.5"
+          >
+            <button
+              v-for="section in editorExportPrecheck.focusSections"
+              :key="`focus-${section}`"
+              @click="handleFocusEditorSection(section)"
+              class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+            >
+              定位到{{ resolveEditorSectionLabelForView(section) }}
+            </button>
+          </div>
+        </div>
       </section>
 
       <div class="editor-layout-shell grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
@@ -434,13 +485,49 @@
 
       <div class="min-w-0 space-y-4 sm:space-y-6">
       <!-- Basic Info -->
-      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6">
+      <section id="editor-section-basic" class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6">
         <h2 class="text-base sm:text-lg font-semibold text-slate-800 mb-3 sm:mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           基本信息
         </h2>
+
+        <div class="mb-4 rounded-lg border border-[#dbe5df] bg-[#f7faf8] p-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <p class="text-sm font-medium text-slate-700">快速骨架模板</p>
+            <select
+              v-model="selectedLessonSkeletonPreset"
+              class="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700"
+            >
+              <option
+                v-for="option in lessonSkeletonOptions"
+                :key="option.id"
+                :value="option.id"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+            <button
+              @click="handleApplyLessonSkeleton('fill-empty')"
+              class="h-8 rounded-md border border-slate-300 bg-white px-2.5 text-xs text-slate-600 hover:bg-slate-50"
+            >
+              仅填空
+            </button>
+            <button
+              @click="handleApplyLessonSkeleton('overwrite')"
+              class="h-8 rounded-md border border-amber-300 bg-amber-50 px-2.5 text-xs text-amber-700 hover:bg-amber-100"
+            >
+              覆盖套用
+            </button>
+          </div>
+          <p class="mt-1 text-[11px] text-slate-500">
+            {{
+              lessonSkeletonOptions.find((item) => item.id === selectedLessonSkeletonPreset)?.description ||
+              ''
+            }}
+          </p>
+        </div>
         
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
           <div class="md:col-span-2">
@@ -507,7 +594,7 @@
       </section>
 
       <!-- Teaching Objectives -->
-      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+      <section id="editor-section-objectives" class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -519,7 +606,7 @@
       </section>
 
       <!-- Key Points -->
-      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+      <section id="editor-section-keypoints" class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -531,7 +618,7 @@
       </section>
 
       <!-- Teaching Process -->
-      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+      <section id="editor-section-process" class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -543,7 +630,7 @@
       </section>
 
       <!-- Blackboard Design -->
-      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+      <section id="editor-section-blackboard" class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -555,7 +642,7 @@
       </section>
 
       <!-- Teaching Reflection -->
-      <section class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+      <section id="editor-section-reflection" class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -2177,6 +2264,113 @@ export type EditorQualityTip = {
   message: string
 }
 
+export type EditorSectionKey =
+  | 'basic'
+  | 'objectives'
+  | 'keyPoints'
+  | 'process'
+  | 'blackboard'
+  | 'reflection'
+
+export type EditorLessonSkeletonPreset = 'lecture' | 'practice' | 'lab'
+export type EditorLessonSkeletonApplyMode = 'fill-empty' | 'overwrite'
+
+export type EditorExportPrecheckReport = {
+  passed: boolean
+  blockingIssues: string[]
+  warningIssues: string[]
+  focusSections: EditorSectionKey[]
+}
+
+type EditorLessonSkeletonDefinition = {
+  label: string
+  description: string
+  patch: Partial<EditorPlanForm>
+}
+
+const EDITOR_SECTION_LABELS: Record<EditorSectionKey, string> = {
+  basic: '基本信息',
+  objectives: '教学目标',
+  keyPoints: '重点难点',
+  process: '教学过程',
+  blackboard: '板书设计',
+  reflection: '教学反思',
+}
+
+const EDITOR_SECTION_ELEMENT_IDS: Record<EditorSectionKey, string> = {
+  basic: 'editor-section-basic',
+  objectives: 'editor-section-objectives',
+  keyPoints: 'editor-section-keypoints',
+  process: 'editor-section-process',
+  blackboard: 'editor-section-blackboard',
+  reflection: 'editor-section-reflection',
+}
+
+const EDITOR_REQUIRED_COMPLETION_LABELS = new Set([
+  '教案标题',
+  '课程名称',
+  '授课班级',
+  '课时长度',
+  '教学目标',
+  '教学过程',
+])
+
+const EDITOR_LABEL_TO_SECTION_KEY: Record<string, EditorSectionKey> = {
+  教案标题: 'basic',
+  课程名称: 'basic',
+  授课班级: 'basic',
+  课时长度: 'basic',
+  教学方法: 'basic',
+  教学资源: 'basic',
+  教学目标: 'objectives',
+  教学重点: 'keyPoints',
+  教学过程: 'process',
+  板书设计: 'blackboard',
+  教学反思: 'reflection',
+}
+
+const EDITOR_LESSON_SKELETONS: Record<EditorLessonSkeletonPreset, EditorLessonSkeletonDefinition> = {
+  lecture: {
+    label: '理论讲授',
+    description: '适合概念讲解与知识建构',
+    patch: {
+      methods: '讲授法、提问法',
+      resources: 'PPT、板书',
+      objectives: '<p>理解核心概念，能够完成基础知识复述与简单应用。</p>',
+      keyPoints: '<p>重点：核心概念与关键步骤；难点：概念迁移与应用。</p>',
+      process: '<p>导入（5分钟）→ 新知讲解（30分钟）→ 例题演示（20分钟）→ 课堂练习（25分钟）→ 小结与作业（10分钟）。</p>',
+      blackboard: '<p>一、核心概念<br/>二、关键步骤<br/>三、典型例题</p>',
+      reflection: '<p>关注讲解节奏与学生提问点，课后根据练习结果调整下次讲解深度。</p>',
+    },
+  },
+  practice: {
+    label: '项目实训',
+    description: '适合任务驱动与分组协作',
+    patch: {
+      methods: '任务驱动法、分组协作法',
+      resources: '任务单、示例代码、实训环境',
+      objectives: '<p>完成指定项目任务，能够在小组协作中产出可运行成果并进行汇报。</p>',
+      keyPoints: '<p>重点：任务拆解与协作分工；难点：问题排查与成果整合。</p>',
+      process: '<p>任务发布（10分钟）→ 小组分工（10分钟）→ 分阶段实操（45分钟）→ 成果展示（15分钟）→ 讲评与改进（10分钟）。</p>',
+      blackboard: '<p>任务目标｜分工角色｜验收标准</p>',
+      reflection: '<p>记录小组协作瓶颈，优化下一轮任务难度梯度与时间分配。</p>',
+    },
+  },
+  lab: {
+    label: '实验课',
+    description: '适合流程化实验操作与结果分析',
+    patch: {
+      methods: '实验演示法、操作指导法',
+      resources: '实验设备、实验报告模板、安全规范',
+      objectives: '<p>掌握实验流程与关键操作，能够完成数据记录并进行结果分析。</p>',
+      keyPoints: '<p>重点：实验步骤与数据记录；难点：误差分析与结论归纳。</p>',
+      process: '<p>实验说明与安全提示（10分钟）→ 教师演示（10分钟）→ 学生分组实验（50分钟）→ 数据分析与结论（15分钟）→ 讲评（5分钟）。</p>',
+      blackboard: '<p>实验目的｜实验步骤｜数据记录｜误差分析</p>',
+      reflection: '<p>关注实验器材准备与安全执行情况，补充高频错误案例。</p>',
+    },
+  },
+}
+
 const EDITOR_DRAFT_DIFF_FIELDS: Array<{ key: EditorDraftComparableField; label: string; richText?: boolean }> = [
   { key: 'title', label: '教案标题' },
   { key: 'courseName', label: '课程名称' },
@@ -2254,6 +2448,73 @@ const isEditorCompletionFieldFilled = (
   }
 
   return Boolean(raw.trim())
+}
+
+const isEditorPlanFieldEmpty = (form: EditorPlanForm, field: EditorDraftComparableField): boolean => {
+  const raw = form[field]
+  if (field === 'duration') {
+    return Number(raw) <= 0
+  }
+  if (typeof raw !== 'string') {
+    return true
+  }
+
+  const isRichTextField = EDITOR_COMPLETION_FIELDS.find((item) => item.key === field)?.richText
+  if (isRichTextField) {
+    return !htmlToText(raw).trim()
+  }
+  return !raw.trim()
+}
+
+export const resolveEditorSectionLabel = (section: EditorSectionKey): string =>
+  EDITOR_SECTION_LABELS[section]
+
+export const resolveEditorSectionElementId = (section: EditorSectionKey): string =>
+  EDITOR_SECTION_ELEMENT_IDS[section]
+
+export const resolveEditorLessonSkeletonOptions = (): Array<{
+  id: EditorLessonSkeletonPreset
+  label: string
+  description: string
+}> =>
+  (Object.keys(EDITOR_LESSON_SKELETONS) as EditorLessonSkeletonPreset[]).map((id) => ({
+    id,
+    label: EDITOR_LESSON_SKELETONS[id].label,
+    description: EDITOR_LESSON_SKELETONS[id].description,
+  }))
+
+export const applyEditorLessonSkeleton = (
+  form: EditorPlanForm,
+  preset: EditorLessonSkeletonPreset,
+  mode: EditorLessonSkeletonApplyMode
+): EditorPlanForm => {
+  const skeleton = EDITOR_LESSON_SKELETONS[preset]
+  const next = {
+    ...form,
+    contentJson: { ...form.contentJson },
+  } as EditorPlanForm
+
+  const patchEntries = Object.entries(skeleton.patch) as Array<[EditorDraftComparableField, string | number]>
+  for (const [field, value] of patchEntries) {
+    if (mode === 'fill-empty' && !isEditorPlanFieldEmpty(next, field)) {
+      continue
+    }
+    ;(next as Record<string, unknown>)[field] = value
+  }
+
+  return next
+}
+
+export const mapEditorMissingLabelsToFocusSections = (labels: string[]): EditorSectionKey[] => {
+  const sections: EditorSectionKey[] = []
+  for (const label of labels) {
+    const section = EDITOR_LABEL_TO_SECTION_KEY[label]
+    if (!section || sections.includes(section)) {
+      continue
+    }
+    sections.push(section)
+  }
+  return sections
 }
 
 export const buildEditorDraftDiffSummary = (
@@ -2345,6 +2606,25 @@ export const buildEditorQualityTips = (form: EditorPlanForm): EditorQualityTip[]
   return tips
 }
 
+export const buildEditorExportPrecheck = (
+  completion: EditorCompletionSummary,
+  qualityTips: EditorQualityTip[]
+): EditorExportPrecheckReport => {
+  const requiredMissing = completion.missingLabels.filter((label) =>
+    EDITOR_REQUIRED_COMPLETION_LABELS.has(label)
+  )
+  const blockingIssues =
+    requiredMissing.length > 0 ? [`缺少必填内容：${requiredMissing.join('、')}`] : []
+  const warningIssues = qualityTips.map((item) => item.message)
+
+  return {
+    passed: blockingIssues.length === 0,
+    blockingIssues,
+    warningIssues,
+    focusSections: mapEditorMissingLabelsToFocusSections(requiredMissing),
+  }
+}
+
 export const shouldPersistLocalDraftOnLeave = (
   hasUnsavedChanges: boolean,
   isSaving: boolean
@@ -2427,8 +2707,10 @@ const editingTemplateId = ref('')
 const templateEditTitle = ref('')
 const templateEditTagInput = ref('')
 const templateEditTags = ref<string[]>([])
+const selectedLessonSkeletonPreset = ref<EditorLessonSkeletonPreset>('lecture')
 const isDraftPersistenceReady = ref(false)
 const PRESET_TEMPLATE_TAGS = ['导入', '探究', '复习', '实验', '评价'] as const
+const lessonSkeletonOptions = resolveEditorLessonSkeletonOptions()
 
 const isFormValid = computed(() => {
   return form.title.trim() && 
@@ -2502,6 +2784,11 @@ const editorCompletionSummary = computed(() =>
 const editorQualityTips = computed(() =>
   buildEditorQualityTips(form as EditorPlanForm)
 )
+const editorExportPrecheck = computed(() =>
+  buildEditorExportPrecheck(editorCompletionSummary.value, editorQualityTips.value)
+)
+const resolveEditorSectionLabelForView = (section: EditorSectionKey): string =>
+  resolveEditorSectionLabel(section)
 
 const currentLocalDraft = computed<EditorLocalDraft | null>(() => localDraftHistory.value[0] ?? null)
 
@@ -2705,6 +2992,53 @@ const formatDraftTimestamp = (value: string): string => {
     return ''
   }
   return parsed.toLocaleString('zh-CN')
+}
+
+const handleFocusEditorSection = (section: EditorSectionKey) => {
+  if (typeof document === 'undefined') {
+    return
+  }
+  const elementId = resolveEditorSectionElementId(section)
+  const target = document.getElementById(elementId)
+  if (!target) {
+    return
+  }
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+
+const handleApplyLessonSkeleton = (mode: EditorLessonSkeletonApplyMode) => {
+  if (mode === 'overwrite') {
+    const confirmed = window.confirm('覆盖套用将替换当前已填写内容，是否继续？')
+    if (!confirmed) {
+      return
+    }
+  }
+  const next = applyEditorLessonSkeleton(
+    form as EditorPlanForm,
+    selectedLessonSkeletonPreset.value,
+    mode
+  )
+  Object.assign(form, next)
+}
+
+const buildEditorExportPrecheckMessage = (report: EditorExportPrecheckReport): string => {
+  const lines: string[] = []
+  if (report.blockingIssues.length > 0) {
+    lines.push('导出前预检发现以下阻塞项：')
+    for (const issue of report.blockingIssues) {
+      lines.push(`- ${issue}`)
+    }
+  } else {
+    lines.push('导出前预检通过。')
+  }
+  if (report.warningIssues.length > 0) {
+    lines.push('建议优化：')
+    for (const warning of report.warningIssues.slice(0, 3)) {
+      lines.push(`- ${warning}`)
+    }
+  }
+  lines.push('是否继续导出？')
+  return lines.join('\n')
 }
 
 const clearLocalDraft = () => {
@@ -3327,6 +3661,17 @@ const handlePublish = async () => {
 }
 
 const handleExport = async () => {
+  const precheck = editorExportPrecheck.value
+  if (!precheck.passed || precheck.warningIssues.length > 0) {
+    const confirmed = window.confirm(buildEditorExportPrecheckMessage(precheck))
+    if (!confirmed) {
+      if (!precheck.passed && precheck.focusSections.length > 0) {
+        handleFocusEditorSection(precheck.focusSections[0])
+      }
+      return
+    }
+  }
+
   try {
     const token = localStorage.getItem('token')
     const response = await fetch(`/api/export/word/${planId.value}`, {
