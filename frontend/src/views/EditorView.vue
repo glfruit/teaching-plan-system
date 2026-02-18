@@ -608,10 +608,19 @@
         <h3 class="text-base font-semibold text-slate-800">本地草稿箱</h3>
         <p class="mt-1 text-xs text-slate-500">用于恢复未保存内容，数据仅保存在当前浏览器。</p>
         <div v-if="currentLocalDraft" class="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-sm text-[#2f5f4f]">
-          <p>共 {{ localDraftHistory.length }} 条本地草稿</p>
+          <div class="mt-2">
+            <input
+              v-model="localDraftSearch"
+              type="text"
+              placeholder="搜索草稿名称/课程/班级"
+              class="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200"
+            />
+          </div>
+          <p class="mt-2">共 {{ localDraftHistory.length }} 条本地草稿，筛选命中 {{ filteredLocalDraftHistory.length }} 条</p>
+          <p v-if="filteredLocalDraftHistory.length === 0" class="mt-2 text-xs text-slate-500">无匹配草稿，请调整搜索关键词。</p>
           <div class="mt-2 max-h-36 overflow-auto space-y-1">
             <button
-              v-for="item in localDraftHistory"
+              v-for="item in filteredLocalDraftHistory"
               :key="item.savedAt"
               @click="handleSelectLocalDraft(item.savedAt)"
               class="w-full text-left px-2 py-1.5 rounded-lg border transition-colors"
@@ -659,7 +668,7 @@
         <div class="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button
             @click="handleRestoreLocalDraft"
-            :disabled="!currentLocalDraft"
+            :disabled="!selectedLocalDraft"
             class="h-10 rounded-xl bg-[#647269] text-white text-sm font-medium disabled:opacity-50"
           >
             恢复草稿
@@ -1053,6 +1062,34 @@ const parseEditorLocalDraftItem = (value: unknown): EditorLocalDraft | null => {
 export const resolveEditorLocalDraftDisplayName = (draft: EditorLocalDraft): string =>
   draft.snapshot?.displayName?.trim() || buildEditorLocalDraftDisplayName(draft.form)
 
+export const normalizeEditorLocalDraftSearchQuery = (value: string): string =>
+  value.trim().toLocaleLowerCase('zh-CN')
+
+export const filterEditorLocalDraftHistory = (
+  history: EditorLocalDraft[],
+  query: string
+): EditorLocalDraft[] => {
+  const keyword = normalizeEditorLocalDraftSearchQuery(query)
+  if (!keyword) {
+    return history
+  }
+
+  return history.filter((draft) => {
+    const name = resolveEditorLocalDraftDisplayName(draft)
+    const searchable = [
+      name,
+      draft.snapshot.title,
+      draft.snapshot.courseName,
+      draft.snapshot.className,
+      draft.savedAt,
+    ]
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase('zh-CN')
+    return searchable.includes(keyword)
+  })
+}
+
 export const serializeEditorLocalDraftHistory = (drafts: EditorLocalDraft[]): string => {
   const payload: EditorLocalDraftHistoryPayload = {
     version: LOCAL_EDITOR_DRAFT_VERSION,
@@ -1272,6 +1309,7 @@ const isEditing = computed(() => !!planId.value)
 const lastSaved = ref('')
 const savedDraftSignature = ref('')
 const localDraftMessage = ref('')
+const localDraftSearch = ref('')
 const localDraftHistory = ref<EditorLocalDraft[]>([])
 const selectedLocalDraftSavedAt = ref('')
 const showDraftDialog = ref(false)
@@ -1361,18 +1399,25 @@ const contentSourceLabel = computed(() => resolveEditorContentSourceLabel(conten
 
 const currentLocalDraft = computed<EditorLocalDraft | null>(() => localDraftHistory.value[0] ?? null)
 
+const filteredLocalDraftHistory = computed(() =>
+  filterEditorLocalDraftHistory(localDraftHistory.value, localDraftSearch.value)
+)
+
 const selectedLocalDraft = computed<EditorLocalDraft | null>(() => {
-  if (!localDraftHistory.value.length) {
+  const useFiltered = showDraftDialog.value
+  const sourceList = useFiltered ? filteredLocalDraftHistory.value : localDraftHistory.value
+
+  if (!sourceList.length) {
     return null
   }
 
   if (!selectedLocalDraftSavedAt.value) {
-    return localDraftHistory.value[0]
+    return sourceList[0]
   }
 
   return (
-    localDraftHistory.value.find((item) => item.savedAt === selectedLocalDraftSavedAt.value) ??
-    localDraftHistory.value[0]
+    sourceList.find((item) => item.savedAt === selectedLocalDraftSavedAt.value) ??
+    sourceList[0]
   )
 })
 
@@ -1475,6 +1520,7 @@ const refreshLocalDraft = () => {
 
 const handleOpenDraftDialog = () => {
   refreshLocalDraft()
+  localDraftSearch.value = ''
   showDraftDialog.value = true
 }
 
@@ -1575,6 +1621,22 @@ watch(
     schedulePersistLocalDraft()
   }
 )
+
+watch(filteredLocalDraftHistory, (nextHistory) => {
+  if (!showDraftDialog.value) {
+    return
+  }
+
+  if (!nextHistory.length) {
+    selectedLocalDraftSavedAt.value = ''
+    return
+  }
+
+  const selectedExists = nextHistory.some((item) => item.savedAt === selectedLocalDraftSavedAt.value)
+  if (!selectedExists) {
+    selectedLocalDraftSavedAt.value = nextHistory[0].savedAt
+  }
+})
 
 const handleSave = async () => {
   if (!isFormValid.value) {

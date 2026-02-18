@@ -14,6 +14,8 @@ import {
   pushEditorLocalDraftHistory,
   LOCAL_EDITOR_DRAFT_HISTORY_LIMIT,
   resolveEditorLocalDraftDisplayName,
+  normalizeEditorLocalDraftSearchQuery,
+  filterEditorLocalDraftHistory,
   buildEditorDraftDiffSummary,
   resolveEditorContentSourceLabel,
   shouldPersistLocalDraftOnLeave,
@@ -602,6 +604,69 @@ describe('EditorView teaching layout persistence', () => {
       },
     }
     expect(resolveEditorLocalDraftDisplayName(withoutDisplayName as any)).toBe('表单标题')
+  })
+
+  it('normalizes local draft search query', () => {
+    expect(normalizeEditorLocalDraftSearchQuery('  Vue 教案  ')).toBe('vue 教案')
+    expect(normalizeEditorLocalDraftSearchQuery('')).toBe('')
+  })
+
+  it('filters local draft history by display name and course/class snapshot', () => {
+    const history = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: {
+          title: 'Vue 入门',
+          courseName: '前端开发',
+          className: '2301',
+          duration: 45,
+          methods: '',
+          resources: '',
+          objectives: '<p></p>',
+          keyPoints: '<p></p>',
+          process: '<p></p>',
+          blackboard: '<p></p>',
+          reflection: '<p></p>',
+          contentJson: {},
+        },
+        snapshot: {
+          displayName: 'Vue 入门',
+          title: 'Vue 入门',
+          courseName: '前端开发',
+          className: '2301',
+        },
+      },
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:05:00.000Z',
+        form: {
+          title: '数据库基础',
+          courseName: '数据库',
+          className: '2202',
+          duration: 45,
+          methods: '',
+          resources: '',
+          objectives: '<p></p>',
+          keyPoints: '<p></p>',
+          process: '<p></p>',
+          blackboard: '<p></p>',
+          reflection: '<p></p>',
+          contentJson: {},
+        },
+        snapshot: {
+          displayName: '数据库基础',
+          title: '数据库基础',
+          courseName: '数据库',
+          className: '2202',
+        },
+      },
+    ]
+
+    expect(filterEditorLocalDraftHistory(history as any, '').length).toBe(2)
+    expect(filterEditorLocalDraftHistory(history as any, 'vue')[0].snapshot.displayName).toBe('Vue 入门')
+    expect(filterEditorLocalDraftHistory(history as any, '2202')[0].snapshot.displayName).toBe('数据库基础')
+    expect(filterEditorLocalDraftHistory(history as any, '不存在')).toHaveLength(0)
   })
 
   it('builds draft diff summary between current form and selected draft', () => {
