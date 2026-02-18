@@ -795,6 +795,17 @@
                 仅看冲突
               </button>
               <button
+                @click="showOnlySelectedImportDrafts = !showOnlySelectedImportDrafts"
+                :class="[
+                  'rounded-md border px-2 py-1 text-[11px] hover:bg-slate-50',
+                  showOnlySelectedImportDrafts
+                    ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                    : 'border-slate-300 bg-white text-slate-600',
+                ]"
+              >
+                仅看已勾选
+              </button>
+              <button
                 @click="handleSelectAllImportDrafts"
                 class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
               >
@@ -863,6 +874,27 @@
                 >
                   {{ formatLocalDraftImportConflictDiffText(item.draft.savedAt) }}
                 </p>
+                <div v-if="item.conflict" class="mt-1">
+                  <button
+                    @click.prevent="handleToggleLocalDraftImportConflictExpanded(item.draft.savedAt)"
+                    class="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-[10px] text-slate-600 hover:bg-slate-50"
+                  >
+                    {{ isLocalDraftImportConflictExpanded(item.draft.savedAt) ? '收起差异' : '展开差异' }}
+                  </button>
+                </div>
+                <div
+                  v-if="item.conflict && isLocalDraftImportConflictExpanded(item.draft.savedAt)"
+                  class="mt-1.5 rounded-md border border-slate-200 bg-slate-50 p-2 space-y-1"
+                >
+                  <template
+                    v-for="detail in localDraftImportConflictDetailItemMap.get(item.draft.savedAt)?.details || []"
+                    :key="`${item.draft.savedAt}-${detail.label}`"
+                  >
+                    <p class="text-[10px] text-slate-700 font-medium">{{ detail.label }}</p>
+                    <p class="text-[10px] text-slate-500">当前：{{ detail.currentPreview }}</p>
+                    <p class="text-[10px] text-emerald-700">导入：{{ detail.importedPreview }}</p>
+                  </template>
+                </div>
               </div>
             </label>
           </div>
@@ -1173,6 +1205,11 @@ export type EditorLocalDraftImportCandidate = {
 }
 
 export type EditorLocalDraftImportSelectionStrategy = 'all' | 'conflict' | 'new' | 'none'
+export type EditorLocalDraftImportCandidateFilterOptions = {
+  onlyConflict: boolean
+  onlySelected: boolean
+  selectedSavedAt: string[]
+}
 
 export type EditorLocalDraftImportConflictItem = {
   savedAt: string
@@ -1184,6 +1221,18 @@ export type EditorLocalDraftImportConflictDiffItem = {
   savedAt: string
   changedCount: number
   fields: string[]
+}
+
+export type EditorLocalDraftImportConflictDetailLine = {
+  label: string
+  currentPreview: string
+  importedPreview: string
+}
+
+export type EditorLocalDraftImportConflictDetailItem = {
+  savedAt: string
+  changedCount: number
+  details: EditorLocalDraftImportConflictDetailLine[]
 }
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
@@ -1611,6 +1660,22 @@ export const selectEditorLocalDraftImportSavedAtByStrategy = (
   return candidates.filter((item) => !item.conflict).map((item) => item.draft.savedAt)
 }
 
+export const filterEditorLocalDraftImportCandidates = (
+  candidates: EditorLocalDraftImportCandidate[],
+  options: EditorLocalDraftImportCandidateFilterOptions
+): EditorLocalDraftImportCandidate[] => {
+  const selected = new Set(options.selectedSavedAt)
+  return candidates.filter((item) => {
+    if (options.onlyConflict && !item.conflict) {
+      return false
+    }
+    if (options.onlySelected && !selected.has(item.draft.savedAt)) {
+      return false
+    }
+    return true
+  })
+}
+
 export const buildEditorLocalDraftImportConflictItems = (
   existing: EditorLocalDraft[],
   candidates: EditorLocalDraftImportCandidate[]
@@ -1666,6 +1731,39 @@ export const buildEditorLocalDraftImportConflictDiffItems = (
       }
     })
     .filter((item): item is EditorLocalDraftImportConflictDiffItem => Boolean(item))
+}
+
+export const buildEditorLocalDraftImportConflictDetailItems = (
+  existing: EditorLocalDraft[],
+  candidates: EditorLocalDraftImportCandidate[]
+): EditorLocalDraftImportConflictDetailItem[] => {
+  const existingMap = new Map<string, EditorLocalDraft>()
+  for (const item of existing) {
+    const parsed = parseEditorLocalDraftItem(item)
+    if (parsed) {
+      existingMap.set(parsed.savedAt, parsed)
+    }
+  }
+
+  return candidates
+    .filter((item) => item.conflict)
+    .map((item) => {
+      const local = existingMap.get(item.draft.savedAt)
+      if (!local) {
+        return null
+      }
+      const diff = buildEditorDraftDiffSummary(local.form, item.draft)
+      return {
+        savedAt: item.draft.savedAt,
+        changedCount: diff.changedCount,
+        details: diff.items.map((detail) => ({
+          label: detail.label,
+          currentPreview: detail.currentPreview,
+          importedPreview: detail.draftPreview,
+        })),
+      }
+    })
+    .filter((item): item is EditorLocalDraftImportConflictDetailItem => Boolean(item))
 }
 
 export const buildEditorLocalDraftImportPreview = (
@@ -1906,6 +2004,8 @@ const localDraftImportCandidates = ref<EditorLocalDraftImportCandidate[]>([])
 const selectedImportDraftSavedAt = ref<string[]>([])
 const localDraftImportMode = ref<EditorLocalDraftMergeMode>('prefer-imported')
 const showOnlyConflictImportDrafts = ref(false)
+const showOnlySelectedImportDrafts = ref(false)
+const expandedImportConflictSavedAt = ref<string[]>([])
 const contentSource = ref<EditorContentSource>('new')
 const showMobileActions = ref(false)
 const showTemplatePanel = ref(false)
@@ -2035,9 +2135,11 @@ const selectedImportDrafts = computed(() =>
 )
 
 const filteredLocalDraftImportCandidates = computed(() =>
-  showOnlyConflictImportDrafts.value
-    ? localDraftImportCandidates.value.filter((item) => item.conflict)
-    : localDraftImportCandidates.value
+  filterEditorLocalDraftImportCandidates(localDraftImportCandidates.value, {
+    onlyConflict: showOnlyConflictImportDrafts.value,
+    onlySelected: showOnlySelectedImportDrafts.value,
+    selectedSavedAt: selectedImportDraftSavedAt.value,
+  })
 )
 
 const localDraftImportConflictCount = computed(() =>
@@ -2073,6 +2175,14 @@ const localDraftImportConflictDiffItemMap = computed(() => {
   return new Map(items.map((item) => [item.savedAt, item]))
 })
 
+const localDraftImportConflictDetailItemMap = computed(() => {
+  const items = buildEditorLocalDraftImportConflictDetailItems(
+    localDraftHistory.value,
+    localDraftImportCandidates.value
+  )
+  return new Map(items.map((item) => [item.savedAt, item]))
+})
+
 const formatLocalDraftImportConflictDiffText = (savedAt: string): string => {
   const item = localDraftImportConflictDiffItemMap.value.get(savedAt)
   if (!item) {
@@ -2085,6 +2195,19 @@ const formatLocalDraftImportConflictDiffText = (savedAt: string): string => {
   const previewLabels = item.fields.slice(0, 3)
   const suffix = item.fields.length > 3 ? '等' : ''
   return `差异：${item.changedCount} 项（${previewLabels.join('、')}${suffix}）`
+}
+
+const isLocalDraftImportConflictExpanded = (savedAt: string): boolean =>
+  expandedImportConflictSavedAt.value.includes(savedAt)
+
+const handleToggleLocalDraftImportConflictExpanded = (savedAt: string) => {
+  if (isLocalDraftImportConflictExpanded(savedAt)) {
+    expandedImportConflictSavedAt.value = expandedImportConflictSavedAt.value.filter(
+      (item) => item !== savedAt
+    )
+    return
+  }
+  expandedImportConflictSavedAt.value = [...expandedImportConflictSavedAt.value, savedAt]
 }
 
 const resolveLocalDraftDisplayNameForView = (draft: EditorLocalDraft): string =>
@@ -2193,6 +2316,8 @@ const resetLocalDraftImportState = () => {
   selectedImportDraftSavedAt.value = []
   localDraftImportMode.value = 'prefer-imported'
   showOnlyConflictImportDrafts.value = false
+  showOnlySelectedImportDrafts.value = false
+  expandedImportConflictSavedAt.value = []
 }
 
 const handleCancelImportPreview = () => {
