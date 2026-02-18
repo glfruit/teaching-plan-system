@@ -621,7 +621,17 @@
                   : 'border-transparent bg-emerald-50/50 text-[#2f5f4f] hover:bg-white'
               "
             >
-              {{ formatDraftTimestamp(item.savedAt) || item.savedAt }}
+              <div class="flex items-start justify-between gap-2">
+                <span class="text-xs font-medium leading-5">
+                  {{ resolveLocalDraftDisplayNameForView(item) }}
+                </span>
+                <span class="text-[10px] text-slate-500 whitespace-nowrap">
+                  {{ formatDraftTimestamp(item.savedAt) || item.savedAt }}
+                </span>
+              </div>
+              <p class="mt-0.5 text-[10px] text-slate-500">
+                {{ item.snapshot.courseName || '未填课程' }} · {{ item.snapshot.className || '未填班级' }}
+              </p>
             </button>
           </div>
           <p class="mt-2">当前选择：{{ selectedLocalDraft ? (formatDraftTimestamp(selectedLocalDraft.savedAt) || selectedLocalDraft.savedAt) : '无' }}</p>
@@ -899,10 +909,18 @@ export const LOCAL_EDITOR_DRAFT_VERSION = 1
 export const LOCAL_EDITOR_DRAFT_PREFIX = 'editor-local-draft:'
 export const LOCAL_EDITOR_DRAFT_HISTORY_LIMIT = 6
 
+export type EditorLocalDraftSnapshot = {
+  displayName: string
+  title: string
+  courseName: string
+  className: string
+}
+
 export type EditorLocalDraft = {
   version: number
   savedAt: string
   form: EditorPlanForm
+  snapshot: EditorLocalDraftSnapshot
 }
 
 export type EditorLocalDraftHistoryPayload = {
@@ -943,12 +961,70 @@ export const serializeEditorLocalDraft = (
   form: EditorPlanForm,
   savedAt = new Date().toISOString()
 ): string => {
+  const snapshot = buildEditorLocalDraftSnapshot(form)
   const payload: EditorLocalDraft = {
     version: LOCAL_EDITOR_DRAFT_VERSION,
     savedAt,
     form,
+    snapshot,
   }
   return JSON.stringify(payload)
+}
+
+const resolveEditorDraftIdentityPart = (value: string | undefined): string =>
+  (value || '').trim()
+
+export const buildEditorLocalDraftDisplayName = (form: EditorPlanForm): string => {
+  const title = resolveEditorDraftIdentityPart(form.title)
+  if (title) {
+    return title
+  }
+
+  const courseName = resolveEditorDraftIdentityPart(form.courseName)
+  const className = resolveEditorDraftIdentityPart(form.className)
+  if (courseName && className) {
+    return `${courseName}｜${className}`
+  }
+  if (courseName) {
+    return `${courseName}｜未填写班级`
+  }
+  if (className) {
+    return `未命名教案｜${className}`
+  }
+
+  return '未命名草稿'
+}
+
+export const buildEditorLocalDraftSnapshot = (form: EditorPlanForm): EditorLocalDraftSnapshot => ({
+  displayName: buildEditorLocalDraftDisplayName(form),
+  title: resolveEditorDraftIdentityPart(form.title),
+  courseName: resolveEditorDraftIdentityPart(form.courseName),
+  className: resolveEditorDraftIdentityPart(form.className),
+})
+
+const parseEditorLocalDraftSnapshot = (
+  value: unknown,
+  form: EditorPlanForm
+): EditorLocalDraftSnapshot => {
+  const fallback = buildEditorLocalDraftSnapshot(form)
+  if (!isObjectRecord(value)) {
+    return fallback
+  }
+
+  const title = typeof value.title === 'string' ? value.title.trim() : fallback.title
+  const courseName = typeof value.courseName === 'string' ? value.courseName.trim() : fallback.courseName
+  const className = typeof value.className === 'string' ? value.className.trim() : fallback.className
+  const displayName =
+    typeof value.displayName === 'string' && value.displayName.trim()
+      ? value.displayName.trim()
+      : buildEditorLocalDraftDisplayName({ ...form, title, courseName, className })
+
+  return {
+    displayName,
+    title,
+    courseName,
+    className,
+  }
 }
 
 const parseEditorLocalDraftItem = (value: unknown): EditorLocalDraft | null => {
@@ -964,12 +1040,18 @@ const parseEditorLocalDraftItem = (value: unknown): EditorLocalDraft | null => {
     return null
   }
 
+  const snapshot = parseEditorLocalDraftSnapshot(value.snapshot, value.form)
+
   return {
     version: typeof value.version === 'number' ? value.version : LOCAL_EDITOR_DRAFT_VERSION,
     savedAt: value.savedAt,
     form: value.form,
+    snapshot,
   }
 }
+
+export const resolveEditorLocalDraftDisplayName = (draft: EditorLocalDraft): string =>
+  draft.snapshot?.displayName?.trim() || buildEditorLocalDraftDisplayName(draft.form)
 
 export const serializeEditorLocalDraftHistory = (drafts: EditorLocalDraft[]): string => {
   const payload: EditorLocalDraftHistoryPayload = {
@@ -1012,10 +1094,12 @@ export const pushEditorLocalDraftHistory = (
   savedAt = new Date().toISOString(),
   limit = LOCAL_EDITOR_DRAFT_HISTORY_LIMIT
 ): EditorLocalDraft[] => {
+  const snapshot = buildEditorLocalDraftSnapshot(form)
   const nextDraft: EditorLocalDraft = {
     version: LOCAL_EDITOR_DRAFT_VERSION,
     savedAt,
     form,
+    snapshot,
   }
 
   const normalized = history
@@ -1295,6 +1379,9 @@ const selectedLocalDraft = computed<EditorLocalDraft | null>(() => {
 const selectedLocalDraftDiff = computed(() =>
   buildEditorDraftDiffSummary(form as EditorPlanForm, selectedLocalDraft.value)
 )
+
+const resolveLocalDraftDisplayNameForView = (draft: EditorLocalDraft): string =>
+  resolveEditorLocalDraftDisplayName(draft)
 
 const localDraftStorageKey = computed(() =>
   buildEditorLocalDraftStorageKey(isEditing.value ? planId.value : null)

@@ -5,12 +5,15 @@ import {
   buildTemplateUpdatePayload,
   resolveTemplateEditSubmission,
   buildEditorLocalDraftStorageKey,
+  buildEditorLocalDraftDisplayName,
+  buildEditorLocalDraftSnapshot,
   serializeEditorLocalDraft,
   serializeEditorLocalDraftHistory,
   parseEditorLocalDraft,
   parseEditorLocalDraftHistory,
   pushEditorLocalDraftHistory,
   LOCAL_EDITOR_DRAFT_HISTORY_LIMIT,
+  resolveEditorLocalDraftDisplayName,
   buildEditorDraftDiffSummary,
   resolveEditorContentSourceLabel,
   shouldPersistLocalDraftOnLeave,
@@ -382,6 +385,49 @@ describe('EditorView teaching layout persistence', () => {
     expect(buildEditorLocalDraftStorageKey('plan-123')).toBe('editor-local-draft:plan-123')
   })
 
+  it('builds readable local draft display name with title first', () => {
+    const withTitle = {
+      title: '函数式编程导论',
+      courseName: '前端开发',
+      className: '2301',
+      duration: 45,
+      methods: '',
+      resources: '',
+      objectives: '<p></p>',
+      keyPoints: '<p></p>',
+      process: '<p></p>',
+      blackboard: '<p></p>',
+      reflection: '<p></p>',
+      contentJson: {},
+    }
+    expect(buildEditorLocalDraftDisplayName(withTitle as any)).toBe('函数式编程导论')
+
+    const noTitle = { ...withTitle, title: '' }
+    expect(buildEditorLocalDraftDisplayName(noTitle as any)).toBe('前端开发｜2301')
+  })
+
+  it('builds local draft snapshot and fallback display name', () => {
+    const form = {
+      title: '',
+      courseName: '',
+      className: '',
+      duration: 45,
+      methods: '',
+      resources: '',
+      objectives: '<p></p>',
+      keyPoints: '<p></p>',
+      process: '<p></p>',
+      blackboard: '<p></p>',
+      reflection: '<p></p>',
+      contentJson: {},
+    }
+
+    const snapshot = buildEditorLocalDraftSnapshot(form as any)
+    expect(snapshot.displayName).toBe('未命名草稿')
+    expect(snapshot.courseName).toBe('')
+    expect(snapshot.className).toBe('')
+  })
+
   it('serializes and parses local editor draft payload', () => {
     const form = {
       title: '本地草稿',
@@ -441,14 +487,15 @@ describe('EditorView teaching layout persistence', () => {
     }
 
     const raw = serializeEditorLocalDraftHistory([
-      { version: 1, savedAt: '2026-02-17T12:01:00.000Z', form: formB as any },
-      { version: 1, savedAt: '2026-02-17T12:00:00.000Z', form: formA as any },
+      { version: 1, savedAt: '2026-02-17T12:01:00.000Z', form: formB as any, snapshot: buildEditorLocalDraftSnapshot(formB as any) },
+      { version: 1, savedAt: '2026-02-17T12:00:00.000Z', form: formA as any, snapshot: buildEditorLocalDraftSnapshot(formA as any) },
     ])
 
     const history = parseEditorLocalDraftHistory(raw)
     expect(history).toHaveLength(2)
     expect(history[0].form.title).toBe('草稿B')
     expect(history[1].form.title).toBe('草稿A')
+    expect(history[0].snapshot.displayName).toBe('草稿B')
   })
 
   it('supports parsing legacy single-draft payload as history', () => {
@@ -473,6 +520,7 @@ describe('EditorView teaching layout persistence', () => {
     const history = parseEditorLocalDraftHistory(legacy)
     expect(history).toHaveLength(1)
     expect(history[0].form.title).toBe('旧格式草稿')
+    expect(history[0].snapshot.displayName).toBe('旧格式草稿')
   })
 
   it('pushes local draft history with limit and replaces same-signature latest', () => {
@@ -513,6 +561,47 @@ describe('EditorView teaching layout persistence', () => {
     expect(third[1].savedAt).toBe('2026-02-17T12:01:00.000Z')
 
     expect(LOCAL_EDITOR_DRAFT_HISTORY_LIMIT).toBeGreaterThan(1)
+  })
+
+  it('resolves draft display name from snapshot first and falls back to form', () => {
+    const form = {
+      title: '表单标题',
+      courseName: '课程A',
+      className: '1班',
+      duration: 45,
+      methods: '',
+      resources: '',
+      objectives: '<p></p>',
+      keyPoints: '<p></p>',
+      process: '<p></p>',
+      blackboard: '<p></p>',
+      reflection: '<p></p>',
+      contentJson: {},
+    }
+
+    const withSnapshot = {
+      version: 1,
+      savedAt: '2026-02-17T12:00:00.000Z',
+      form,
+      snapshot: {
+        displayName: '快照标题',
+        title: '',
+        courseName: '',
+        className: '',
+      },
+    }
+    expect(resolveEditorLocalDraftDisplayName(withSnapshot as any)).toBe('快照标题')
+
+    const withoutDisplayName = {
+      ...withSnapshot,
+      snapshot: {
+        displayName: '',
+        title: '',
+        courseName: '',
+        className: '',
+      },
+    }
+    expect(resolveEditorLocalDraftDisplayName(withoutDisplayName as any)).toBe('表单标题')
   })
 
   it('builds draft diff summary between current form and selected draft', () => {
