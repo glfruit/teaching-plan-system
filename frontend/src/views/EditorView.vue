@@ -996,7 +996,9 @@ export type EditorLocalDraftExportPayload = {
 export type EditorLocalDraftMergeMode = 'keep-existing' | 'prefer-imported'
 
 export type EditorLocalDraftImportPreview = {
+  mode: EditorLocalDraftMergeMode
   importedCount: number
+  conflictCount: number
   newCount: number
   overwriteCount: number
   droppedByLimitCount: number
@@ -1379,7 +1381,8 @@ export const mergeEditorLocalDraftHistory = (
 export const buildEditorLocalDraftImportPreview = (
   existing: EditorLocalDraft[],
   imported: EditorLocalDraft[],
-  limit = LOCAL_EDITOR_DRAFT_HISTORY_LIMIT
+  limit = LOCAL_EDITOR_DRAFT_HISTORY_LIMIT,
+  mode: EditorLocalDraftMergeMode = 'prefer-imported'
 ): EditorLocalDraftImportPreview => {
   const normalizedExisting = existing
     .map((item) => parseEditorLocalDraftItem(item))
@@ -1394,18 +1397,21 @@ export const buildEditorLocalDraftImportPreview = (
   }
   const importedUnique = [...importedUniqueMap.values()]
   const existingSavedAt = new Set(normalizedExisting.map((item) => item.savedAt))
-  const overwriteCount = importedUnique.filter((item) => existingSavedAt.has(item.savedAt)).length
-  const newCount = importedUnique.length - overwriteCount
+  const conflictCount = importedUnique.filter((item) => existingSavedAt.has(item.savedAt)).length
+  const overwriteCount = mode === 'prefer-imported' ? conflictCount : 0
+  const newCount = importedUnique.length - conflictCount
   const mergedHistory = mergeEditorLocalDraftHistory(
     normalizedExisting,
     importedUnique,
     limit,
-    'prefer-imported'
+    mode
   )
   const droppedByLimitCount = Math.max(0, normalizedExisting.length + newCount - mergedHistory.length)
 
   return {
+    mode,
     importedCount: importedUnique.length,
+    conflictCount,
     newCount,
     overwriteCount,
     droppedByLimitCount,
@@ -1417,10 +1423,14 @@ export const buildEditorLocalDraftImportPreview = (
 export const buildEditorLocalDraftImportPreviewMessage = (
   preview: EditorLocalDraftImportPreview
 ): string => {
-  const lines = [
-    `检测到 ${preview.importedCount} 条有效草稿`,
-    `预计新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条`,
-  ]
+  const lines = [`检测到 ${preview.importedCount} 条有效草稿`]
+  if (preview.conflictCount > 0 && preview.overwriteCount === 0) {
+    lines.push(
+      `预计新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条（检测到 ${preview.conflictCount} 条冲突，保留本地版本）`
+    )
+  } else {
+    lines.push(`预计新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条`)
+  }
 
   if (preview.droppedByLimitCount > 0) {
     lines.push(`受历史上限影响，将移除最旧 ${preview.droppedByLimitCount} 条草稿`)
@@ -1891,7 +1901,21 @@ const handleImportLocalDrafts = async (event: Event) => {
       return
     }
 
-    const preview = buildEditorLocalDraftImportPreview(localDraftHistory.value, imported)
+    const defaultPreview = buildEditorLocalDraftImportPreview(localDraftHistory.value, imported)
+    let importMode: EditorLocalDraftMergeMode = 'prefer-imported'
+    if (defaultPreview.conflictCount > 0) {
+      const shouldOverwrite = window.confirm(
+        `检测到重复时间戳草稿 ${defaultPreview.conflictCount} 条。\n点击“确定”覆盖本地版本，点击“取消”保留本地版本（仅导入新增）。`
+      )
+      importMode = shouldOverwrite ? 'prefer-imported' : 'keep-existing'
+    }
+
+    const preview = buildEditorLocalDraftImportPreview(
+      localDraftHistory.value,
+      imported,
+      LOCAL_EDITOR_DRAFT_HISTORY_LIMIT,
+      importMode
+    )
     const confirmed = window.confirm(buildEditorLocalDraftImportPreviewMessage(preview))
     if (!confirmed) {
       return
@@ -1904,7 +1928,9 @@ const handleImportLocalDrafts = async (event: Event) => {
     localDraftMessage.value =
       preview.droppedByLimitCount > 0
         ? `草稿导入成功：新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条，因上限移除 ${preview.droppedByLimitCount} 条`
-        : `草稿导入成功：新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条`
+        : preview.conflictCount > 0 && preview.overwriteCount === 0
+          ? `草稿导入成功：新增 ${preview.newCount} 条，保留本地冲突 ${preview.conflictCount} 条`
+          : `草稿导入成功：新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条`
   } catch {
     alert('导入失败：请检查文件格式')
   } finally {

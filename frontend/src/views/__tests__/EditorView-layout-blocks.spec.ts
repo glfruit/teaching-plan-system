@@ -909,6 +909,50 @@ describe('EditorView teaching layout persistence', () => {
     expect(message).toContain('是否继续导入')
   })
 
+  it('builds keep-existing import preview without overwriting local conflicts', () => {
+    const existing = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Existing', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Existing', title: 'Existing', courseName: '', className: '' },
+        pinned: true,
+      },
+    ]
+    const imported = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Imported Conflict', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Imported Conflict', title: 'Imported Conflict', courseName: '', className: '' },
+        pinned: false,
+      },
+      {
+        version: 1,
+        savedAt: '2026-02-17T13:00:00.000Z',
+        form: { title: 'Imported New', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Imported New', title: 'Imported New', courseName: '', className: '' },
+        pinned: false,
+      },
+    ]
+
+    const preview = (buildEditorLocalDraftImportPreview as any)(
+      existing as any,
+      imported as any,
+      5,
+      'keep-existing'
+    )
+    expect(preview.importedCount).toBe(2)
+    expect(preview.newCount).toBe(1)
+    expect(preview.overwriteCount).toBe(0)
+    expect(preview.nextCount).toBe(2)
+    expect(preview.mergedHistory[1].snapshot.displayName).toBe('Existing')
+    expect(preview.mergedHistory[1].pinned).toBe(true)
+
+    const message = buildEditorLocalDraftImportPreviewMessage(preview)
+    expect(message).toContain('预计新增 1 条，覆盖 0 条')
+  })
+
   it('builds export filename with plan id and timestamp', () => {
     const name = buildEditorLocalDraftExportFileName('plan-123', new Date('2026-02-18T08:09:10.000Z'))
     expect(name).toBe('editor-local-drafts-plan-123-20260218-080910.json')

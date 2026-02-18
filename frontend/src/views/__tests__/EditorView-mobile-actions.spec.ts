@@ -33,6 +33,8 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('handleImportLocalDrafts')
     expect(editorViewSource).toContain('buildEditorLocalDraftImportPreview(')
     expect(editorViewSource).toContain('buildEditorLocalDraftImportPreviewMessage(')
+    expect(editorViewSource).toContain('检测到重复时间戳草稿')
+    expect(editorViewSource).toContain('保留本地版本（仅导入新增）')
     expect(editorViewSource).toContain('置顶 {{ pinnedDraftCount }} / 未置顶 {{ unpinnedDraftCount }}')
     expect(editorViewSource).toContain('handleToggleLocalDraftPinned')
     expect(editorViewSource).toContain('handleRenameLocalDraft')
