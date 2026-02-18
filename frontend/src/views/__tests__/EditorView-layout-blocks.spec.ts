@@ -43,6 +43,7 @@ import {
   buildEditorDraftDiffSummary,
   resolveEditorContentSourceLabel,
   buildEditorCompletionSummary,
+  buildEditorQualityTips,
   shouldPersistLocalDraftOnLeave,
   buildPlanPayload,
   mapFetchedPlanToForm,
@@ -1573,6 +1574,46 @@ describe('EditorView teaching layout persistence', () => {
     expect(summary.missingLabels).toContain('教学过程')
     expect(summary.missingLabels).toContain('教学方法')
     expect(summary.filledCount).toBeLessThan(summary.totalCount)
+  })
+
+  it('builds quality tips for short objectives and process', () => {
+    const tips = buildEditorQualityTips({
+      title: '教案A',
+      courseName: '课程A',
+      className: '1班',
+      duration: 45,
+      methods: '',
+      resources: '',
+      objectives: '<p>目标</p>',
+      keyPoints: '<p></p>',
+      process: '<p>过程</p>',
+      blackboard: '<p></p>',
+      reflection: '<p></p>',
+      contentJson: {},
+    } as any)
+
+    expect(tips.some((item) => item.message.includes('教学目标建议不少于20字'))).toBe(true)
+    expect(tips.some((item) => item.message.includes('教学过程建议包含关键环节与时间安排'))).toBe(true)
+    expect(tips.some((item) => item.message.includes('建议补充教学方法或教学资源'))).toBe(true)
+  })
+
+  it('returns empty quality tips for well-formed content', () => {
+    const tips = buildEditorQualityTips({
+      title: '教案A',
+      courseName: '课程A',
+      className: '1班',
+      duration: 90,
+      methods: '案例教学',
+      resources: 'PPT、视频',
+      objectives: '<p>通过本节课学习，学生能够理解核心概念并完成基础应用任务。</p>',
+      keyPoints: '<p>核心概念与应用步骤。</p>',
+      process: '<p>导入5分钟并设置问题情境，讲授30分钟拆解步骤，分组练习25分钟完成任务，最后总结反馈并布置拓展作业10分钟。</p>',
+      blackboard: '<p>板书结构完整</p>',
+      reflection: '<p>课后反思与改进点</p>',
+      contentJson: {},
+    } as any)
+
+    expect(tips).toEqual([])
   })
 
   it('resolves content source label for local/server/new', () => {

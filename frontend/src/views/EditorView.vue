@@ -112,6 +112,22 @@
             等 {{ editorCompletionSummary.missingLabels.length }} 项
           </span>
         </p>
+        <div
+          v-if="editorQualityTips.length > 0"
+          class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2"
+        >
+          <p class="text-xs font-medium text-amber-700">质量建议</p>
+          <ul class="mt-1 space-y-1">
+            <li
+              v-for="tip in editorQualityTips"
+              :key="tip.message"
+              class="text-[11px]"
+              :class="tip.level === 'warning' ? 'text-amber-700' : 'text-slate-600'"
+            >
+              {{ tip.message }}
+            </li>
+          </ul>
+        </div>
       </section>
 
       <div class="editor-layout-shell grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
@@ -2156,6 +2172,11 @@ export type EditorCompletionSummary = {
   missingLabels: string[]
 }
 
+export type EditorQualityTip = {
+  level: 'warning' | 'suggestion'
+  message: string
+}
+
 const EDITOR_DRAFT_DIFF_FIELDS: Array<{ key: EditorDraftComparableField; label: string; richText?: boolean }> = [
   { key: 'title', label: '教案标题' },
   { key: 'courseName', label: '课程名称' },
@@ -2288,6 +2309,40 @@ export const buildEditorCompletionSummary = (
     totalCount,
     missingLabels,
   }
+}
+
+export const buildEditorQualityTips = (form: EditorPlanForm): EditorQualityTip[] => {
+  const tips: EditorQualityTip[] = []
+  const objectivesLength = htmlToText(form.objectives).trim().length
+  const processLength = htmlToText(form.process).trim().length
+  const reflectionLength = htmlToText(form.reflection).trim().length
+
+  if (objectivesLength > 0 && objectivesLength < 20) {
+    tips.push({
+      level: 'warning',
+      message: '教学目标建议不少于20字，便于评估学习达成度。',
+    })
+  }
+  if (processLength > 0 && processLength < 40) {
+    tips.push({
+      level: 'warning',
+      message: '教学过程建议包含关键环节与时间安排。',
+    })
+  }
+  if (!form.methods.trim() && !form.resources.trim()) {
+    tips.push({
+      level: 'suggestion',
+      message: '建议补充教学方法或教学资源，提升可执行性。',
+    })
+  }
+  if (reflectionLength === 0) {
+    tips.push({
+      level: 'suggestion',
+      message: '建议补充教学反思，便于课后复盘改进。',
+    })
+  }
+
+  return tips
 }
 
 export const shouldPersistLocalDraftOnLeave = (
@@ -2443,6 +2498,9 @@ const editorStatusText = computed(() => {
 const contentSourceLabel = computed(() => resolveEditorContentSourceLabel(contentSource.value))
 const editorCompletionSummary = computed(() =>
   buildEditorCompletionSummary(form as EditorPlanForm)
+)
+const editorQualityTips = computed(() =>
+  buildEditorQualityTips(form as EditorPlanForm)
 )
 
 const currentLocalDraft = computed<EditorLocalDraft | null>(() => localDraftHistory.value[0] ?? null)
