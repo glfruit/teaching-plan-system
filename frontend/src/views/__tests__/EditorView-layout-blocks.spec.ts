@@ -17,6 +17,9 @@ import {
   sortEditorLocalDraftHistoryForView,
   renameEditorLocalDraft,
   toggleEditorLocalDraftPinned,
+  removeUnpinnedEditorLocalDrafts,
+  buildClearUnpinnedDraftConfirmMessage,
+  buildClearAllDraftConfirmMessage,
   normalizeEditorLocalDraftSearchQuery,
   filterEditorLocalDraftHistory,
   buildEditorDraftDiffSummary,
@@ -752,6 +755,36 @@ describe('EditorView teaching layout persistence', () => {
 
     const pinned = toggleEditorLocalDraftPinned(renamed as any, '2026-02-17T12:00:00.000Z')
     expect(pinned[0].pinned).toBe(true)
+  })
+
+  it('can remove only unpinned drafts from local history', () => {
+    const history = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'A', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'A', title: 'A', courseName: '', className: '' },
+        pinned: false,
+      },
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:05:00.000Z',
+        form: { title: 'B', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'B', title: 'B', courseName: '', className: '' },
+        pinned: true,
+      },
+    ]
+
+    const kept = removeUnpinnedEditorLocalDrafts(history as any)
+    expect(kept).toHaveLength(1)
+    expect(kept[0].snapshot.displayName).toBe('B')
+  })
+
+  it('builds clear confirmation messages with pinned protection hint', () => {
+    expect(buildClearUnpinnedDraftConfirmMessage(3, 2)).toContain('保留 2 条置顶草稿')
+    expect(buildClearUnpinnedDraftConfirmMessage(1, 0)).toContain('清理 1 条未置顶草稿')
+    expect(buildClearAllDraftConfirmMessage(5, 2)).toContain('含置顶')
+    expect(buildClearAllDraftConfirmMessage(4, 0)).toContain('清空全部 4 条草稿')
   })
 
   it('builds draft diff summary between current form and selected draft', () => {

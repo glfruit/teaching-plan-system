@@ -616,7 +616,9 @@
               class="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200"
             />
           </div>
-          <p class="mt-2">共 {{ localDraftHistory.length }} 条本地草稿，筛选命中 {{ filteredLocalDraftHistory.length }} 条</p>
+          <p class="mt-2">
+            共 {{ localDraftHistory.length }} 条本地草稿（置顶 {{ pinnedDraftCount }} / 未置顶 {{ unpinnedDraftCount }}），筛选命中 {{ filteredLocalDraftHistory.length }} 条
+          </p>
           <p v-if="filteredLocalDraftHistory.length === 0" class="mt-2 text-xs text-slate-500">无匹配草稿，请调整搜索关键词。</p>
           <div class="mt-2 max-h-36 overflow-auto space-y-1">
             <div
@@ -699,6 +701,13 @@
             class="h-10 rounded-xl border border-red-200 bg-red-50 text-red-600 text-sm font-medium disabled:opacity-50"
           >
             清空草稿
+          </button>
+          <button
+            @click="handleClearUnpinnedLocalDrafts"
+            :disabled="unpinnedDraftCount === 0"
+            class="h-10 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-sm font-medium disabled:opacity-50"
+          >
+            清理未置顶
           </button>
           <button
             @click="showDraftDialog = false"
@@ -1131,6 +1140,29 @@ export const toggleEditorLocalDraftPinned = (
   })
 }
 
+export const removeUnpinnedEditorLocalDrafts = (history: EditorLocalDraft[]): EditorLocalDraft[] =>
+  history.filter((draft) => draft.pinned)
+
+export const buildClearUnpinnedDraftConfirmMessage = (
+  unpinnedCount: number,
+  pinnedCount: number
+): string => {
+  if (pinnedCount > 0) {
+    return `将清理 ${unpinnedCount} 条未置顶草稿，并保留 ${pinnedCount} 条置顶草稿，是否继续？`
+  }
+  return `将清理 ${unpinnedCount} 条未置顶草稿，是否继续？`
+}
+
+export const buildClearAllDraftConfirmMessage = (
+  totalCount: number,
+  pinnedCount: number
+): string => {
+  if (pinnedCount > 0) {
+    return `当前共有 ${totalCount} 条草稿，其中 ${pinnedCount} 条为置顶草稿。继续将清空全部草稿（含置顶）吗？`
+  }
+  return `确定清空全部 ${totalCount} 条草稿吗？`
+}
+
 export const normalizeEditorLocalDraftSearchQuery = (value: string): string =>
   value.trim().toLocaleLowerCase('zh-CN')
 
@@ -1485,6 +1517,14 @@ const orderedLocalDraftHistory = computed(() =>
   sortEditorLocalDraftHistoryForView(localDraftHistory.value)
 )
 
+const pinnedDraftCount = computed(() =>
+  localDraftHistory.value.filter((item) => item.pinned).length
+)
+
+const unpinnedDraftCount = computed(() =>
+  localDraftHistory.value.filter((item) => !item.pinned).length
+)
+
 const filteredLocalDraftHistory = computed(() =>
   filterEditorLocalDraftHistory(orderedLocalDraftHistory.value, localDraftSearch.value)
 )
@@ -1535,6 +1575,10 @@ const clearLocalDraft = () => {
 
 const writeLocalDraftHistory = (history: EditorLocalDraft[]) => {
   localDraftHistory.value = history
+  if (!history.length) {
+    localStorage.removeItem(localDraftStorageKey.value)
+    return
+  }
   localStorage.setItem(localDraftStorageKey.value, serializeEditorLocalDraftHistory(history))
 }
 
@@ -1646,7 +1690,37 @@ const handleRestoreLocalDraft = () => {
   showDraftDialog.value = false
 }
 
+const handleClearUnpinnedLocalDrafts = () => {
+  const unpinnedCount = unpinnedDraftCount.value
+  if (!unpinnedCount) {
+    return
+  }
+
+  const confirmed = window.confirm(
+    buildClearUnpinnedDraftConfirmMessage(unpinnedCount, pinnedDraftCount.value)
+  )
+  if (!confirmed) {
+    return
+  }
+
+  const nextHistory = removeUnpinnedEditorLocalDrafts(localDraftHistory.value)
+  writeLocalDraftHistory(nextHistory)
+  localDraftMessage.value = `已清理 ${unpinnedCount} 条未置顶草稿`
+}
+
 const handleClearLocalDraft = () => {
+  if (!localDraftHistory.value.length) {
+    showDraftDialog.value = false
+    return
+  }
+
+  const confirmed = window.confirm(
+    buildClearAllDraftConfirmMessage(localDraftHistory.value.length, pinnedDraftCount.value)
+  )
+  if (!confirmed) {
+    return
+  }
+
   clearLocalDraft()
   localDraftSearch.value = ''
   showDraftDialog.value = false
