@@ -89,6 +89,31 @@
         {{ planStore.error }}
       </div>
 
+      <section class="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <div class="flex items-center justify-between gap-2">
+          <p class="text-sm font-semibold text-slate-800">编写进度</p>
+          <p class="text-sm font-semibold text-emerald-700">{{ editorCompletionSummary.score }}%</p>
+        </div>
+        <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
+          <div
+            class="h-full rounded-full bg-emerald-500 transition-all"
+            :style="{ width: `${editorCompletionSummary.score}%` }"
+          />
+        </div>
+        <p class="mt-2 text-xs text-slate-500">
+          已完成 {{ editorCompletionSummary.filledCount }} / {{ editorCompletionSummary.totalCount }} 项
+        </p>
+        <p
+          v-if="editorCompletionSummary.missingLabels.length > 0"
+          class="mt-1 text-xs text-amber-700"
+        >
+          待补充：{{ editorCompletionSummary.missingLabels.slice(0, 4).join('、') }}
+          <span v-if="editorCompletionSummary.missingLabels.length > 4">
+            等 {{ editorCompletionSummary.missingLabels.length }} 项
+          </span>
+        </p>
+      </section>
+
       <div class="editor-layout-shell grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
       <aside
         v-if="showTemplatePanel"
@@ -2124,6 +2149,13 @@ export type EditorDraftDiffSummary = {
   items: EditorDraftDiffItem[]
 }
 
+export type EditorCompletionSummary = {
+  score: number
+  filledCount: number
+  totalCount: number
+  missingLabels: string[]
+}
+
 const EDITOR_DRAFT_DIFF_FIELDS: Array<{ key: EditorDraftComparableField; label: string; richText?: boolean }> = [
   { key: 'title', label: '教案标题' },
   { key: 'courseName', label: '课程名称' },
@@ -2165,6 +2197,44 @@ const previewDraftFieldValue = (value: string, maxLength = 36): string => {
   return `${text.slice(0, maxLength)}...`
 }
 
+const EDITOR_COMPLETION_FIELDS: Array<{
+  key: EditorDraftComparableField
+  label: string
+  richText?: boolean
+}> = [
+  { key: 'title', label: '教案标题' },
+  { key: 'courseName', label: '课程名称' },
+  { key: 'className', label: '授课班级' },
+  { key: 'duration', label: '课时长度' },
+  { key: 'methods', label: '教学方法' },
+  { key: 'resources', label: '教学资源' },
+  { key: 'objectives', label: '教学目标', richText: true },
+  { key: 'keyPoints', label: '教学重点', richText: true },
+  { key: 'process', label: '教学过程', richText: true },
+  { key: 'blackboard', label: '板书设计', richText: true },
+  { key: 'reflection', label: '教学反思', richText: true },
+]
+
+const isEditorCompletionFieldFilled = (
+  form: EditorPlanForm,
+  field: { key: EditorDraftComparableField; richText?: boolean }
+): boolean => {
+  const raw = form[field.key]
+  if (field.key === 'duration') {
+    return Number(raw) > 0
+  }
+
+  if (typeof raw !== 'string') {
+    return false
+  }
+
+  if (field.richText) {
+    return Boolean(htmlToText(raw).trim())
+  }
+
+  return Boolean(raw.trim())
+}
+
 export const buildEditorDraftDiffSummary = (
   current: EditorPlanForm,
   draft: EditorLocalDraft | null
@@ -2193,6 +2263,30 @@ export const buildEditorDraftDiffSummary = (
   return {
     changedCount: items.length,
     items,
+  }
+}
+
+export const buildEditorCompletionSummary = (
+  form: EditorPlanForm
+): EditorCompletionSummary => {
+  const missingLabels: string[] = []
+  let filledCount = 0
+
+  for (const field of EDITOR_COMPLETION_FIELDS) {
+    if (isEditorCompletionFieldFilled(form, field)) {
+      filledCount += 1
+      continue
+    }
+    missingLabels.push(field.label)
+  }
+
+  const totalCount = EDITOR_COMPLETION_FIELDS.length
+  const score = Math.round((filledCount / Math.max(1, totalCount)) * 100)
+  return {
+    score,
+    filledCount,
+    totalCount,
+    missingLabels,
   }
 }
 
@@ -2347,6 +2441,9 @@ const editorStatusText = computed(() => {
 })
 
 const contentSourceLabel = computed(() => resolveEditorContentSourceLabel(contentSource.value))
+const editorCompletionSummary = computed(() =>
+  buildEditorCompletionSummary(form as EditorPlanForm)
+)
 
 const currentLocalDraft = computed<EditorLocalDraft | null>(() => localDraftHistory.value[0] ?? null)
 

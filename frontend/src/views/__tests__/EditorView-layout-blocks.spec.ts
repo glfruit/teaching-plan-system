@@ -42,6 +42,7 @@ import {
   filterEditorLocalDraftHistory,
   buildEditorDraftDiffSummary,
   resolveEditorContentSourceLabel,
+  buildEditorCompletionSummary,
   shouldPersistLocalDraftOnLeave,
   buildPlanPayload,
   mapFetchedPlanToForm,
@@ -1528,6 +1529,50 @@ describe('EditorView teaching layout persistence', () => {
       form: current,
     }
     expect(buildEditorDraftDiffSummary(current as any, sameDraft as any).changedCount).toBe(0)
+  })
+
+  it('builds completion summary for fully filled editor form', () => {
+    const summary = buildEditorCompletionSummary({
+      title: '完整教案',
+      courseName: '计算机网络',
+      className: '23计网1班',
+      duration: 90,
+      methods: '讲授法',
+      resources: 'PPT',
+      objectives: '<p>掌握基础概念</p>',
+      keyPoints: '<p>重点内容</p>',
+      process: '<p>教学过程安排</p>',
+      blackboard: '<p>板书结构</p>',
+      reflection: '<p>课后反思</p>',
+      contentJson: {},
+    } as any)
+
+    expect(summary.score).toBe(100)
+    expect(summary.missingLabels).toEqual([])
+    expect(summary.filledCount).toBe(summary.totalCount)
+  })
+
+  it('builds completion summary for partial editor form and lists missing labels', () => {
+    const summary = buildEditorCompletionSummary({
+      title: '未完成教案',
+      courseName: '高等数学',
+      className: '24数媒2班',
+      duration: 45,
+      methods: '',
+      resources: '',
+      objectives: '<p></p>',
+      keyPoints: '<p> </p>',
+      process: '<p></p>',
+      blackboard: '',
+      reflection: '',
+      contentJson: {},
+    } as any)
+
+    expect(summary.score).toBeLessThan(50)
+    expect(summary.missingLabels).toContain('教学目标')
+    expect(summary.missingLabels).toContain('教学过程')
+    expect(summary.missingLabels).toContain('教学方法')
+    expect(summary.filledCount).toBeLessThan(summary.totalCount)
   })
 
   it('resolves content source label for local/server/new', () => {

@@ -34,6 +34,7 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('buildEditorLocalDraftImportPreview(')
     expect(editorViewSource).toContain('buildEditorLocalDraftImportPreviewMessage(')
     expect(editorViewSource).toContain('检测到重复时间戳草稿')
+    expect(editorViewSource).toContain('编写进度')
     expect(editorViewSource).toContain('保留本地版本（仅导入新增）')
     expect(editorViewSource).toContain('导入草稿预览')
     expect(editorViewSource).toContain('仅导入勾选草稿')
