@@ -25,6 +25,8 @@ import {
   mergeEditorLocalDraftHistory,
   buildEditorLocalDraftImportPreview,
   buildEditorLocalDraftImportPreviewMessage,
+  buildEditorLocalDraftImportCandidates,
+  pickEditorLocalDraftsForImport,
   buildEditorLocalDraftExportFileName,
   normalizeEditorLocalDraftSearchQuery,
   filterEditorLocalDraftHistory,
@@ -951,6 +953,75 @@ describe('EditorView teaching layout persistence', () => {
 
     const message = buildEditorLocalDraftImportPreviewMessage(preview)
     expect(message).toContain('预计新增 1 条，覆盖 0 条')
+  })
+
+  it('builds deduplicated import candidates and marks conflicts', () => {
+    const existing = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Existing', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Existing', title: 'Existing', courseName: '', className: '' },
+        pinned: true,
+      },
+    ]
+    const imported = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Conflict Old', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Conflict Old', title: 'Conflict Old', courseName: '', className: '' },
+        pinned: false,
+      },
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Conflict New', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Conflict New', title: 'Conflict New', courseName: '', className: '' },
+        pinned: false,
+      },
+      {
+        version: 1,
+        savedAt: '2026-02-17T13:00:00.000Z',
+        form: { title: 'Unique', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Unique', title: 'Unique', courseName: '', className: '' },
+        pinned: false,
+      },
+    ]
+
+    const candidates = buildEditorLocalDraftImportCandidates(existing as any, imported as any)
+    expect(candidates).toHaveLength(2)
+    expect(candidates.find((item) => item.draft.savedAt === '2026-02-17T12:00:00.000Z')?.conflict).toBe(true)
+    expect(candidates.find((item) => item.draft.savedAt === '2026-02-17T12:00:00.000Z')?.draft.snapshot.displayName).toBe('Conflict New')
+    expect(candidates.find((item) => item.draft.savedAt === '2026-02-17T13:00:00.000Z')?.conflict).toBe(false)
+  })
+
+  it('picks selected drafts for import from candidate list', () => {
+    const candidates = [
+      {
+        draft: {
+          version: 1,
+          savedAt: '2026-02-17T12:00:00.000Z',
+          form: { title: 'A', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+          snapshot: { displayName: 'A', title: 'A', courseName: '', className: '' },
+          pinned: false,
+        },
+        conflict: true,
+      },
+      {
+        draft: {
+          version: 1,
+          savedAt: '2026-02-17T13:00:00.000Z',
+          form: { title: 'B', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+          snapshot: { displayName: 'B', title: 'B', courseName: '', className: '' },
+          pinned: false,
+        },
+        conflict: false,
+      },
+    ]
+    const selected = pickEditorLocalDraftsForImport(candidates as any, ['2026-02-17T13:00:00.000Z'])
+    expect(selected).toHaveLength(1)
+    expect(selected[0].snapshot.displayName).toBe('B')
   })
 
   it('builds export filename with plan id and timestamp', () => {

@@ -602,7 +602,7 @@
     <div
       v-if="showDraftDialog"
       class="fixed inset-0 z-40 bg-slate-900/45 p-4 overflow-y-auto"
-      @click.self="showDraftDialog = false"
+      @click.self="handleCloseDraftDialog"
     >
       <div class="max-w-md mx-auto mt-10 rounded-2xl border border-slate-200 bg-white shadow-xl p-5 sm:p-6">
         <h3 class="text-base font-semibold text-slate-800">本地草稿箱</h3>
@@ -723,7 +723,7 @@
             导入草稿
           </button>
           <button
-            @click="showDraftDialog = false"
+            @click="handleCloseDraftDialog"
             class="h-10 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-medium sm:col-span-2"
           >
             关闭
@@ -735,6 +735,131 @@
             class="hidden"
             @change="handleImportLocalDrafts"
           />
+        </div>
+      </div>
+    </div>
+
+    <div
+      v-if="showImportPreviewDialog"
+      class="fixed inset-0 z-50 bg-slate-900/60 p-4 overflow-y-auto"
+      @click.self="handleCancelImportPreview"
+    >
+      <div class="max-w-lg mx-auto mt-8 rounded-2xl border border-slate-200 bg-white shadow-2xl p-5 sm:p-6">
+        <h3 class="text-base font-semibold text-slate-800">导入草稿预览</h3>
+        <p class="mt-1 text-xs text-slate-500">仅导入勾选草稿，导入前可选择冲突处理策略。</p>
+        <p
+          v-if="localDraftImportConflictCount > 0"
+          class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"
+        >
+          检测到重复时间戳草稿 {{ localDraftImportConflictCount }} 条
+        </p>
+
+        <div class="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <button
+            @click="localDraftImportMode = 'prefer-imported'"
+            :class="[
+              'h-10 rounded-xl border text-sm font-medium',
+              localDraftImportMode === 'prefer-imported'
+                ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                : 'border-slate-300 bg-white text-slate-600',
+            ]"
+          >
+            覆盖本地冲突项
+          </button>
+          <button
+            @click="localDraftImportMode = 'keep-existing'"
+            :class="[
+              'h-10 rounded-xl border text-sm font-medium',
+              localDraftImportMode === 'keep-existing'
+                ? 'border-amber-300 bg-amber-50 text-amber-700'
+                : 'border-slate-300 bg-white text-slate-600',
+            ]"
+          >
+            保留本地版本（仅导入新增）
+          </button>
+        </div>
+
+        <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-medium text-slate-700">仅导入勾选草稿</p>
+            <div class="flex items-center gap-2">
+              <button
+                @click="handleSelectAllImportDrafts"
+                class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+              >
+                全选
+              </button>
+              <button
+                @click="handleClearImportDraftSelection"
+                class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+              >
+                清空选择
+              </button>
+            </div>
+          </div>
+          <p class="mt-1 text-[11px] text-slate-500">
+            已选择 {{ selectedImportDraftSavedAt.length }} / {{ localDraftImportCandidates.length }}
+          </p>
+          <div class="mt-2 max-h-48 overflow-auto space-y-1.5">
+            <label
+              v-for="item in localDraftImportCandidates"
+              :key="`import-${item.draft.savedAt}`"
+              class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2"
+            >
+              <input
+                type="checkbox"
+                :checked="selectedImportDraftSavedAt.includes(item.draft.savedAt)"
+                class="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                @change="handleToggleImportDraftSelection(item.draft.savedAt)"
+              />
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5">
+                  <span class="truncate text-xs font-medium text-slate-700">
+                    {{ resolveLocalDraftDisplayNameForView(item.draft) }}
+                  </span>
+                  <span
+                    v-if="item.conflict"
+                    class="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700"
+                  >
+                    冲突
+                  </span>
+                </div>
+                <p class="mt-0.5 text-[10px] text-slate-500">
+                  {{ formatDraftTimestamp(item.draft.savedAt) || item.draft.savedAt }}
+                </p>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div class="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
+          <p class="text-xs text-[#2f5f4f]">检测到 {{ localDraftImportPreview.importedCount }} 条有效草稿</p>
+          <p class="mt-1 text-xs text-[#2f5f4f]">
+            预计新增 {{ localDraftImportPreview.newCount }} 条，覆盖 {{ localDraftImportPreview.overwriteCount }} 条
+          </p>
+          <p
+            v-if="localDraftImportPreview.droppedByLimitCount > 0"
+            class="mt-1 text-xs text-amber-700"
+          >
+            受历史上限影响，将移除最旧 {{ localDraftImportPreview.droppedByLimitCount }} 条草稿
+          </p>
+          <p class="mt-1 text-[11px] text-slate-500 whitespace-pre-line">{{ localDraftImportPreviewMessage }}</p>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <button
+            @click="handleCancelImportPreview"
+            class="h-10 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-medium"
+          >
+            取消
+          </button>
+          <button
+            @click="handleConfirmImportPreview"
+            :disabled="selectedImportDraftSavedAt.length === 0"
+            class="h-10 rounded-xl bg-[#647269] text-white text-sm font-medium disabled:opacity-50"
+          >
+            确认导入
+          </button>
         </div>
       </div>
     </div>
@@ -1004,6 +1129,11 @@ export type EditorLocalDraftImportPreview = {
   droppedByLimitCount: number
   nextCount: number
   mergedHistory: EditorLocalDraft[]
+}
+
+export type EditorLocalDraftImportCandidate = {
+  draft: EditorLocalDraft
+  conflict: boolean
 }
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
@@ -1378,6 +1508,40 @@ export const mergeEditorLocalDraftHistory = (
     .slice(0, Math.max(1, limit))
 }
 
+export const buildEditorLocalDraftImportCandidates = (
+  existing: EditorLocalDraft[],
+  imported: EditorLocalDraft[]
+): EditorLocalDraftImportCandidate[] => {
+  const normalizedExisting = existing
+    .map((item) => parseEditorLocalDraftItem(item))
+    .filter((item): item is EditorLocalDraft => Boolean(item))
+  const normalizedImported = imported
+    .map((item) => parseEditorLocalDraftItem(item))
+    .filter((item): item is EditorLocalDraft => Boolean(item))
+  const existingSavedAt = new Set(normalizedExisting.map((item) => item.savedAt))
+  const dedupedImported = new Map<string, EditorLocalDraft>()
+  for (const draft of normalizedImported) {
+    dedupedImported.set(draft.savedAt, draft)
+  }
+
+  return [...dedupedImported.values()]
+    .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+    .map((draft) => ({
+      draft,
+      conflict: existingSavedAt.has(draft.savedAt),
+    }))
+}
+
+export const pickEditorLocalDraftsForImport = (
+  candidates: EditorLocalDraftImportCandidate[],
+  selectedSavedAt: string[]
+): EditorLocalDraft[] => {
+  const selected = new Set(selectedSavedAt)
+  return candidates
+    .filter((item) => selected.has(item.draft.savedAt))
+    .map((item) => item.draft)
+}
+
 export const buildEditorLocalDraftImportPreview = (
   existing: EditorLocalDraft[],
   imported: EditorLocalDraft[],
@@ -1611,6 +1775,10 @@ const localDraftSearch = ref('')
 const localDraftHistory = ref<EditorLocalDraft[]>([])
 const selectedLocalDraftSavedAt = ref('')
 const showDraftDialog = ref(false)
+const showImportPreviewDialog = ref(false)
+const localDraftImportCandidates = ref<EditorLocalDraftImportCandidate[]>([])
+const selectedImportDraftSavedAt = ref<string[]>([])
+const localDraftImportMode = ref<EditorLocalDraftMergeMode>('prefer-imported')
 const contentSource = ref<EditorContentSource>('new')
 const showMobileActions = ref(false)
 const showTemplatePanel = ref(false)
@@ -1735,6 +1903,27 @@ const selectedLocalDraftDiff = computed(() =>
   buildEditorDraftDiffSummary(form as EditorPlanForm, selectedLocalDraft.value)
 )
 
+const selectedImportDrafts = computed(() =>
+  pickEditorLocalDraftsForImport(localDraftImportCandidates.value, selectedImportDraftSavedAt.value)
+)
+
+const localDraftImportConflictCount = computed(() =>
+  localDraftImportCandidates.value.filter((item) => item.conflict).length
+)
+
+const localDraftImportPreview = computed(() =>
+  buildEditorLocalDraftImportPreview(
+    localDraftHistory.value,
+    selectedImportDrafts.value,
+    LOCAL_EDITOR_DRAFT_HISTORY_LIMIT,
+    localDraftImportMode.value
+  )
+)
+
+const localDraftImportPreviewMessage = computed(() =>
+  buildEditorLocalDraftImportPreviewMessage(localDraftImportPreview.value)
+)
+
 const resolveLocalDraftDisplayNameForView = (draft: EditorLocalDraft): string =>
   resolveEditorLocalDraftDisplayName(draft)
 
@@ -1835,9 +2024,62 @@ const refreshLocalDraft = () => {
   }
 }
 
+const resetLocalDraftImportState = () => {
+  showImportPreviewDialog.value = false
+  localDraftImportCandidates.value = []
+  selectedImportDraftSavedAt.value = []
+  localDraftImportMode.value = 'prefer-imported'
+}
+
+const handleCancelImportPreview = () => {
+  resetLocalDraftImportState()
+}
+
+const handleCloseDraftDialog = () => {
+  showDraftDialog.value = false
+  resetLocalDraftImportState()
+}
+
+const handleToggleImportDraftSelection = (savedAt: string) => {
+  if (selectedImportDraftSavedAt.value.includes(savedAt)) {
+    selectedImportDraftSavedAt.value = selectedImportDraftSavedAt.value.filter((item) => item !== savedAt)
+    return
+  }
+  selectedImportDraftSavedAt.value = [...selectedImportDraftSavedAt.value, savedAt]
+}
+
+const handleSelectAllImportDrafts = () => {
+  selectedImportDraftSavedAt.value = localDraftImportCandidates.value.map((item) => item.draft.savedAt)
+}
+
+const handleClearImportDraftSelection = () => {
+  selectedImportDraftSavedAt.value = []
+}
+
+const handleConfirmImportPreview = () => {
+  if (!selectedImportDraftSavedAt.value.length) {
+    alert('请至少勾选一条草稿')
+    return
+  }
+
+  const preview = localDraftImportPreview.value
+  writeLocalDraftHistory(preview.mergedHistory)
+  localDraftSearch.value = ''
+  selectedLocalDraftSavedAt.value =
+    sortEditorLocalDraftHistoryForView(preview.mergedHistory)[0]?.savedAt || ''
+  localDraftMessage.value =
+    preview.droppedByLimitCount > 0
+      ? `草稿导入成功：新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条，因上限移除 ${preview.droppedByLimitCount} 条`
+      : preview.conflictCount > 0 && preview.overwriteCount === 0
+        ? `草稿导入成功：新增 ${preview.newCount} 条，保留本地冲突 ${preview.conflictCount} 条`
+        : `草稿导入成功：新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条`
+  resetLocalDraftImportState()
+}
+
 const handleOpenDraftDialog = () => {
   refreshLocalDraft()
   localDraftSearch.value = ''
+  resetLocalDraftImportState()
   showDraftDialog.value = true
 }
 
@@ -1901,36 +2143,16 @@ const handleImportLocalDrafts = async (event: Event) => {
       return
     }
 
-    const defaultPreview = buildEditorLocalDraftImportPreview(localDraftHistory.value, imported)
-    let importMode: EditorLocalDraftMergeMode = 'prefer-imported'
-    if (defaultPreview.conflictCount > 0) {
-      const shouldOverwrite = window.confirm(
-        `检测到重复时间戳草稿 ${defaultPreview.conflictCount} 条。\n点击“确定”覆盖本地版本，点击“取消”保留本地版本（仅导入新增）。`
-      )
-      importMode = shouldOverwrite ? 'prefer-imported' : 'keep-existing'
-    }
-
-    const preview = buildEditorLocalDraftImportPreview(
-      localDraftHistory.value,
-      imported,
-      LOCAL_EDITOR_DRAFT_HISTORY_LIMIT,
-      importMode
-    )
-    const confirmed = window.confirm(buildEditorLocalDraftImportPreviewMessage(preview))
-    if (!confirmed) {
+    const candidates = buildEditorLocalDraftImportCandidates(localDraftHistory.value, imported)
+    if (!candidates.length) {
+      alert('导入失败：未检测到有效草稿数据')
       return
     }
 
-    writeLocalDraftHistory(preview.mergedHistory)
-    localDraftSearch.value = ''
-    selectedLocalDraftSavedAt.value =
-      sortEditorLocalDraftHistoryForView(preview.mergedHistory)[0]?.savedAt || ''
-    localDraftMessage.value =
-      preview.droppedByLimitCount > 0
-        ? `草稿导入成功：新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条，因上限移除 ${preview.droppedByLimitCount} 条`
-        : preview.conflictCount > 0 && preview.overwriteCount === 0
-          ? `草稿导入成功：新增 ${preview.newCount} 条，保留本地冲突 ${preview.conflictCount} 条`
-          : `草稿导入成功：新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条`
+    localDraftImportCandidates.value = candidates
+    selectedImportDraftSavedAt.value = candidates.map((item) => item.draft.savedAt)
+    localDraftImportMode.value = 'prefer-imported'
+    showImportPreviewDialog.value = true
   } catch {
     alert('导入失败：请检查文件格式')
   } finally {
@@ -1971,7 +2193,7 @@ const handleClearUnpinnedLocalDrafts = () => {
 
 const handleClearLocalDraft = () => {
   if (!localDraftHistory.value.length) {
-    showDraftDialog.value = false
+    handleCloseDraftDialog()
     return
   }
 
@@ -1984,7 +2206,7 @@ const handleClearLocalDraft = () => {
 
   clearLocalDraft()
   localDraftSearch.value = ''
-  showDraftDialog.value = false
+  handleCloseDraftDialog()
 }
 
 const persistLocalDraftBeforeLeave = () => {
