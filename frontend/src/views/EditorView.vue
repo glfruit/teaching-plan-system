@@ -619,29 +619,49 @@
           <p class="mt-2">共 {{ localDraftHistory.length }} 条本地草稿，筛选命中 {{ filteredLocalDraftHistory.length }} 条</p>
           <p v-if="filteredLocalDraftHistory.length === 0" class="mt-2 text-xs text-slate-500">无匹配草稿，请调整搜索关键词。</p>
           <div class="mt-2 max-h-36 overflow-auto space-y-1">
-            <button
+            <div
               v-for="item in filteredLocalDraftHistory"
               :key="item.savedAt"
-              @click="handleSelectLocalDraft(item.savedAt)"
-              class="w-full text-left px-2 py-1.5 rounded-lg border transition-colors"
-              :class="
-                selectedLocalDraftSavedAt === item.savedAt
-                  ? 'border-emerald-300 bg-white text-emerald-700'
-                  : 'border-transparent bg-emerald-50/50 text-[#2f5f4f] hover:bg-white'
-              "
+              class="rounded-lg border p-1.5 transition-colors"
+              :class="selectedLocalDraftSavedAt === item.savedAt ? 'border-emerald-300 bg-white' : 'border-transparent bg-emerald-50/50'"
             >
-              <div class="flex items-start justify-between gap-2">
-                <span class="text-xs font-medium leading-5">
-                  {{ resolveLocalDraftDisplayNameForView(item) }}
-                </span>
-                <span class="text-[10px] text-slate-500 whitespace-nowrap">
-                  {{ formatDraftTimestamp(item.savedAt) || item.savedAt }}
-                </span>
+              <button
+                @click="handleSelectLocalDraft(item.savedAt)"
+                class="w-full text-left rounded-md px-2 py-1 transition-colors hover:bg-emerald-50"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <span class="text-xs font-medium leading-5 text-[#2f5f4f]">
+                    {{ resolveLocalDraftDisplayNameForView(item) }}
+                    <span
+                      v-if="item.pinned"
+                      class="ml-1 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700"
+                    >
+                      置顶
+                    </span>
+                  </span>
+                  <span class="text-[10px] text-slate-500 whitespace-nowrap">
+                    {{ formatDraftTimestamp(item.savedAt) || item.savedAt }}
+                  </span>
+                </div>
+                <p class="mt-0.5 text-[10px] text-slate-500">
+                  {{ item.snapshot.courseName || '未填课程' }} · {{ item.snapshot.className || '未填班级' }}
+                </p>
+              </button>
+              <div class="mt-1 flex items-center gap-1 px-2 pb-1">
+                <button
+                  @click.stop="handleToggleLocalDraftPinned(item.savedAt)"
+                  class="rounded-md border border-emerald-200 bg-white px-2 py-1 text-[10px] text-emerald-700 hover:bg-emerald-50"
+                >
+                  {{ item.pinned ? '取消置顶' : '置顶' }}
+                </button>
+                <button
+                  @click.stop="handleRenameLocalDraft(item.savedAt)"
+                  class="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600 hover:bg-slate-50"
+                >
+                  重命名
+                </button>
               </div>
-              <p class="mt-0.5 text-[10px] text-slate-500">
-                {{ item.snapshot.courseName || '未填课程' }} · {{ item.snapshot.className || '未填班级' }}
-              </p>
-            </button>
+            </div>
           </div>
           <p class="mt-2">当前选择：{{ selectedLocalDraft ? (formatDraftTimestamp(selectedLocalDraft.savedAt) || selectedLocalDraft.savedAt) : '无' }}</p>
           <p class="mt-1">与当前内容差异：{{ selectedLocalDraftDiff.changedCount }} 项</p>
@@ -930,6 +950,7 @@ export type EditorLocalDraft = {
   savedAt: string
   form: EditorPlanForm
   snapshot: EditorLocalDraftSnapshot
+  pinned: boolean
 }
 
 export type EditorLocalDraftHistoryPayload = {
@@ -976,6 +997,7 @@ export const serializeEditorLocalDraft = (
     savedAt,
     form,
     snapshot,
+    pinned: false,
   }
   return JSON.stringify(payload)
 }
@@ -1056,11 +1078,58 @@ const parseEditorLocalDraftItem = (value: unknown): EditorLocalDraft | null => {
     savedAt: value.savedAt,
     form: value.form,
     snapshot,
+    pinned: value.pinned === true,
   }
 }
 
 export const resolveEditorLocalDraftDisplayName = (draft: EditorLocalDraft): string =>
   draft.snapshot?.displayName?.trim() || buildEditorLocalDraftDisplayName(draft.form)
+
+export const sortEditorLocalDraftHistoryForView = (history: EditorLocalDraft[]): EditorLocalDraft[] => {
+  return [...history].sort((a, b) => {
+    if (a.pinned !== b.pinned) {
+      return a.pinned ? -1 : 1
+    }
+    return b.savedAt.localeCompare(a.savedAt)
+  })
+}
+
+export const renameEditorLocalDraft = (
+  history: EditorLocalDraft[],
+  savedAt: string,
+  nextDisplayName: string
+): EditorLocalDraft[] => {
+  const trimmed = nextDisplayName.trim()
+  return history.map((draft) => {
+    if (draft.savedAt !== savedAt) {
+      return draft
+    }
+
+    return {
+      ...draft,
+      snapshot: {
+        ...draft.snapshot,
+        displayName: trimmed || buildEditorLocalDraftDisplayName(draft.form),
+      },
+    }
+  })
+}
+
+export const toggleEditorLocalDraftPinned = (
+  history: EditorLocalDraft[],
+  savedAt: string
+): EditorLocalDraft[] => {
+  return history.map((draft) => {
+    if (draft.savedAt !== savedAt) {
+      return draft
+    }
+
+    return {
+      ...draft,
+      pinned: !draft.pinned,
+    }
+  })
+}
 
 export const normalizeEditorLocalDraftSearchQuery = (value: string): string =>
   value.trim().toLocaleLowerCase('zh-CN')
@@ -1137,6 +1206,7 @@ export const pushEditorLocalDraftHistory = (
     savedAt,
     form,
     snapshot,
+    pinned: false,
   }
 
   const normalized = history
@@ -1147,7 +1217,19 @@ export const pushEditorLocalDraftHistory = (
   const firstSignature = normalized[0] ? buildEditorDraftSignature(normalized[0].form) : null
 
   if (firstSignature === nextSignature) {
-    return [nextDraft, ...normalized.slice(1)].slice(0, Math.max(1, limit))
+    const first = normalized[0]
+    const firstDefaultDisplayName = first ? buildEditorLocalDraftDisplayName(first.form) : ''
+    const hasCustomDisplayName =
+      first?.snapshot.displayName && first.snapshot.displayName !== firstDefaultDisplayName
+    const mergedFirst: EditorLocalDraft = {
+      ...nextDraft,
+      pinned: first?.pinned === true,
+      snapshot: {
+        ...snapshot,
+        displayName: hasCustomDisplayName ? first!.snapshot.displayName : snapshot.displayName,
+      },
+    }
+    return [mergedFirst, ...normalized.slice(1)].slice(0, Math.max(1, limit))
   }
 
   return [nextDraft, ...normalized].slice(0, Math.max(1, limit))
@@ -1399,13 +1481,17 @@ const contentSourceLabel = computed(() => resolveEditorContentSourceLabel(conten
 
 const currentLocalDraft = computed<EditorLocalDraft | null>(() => localDraftHistory.value[0] ?? null)
 
+const orderedLocalDraftHistory = computed(() =>
+  sortEditorLocalDraftHistoryForView(localDraftHistory.value)
+)
+
 const filteredLocalDraftHistory = computed(() =>
-  filterEditorLocalDraftHistory(localDraftHistory.value, localDraftSearch.value)
+  filterEditorLocalDraftHistory(orderedLocalDraftHistory.value, localDraftSearch.value)
 )
 
 const selectedLocalDraft = computed<EditorLocalDraft | null>(() => {
   const useFiltered = showDraftDialog.value
-  const sourceList = useFiltered ? filteredLocalDraftHistory.value : localDraftHistory.value
+  const sourceList = useFiltered ? filteredLocalDraftHistory.value : orderedLocalDraftHistory.value
 
   if (!sourceList.length) {
     return null
@@ -1447,17 +1533,20 @@ const clearLocalDraft = () => {
   localDraftMessage.value = ''
 }
 
+const writeLocalDraftHistory = (history: EditorLocalDraft[]) => {
+  localDraftHistory.value = history
+  localStorage.setItem(localDraftStorageKey.value, serializeEditorLocalDraftHistory(history))
+}
+
 const persistLocalDraft = (force = false) => {
   if (!hasUnsavedDraft.value || planStore.isSaving) {
     return
   }
 
   const nextHistory = pushEditorLocalDraftHistory(localDraftHistory.value, form as EditorPlanForm)
-  const raw = serializeEditorLocalDraftHistory(nextHistory)
-  localStorage.setItem(localDraftStorageKey.value, raw)
-  localDraftHistory.value = parseEditorLocalDraftHistory(raw)
-  selectedLocalDraftSavedAt.value = localDraftHistory.value[0]?.savedAt || ''
-  const latest = localDraftHistory.value[0] || null
+  writeLocalDraftHistory(nextHistory)
+  selectedLocalDraftSavedAt.value = orderedLocalDraftHistory.value[0]?.savedAt || ''
+  const latest = orderedLocalDraftHistory.value[0] || null
   const timeLabel = latest ? formatDraftTimestamp(latest.savedAt) : ''
   localDraftMessage.value = force
     ? timeLabel
@@ -1485,8 +1574,8 @@ const schedulePersistLocalDraft = () => {
 const restoreLocalDraftIfNeeded = (): boolean => {
   const draftHistory = parseEditorLocalDraftHistory(localStorage.getItem(localDraftStorageKey.value))
   localDraftHistory.value = draftHistory
-  selectedLocalDraftSavedAt.value = draftHistory[0]?.savedAt || ''
-  const draft = draftHistory[0] ?? null
+  selectedLocalDraftSavedAt.value = sortEditorLocalDraftHistoryForView(draftHistory)[0]?.savedAt || ''
+  const draft = sortEditorLocalDraftHistoryForView(draftHistory)[0] ?? null
   if (!draft) {
     return false
   }
@@ -1508,13 +1597,13 @@ const restoreLocalDraftIfNeeded = (): boolean => {
 
 const refreshLocalDraft = () => {
   localDraftHistory.value = parseEditorLocalDraftHistory(localStorage.getItem(localDraftStorageKey.value))
-  if (!localDraftHistory.value.length) {
+  if (!orderedLocalDraftHistory.value.length) {
     selectedLocalDraftSavedAt.value = ''
     return
   }
-  const selectedExists = localDraftHistory.value.some((item) => item.savedAt === selectedLocalDraftSavedAt.value)
+  const selectedExists = orderedLocalDraftHistory.value.some((item) => item.savedAt === selectedLocalDraftSavedAt.value)
   if (!selectedExists) {
-    selectedLocalDraftSavedAt.value = localDraftHistory.value[0].savedAt
+    selectedLocalDraftSavedAt.value = orderedLocalDraftHistory.value[0].savedAt
   }
 }
 
@@ -1526,6 +1615,24 @@ const handleOpenDraftDialog = () => {
 
 const handleSelectLocalDraft = (savedAt: string) => {
   selectedLocalDraftSavedAt.value = savedAt
+}
+
+const handleToggleLocalDraftPinned = (savedAt: string) => {
+  const nextHistory = toggleEditorLocalDraftPinned(localDraftHistory.value, savedAt)
+  writeLocalDraftHistory(nextHistory)
+}
+
+const handleRenameLocalDraft = (savedAt: string) => {
+  const target = localDraftHistory.value.find((item) => item.savedAt === savedAt)
+  if (!target) {
+    return
+  }
+  const nextName = window.prompt('请输入新的草稿名称', resolveEditorLocalDraftDisplayName(target))
+  if (nextName === null) {
+    return
+  }
+  const nextHistory = renameEditorLocalDraft(localDraftHistory.value, savedAt, nextName)
+  writeLocalDraftHistory(nextHistory)
 }
 
 const handleRestoreLocalDraft = () => {
@@ -1541,6 +1648,7 @@ const handleRestoreLocalDraft = () => {
 
 const handleClearLocalDraft = () => {
   clearLocalDraft()
+  localDraftSearch.value = ''
   showDraftDialog.value = false
 }
 

@@ -14,6 +14,9 @@ import {
   pushEditorLocalDraftHistory,
   LOCAL_EDITOR_DRAFT_HISTORY_LIMIT,
   resolveEditorLocalDraftDisplayName,
+  sortEditorLocalDraftHistoryForView,
+  renameEditorLocalDraft,
+  toggleEditorLocalDraftPinned,
   normalizeEditorLocalDraftSearchQuery,
   filterEditorLocalDraftHistory,
   buildEditorDraftDiffSummary,
@@ -451,6 +454,7 @@ describe('EditorView teaching layout persistence', () => {
     expect(parsed?.savedAt).toBe('2026-02-17T12:00:00.000Z')
     expect(parsed?.form.title).toBe('本地草稿')
     expect(parsed?.form.process).toContain('过程')
+    expect(parsed?.pinned).toBe(false)
   })
 
   it('returns null for malformed local editor draft payload', () => {
@@ -523,6 +527,7 @@ describe('EditorView teaching layout persistence', () => {
     expect(history).toHaveLength(1)
     expect(history[0].form.title).toBe('旧格式草稿')
     expect(history[0].snapshot.displayName).toBe('旧格式草稿')
+    expect(history[0].pinned).toBe(false)
   })
 
   it('pushes local draft history with limit and replaces same-signature latest', () => {
@@ -545,6 +550,7 @@ describe('EditorView teaching layout persistence', () => {
     const same = pushEditorLocalDraftHistory(first, base as any, '2026-02-17T12:00:30.000Z', 2)
     expect(same).toHaveLength(1)
     expect(same[0].savedAt).toBe('2026-02-17T12:00:30.000Z')
+    expect(same[0].pinned).toBe(false)
 
     const second = pushEditorLocalDraftHistory(
       same,
@@ -563,6 +569,43 @@ describe('EditorView teaching layout persistence', () => {
     expect(third[1].savedAt).toBe('2026-02-17T12:01:00.000Z')
 
     expect(LOCAL_EDITOR_DRAFT_HISTORY_LIMIT).toBeGreaterThan(1)
+  })
+
+  it('keeps pinned and custom display name when same-signature draft is updated', () => {
+    const form = {
+      title: '教案A',
+      courseName: '课程',
+      className: '1班',
+      duration: 45,
+      methods: '',
+      resources: '',
+      objectives: '<p></p>',
+      keyPoints: '<p></p>',
+      process: '<p></p>',
+      blackboard: '<p></p>',
+      reflection: '<p></p>',
+      contentJson: {},
+    }
+
+    const history = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form,
+        snapshot: {
+          displayName: '我的草稿名',
+          title: '教案A',
+          courseName: '课程',
+          className: '1班',
+        },
+        pinned: true,
+      },
+    ]
+
+    const updated = pushEditorLocalDraftHistory(history as any, form as any, '2026-02-17T12:01:00.000Z', 3)
+    expect(updated[0].savedAt).toBe('2026-02-17T12:01:00.000Z')
+    expect(updated[0].pinned).toBe(true)
+    expect(updated[0].snapshot.displayName).toBe('我的草稿名')
   })
 
   it('resolves draft display name from snapshot first and falls back to form', () => {
@@ -636,6 +679,7 @@ describe('EditorView teaching layout persistence', () => {
           courseName: '前端开发',
           className: '2301',
         },
+        pinned: false,
       },
       {
         version: 1,
@@ -660,6 +704,7 @@ describe('EditorView teaching layout persistence', () => {
           courseName: '数据库',
           className: '2202',
         },
+        pinned: false,
       },
     ]
 
@@ -667,6 +712,46 @@ describe('EditorView teaching layout persistence', () => {
     expect(filterEditorLocalDraftHistory(history as any, 'vue')[0].snapshot.displayName).toBe('Vue 入门')
     expect(filterEditorLocalDraftHistory(history as any, '2202')[0].snapshot.displayName).toBe('数据库基础')
     expect(filterEditorLocalDraftHistory(history as any, '不存在')).toHaveLength(0)
+  })
+
+  it('sorts local draft history with pinned first and then by time', () => {
+    const history = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:01:00.000Z',
+        form: { title: 'A', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'A', title: 'A', courseName: '', className: '' },
+        pinned: false,
+      },
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'B', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'B', title: 'B', courseName: '', className: '' },
+        pinned: true,
+      },
+    ]
+    const sorted = sortEditorLocalDraftHistoryForView(history as any)
+    expect(sorted[0].snapshot.displayName).toBe('B')
+    expect(sorted[1].snapshot.displayName).toBe('A')
+  })
+
+  it('can rename and toggle pin for a specific local draft', () => {
+    const history = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'A', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'A', title: 'A', courseName: '', className: '' },
+        pinned: false,
+      },
+    ]
+
+    const renamed = renameEditorLocalDraft(history as any, '2026-02-17T12:00:00.000Z', '新的名称')
+    expect(renamed[0].snapshot.displayName).toBe('新的名称')
+
+    const pinned = toggleEditorLocalDraftPinned(renamed as any, '2026-02-17T12:00:00.000Z')
+    expect(pinned[0].pinned).toBe(true)
   })
 
   it('builds draft diff summary between current form and selected draft', () => {
