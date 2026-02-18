@@ -710,11 +710,31 @@
             清理未置顶
           </button>
           <button
+            @click="handleExportLocalDrafts"
+            :disabled="localDraftHistory.length === 0"
+            class="h-10 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-sm font-medium disabled:opacity-50"
+          >
+            导出草稿
+          </button>
+          <button
+            @click="triggerImportLocalDrafts"
+            class="h-10 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-medium"
+          >
+            导入草稿
+          </button>
+          <button
             @click="showDraftDialog = false"
             class="h-10 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-medium sm:col-span-2"
           >
             关闭
           </button>
+          <input
+            ref="localDraftImportInputRef"
+            type="file"
+            accept="application/json,.json"
+            class="hidden"
+            @change="handleImportLocalDrafts"
+          />
         </div>
       </div>
     </div>
@@ -964,6 +984,12 @@ export type EditorLocalDraft = {
 
 export type EditorLocalDraftHistoryPayload = {
   version: number
+  drafts: EditorLocalDraft[]
+}
+
+export type EditorLocalDraftExportPayload = {
+  version: number
+  exportedAt: string
   drafts: EditorLocalDraft[]
 }
 
@@ -1272,6 +1298,75 @@ export const parseEditorLocalDraft = (raw: string | null | undefined): EditorLoc
   return history[0] ?? null
 }
 
+export const serializeEditorLocalDraftExportPayload = (
+  history: EditorLocalDraft[],
+  exportedAt = new Date().toISOString()
+): string => {
+  const payload: EditorLocalDraftExportPayload = {
+    version: LOCAL_EDITOR_DRAFT_VERSION,
+    exportedAt,
+    drafts: history,
+  }
+  return JSON.stringify(payload)
+}
+
+export const parseEditorLocalDraftImportPayload = (raw: string | null | undefined): EditorLocalDraft[] => {
+  if (!raw) {
+    return []
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (isObjectRecord(parsed) && Array.isArray(parsed.drafts)) {
+      return parsed.drafts
+        .map((item) => parseEditorLocalDraftItem(item))
+        .filter((item): item is EditorLocalDraft => Boolean(item))
+    }
+
+    return parseEditorLocalDraftHistory(raw)
+  } catch {
+    return []
+  }
+}
+
+export const mergeEditorLocalDraftHistory = (
+  existing: EditorLocalDraft[],
+  imported: EditorLocalDraft[],
+  limit = LOCAL_EDITOR_DRAFT_HISTORY_LIMIT
+): EditorLocalDraft[] => {
+  const normalizedExisting = existing
+    .map((item) => parseEditorLocalDraftItem(item))
+    .filter((item): item is EditorLocalDraft => Boolean(item))
+  const normalizedImported = imported
+    .map((item) => parseEditorLocalDraftItem(item))
+    .filter((item): item is EditorLocalDraft => Boolean(item))
+
+  const deduped = new Map<string, EditorLocalDraft>()
+  for (const draft of [...normalizedExisting, ...normalizedImported]) {
+    if (!deduped.has(draft.savedAt)) {
+      deduped.set(draft.savedAt, draft)
+    }
+  }
+
+  return [...deduped.values()]
+    .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+    .slice(0, Math.max(1, limit))
+}
+
+export const buildEditorLocalDraftExportFileName = (
+  planId?: string | null,
+  now = new Date()
+): string => {
+  const normalizedId = typeof planId === 'string' && planId.trim() ? planId.trim() : 'new'
+  const yyyy = String(now.getUTCFullYear())
+  const mm = String(now.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(now.getUTCDate()).padStart(2, '0')
+  const hh = String(now.getUTCHours()).padStart(2, '0')
+  const min = String(now.getUTCMinutes()).padStart(2, '0')
+  const ss = String(now.getUTCSeconds()).padStart(2, '0')
+  return `editor-local-drafts-${normalizedId}-${yyyy}${mm}${dd}-${hh}${min}${ss}.json`
+}
+
 export type EditorContentSource = 'server' | 'local' | 'new'
 
 export const resolveEditorContentSourceLabel = (source: EditorContentSource): string => {
@@ -1423,6 +1518,7 @@ const isEditing = computed(() => !!planId.value)
 const lastSaved = ref('')
 const savedDraftSignature = ref('')
 const localDraftMessage = ref('')
+const localDraftImportInputRef = ref<HTMLInputElement | null>(null)
 const localDraftSearch = ref('')
 const localDraftHistory = ref<EditorLocalDraft[]>([])
 const selectedLocalDraftSavedAt = ref('')
@@ -1677,6 +1773,59 @@ const handleRenameLocalDraft = (savedAt: string) => {
   }
   const nextHistory = renameEditorLocalDraft(localDraftHistory.value, savedAt, nextName)
   writeLocalDraftHistory(nextHistory)
+}
+
+const handleExportLocalDrafts = () => {
+  if (!localDraftHistory.value.length) {
+    alert('暂无可导出的草稿')
+    return
+  }
+
+  const fileName = buildEditorLocalDraftExportFileName(isEditing.value ? planId.value : null)
+  const payload = serializeEditorLocalDraftExportPayload(localDraftHistory.value)
+  const blob = new Blob([payload], { type: 'application/json;charset=utf-8' })
+  const url = window.URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  document.body.removeChild(link)
+  window.URL.revokeObjectURL(url)
+}
+
+const triggerImportLocalDrafts = () => {
+  localDraftImportInputRef.value?.click()
+}
+
+const handleImportLocalDrafts = async (event: Event) => {
+  const input = event.target as HTMLInputElement | null
+  const file = input?.files?.[0]
+  if (!file) {
+    return
+  }
+
+  try {
+    const raw = await file.text()
+    const imported = parseEditorLocalDraftImportPayload(raw)
+    if (!imported.length) {
+      alert('导入失败：未检测到有效草稿数据')
+      return
+    }
+
+    const nextHistory = mergeEditorLocalDraftHistory(localDraftHistory.value, imported)
+    const previousCount = localDraftHistory.value.length
+    writeLocalDraftHistory(nextHistory)
+    localDraftSearch.value = ''
+    selectedLocalDraftSavedAt.value = sortEditorLocalDraftHistoryForView(nextHistory)[0]?.savedAt || ''
+    localDraftMessage.value = `草稿导入成功：新增 ${Math.max(0, nextHistory.length - previousCount)} 条，当前 ${nextHistory.length} 条`
+  } catch {
+    alert('导入失败：请检查文件格式')
+  } finally {
+    if (input) {
+      input.value = ''
+    }
+  }
 }
 
 const handleRestoreLocalDraft = () => {

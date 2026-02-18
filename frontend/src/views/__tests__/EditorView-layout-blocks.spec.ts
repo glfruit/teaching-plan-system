@@ -20,6 +20,10 @@ import {
   removeUnpinnedEditorLocalDrafts,
   buildClearUnpinnedDraftConfirmMessage,
   buildClearAllDraftConfirmMessage,
+  serializeEditorLocalDraftExportPayload,
+  parseEditorLocalDraftImportPayload,
+  mergeEditorLocalDraftHistory,
+  buildEditorLocalDraftExportFileName,
   normalizeEditorLocalDraftSearchQuery,
   filterEditorLocalDraftHistory,
   buildEditorDraftDiffSummary,
@@ -785,6 +789,63 @@ describe('EditorView teaching layout persistence', () => {
     expect(buildClearUnpinnedDraftConfirmMessage(1, 0)).toContain('清理 1 条未置顶草稿')
     expect(buildClearAllDraftConfirmMessage(5, 2)).toContain('含置顶')
     expect(buildClearAllDraftConfirmMessage(4, 0)).toContain('清空全部 4 条草稿')
+  })
+
+  it('serializes export payload and parses import payload', () => {
+    const history = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'A', courseName: '课程A', className: '1班', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'A', title: 'A', courseName: '课程A', className: '1班' },
+        pinned: true,
+      },
+    ]
+
+    const exported = serializeEditorLocalDraftExportPayload(history as any, '2026-02-18T01:00:00.000Z')
+    const imported = parseEditorLocalDraftImportPayload(exported)
+    expect(imported).toHaveLength(1)
+    expect(imported[0].snapshot.displayName).toBe('A')
+    expect(imported[0].pinned).toBe(true)
+  })
+
+  it('merges imported drafts with existing drafts and de-duplicates by savedAt', () => {
+    const existing = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Existing', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Existing', title: 'Existing', courseName: '', className: '' },
+        pinned: true,
+      },
+    ]
+    const imported = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Imported Duplicate', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Imported Duplicate', title: 'Imported Duplicate', courseName: '', className: '' },
+        pinned: false,
+      },
+      {
+        version: 1,
+        savedAt: '2026-02-17T13:00:00.000Z',
+        form: { title: 'Imported New', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Imported New', title: 'Imported New', courseName: '', className: '' },
+        pinned: false,
+      },
+    ]
+
+    const merged = mergeEditorLocalDraftHistory(existing as any, imported as any, 5)
+    expect(merged).toHaveLength(2)
+    expect(merged[0].savedAt).toBe('2026-02-17T13:00:00.000Z')
+    expect(merged[1].snapshot.displayName).toBe('Existing')
+    expect(merged[1].pinned).toBe(true)
+  })
+
+  it('builds export filename with plan id and timestamp', () => {
+    const name = buildEditorLocalDraftExportFileName('plan-123', new Date('2026-02-18T08:09:10.000Z'))
+    expect(name).toBe('editor-local-drafts-plan-123-20260218-080910.json')
   })
 
   it('builds draft diff summary between current form and selected draft', () => {
