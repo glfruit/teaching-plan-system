@@ -62,7 +62,7 @@
               </button>
 
               <button
-                @click="showShortcutDialog = true"
+                @click="handleOpenShortcutDialog"
                 class="inline-flex items-center gap-1.5 px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors font-medium"
               >
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -282,24 +282,74 @@
             </button>
           </div>
 
+          <div
+            v-if="hasShortcutConflicts"
+            class="mt-4 rounded border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-600"
+          >
+            <p class="font-medium">检测到快捷键冲突</p>
+            <ul class="mt-1 space-y-0.5">
+              <li v-for="group in shortcutConflictGroups" :key="`shortcut-conflict-${group.signature}`">
+                {{ formatShortcutSignature(group.signature) }} 被
+                {{ group.actions.map((action) => resolveShortcutActionLabel(action)).join('、') }} 同时使用
+              </li>
+            </ul>
+          </div>
+
           <div class="mt-4 space-y-2 text-sm text-slate-700">
-            <div class="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-3 py-2">
-              <span>保存草稿</span>
-              <code class="rounded-sm border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600">Ctrl / Cmd + S</code>
-            </div>
-            <div class="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-3 py-2">
-              <span>导出 Word（编辑页）</span>
-              <code class="rounded-sm border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600">Ctrl / Cmd + Shift + E</code>
-            </div>
-            <div class="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-3 py-2">
-              <span>发布教案（草稿状态）</span>
-              <code class="rounded-sm border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600">Ctrl / Cmd + Shift + P</code>
-            </div>
-            <div class="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-3 py-2">
-              <span>打开快捷键帮助</span>
-              <code class="rounded-sm border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600">Ctrl / Cmd + Shift + K</code>
+            <div
+              v-for="action in SHORTCUT_ACTIONS"
+              :key="`shortcut-action-${action.id}`"
+              class="rounded border border-slate-200 bg-slate-50 px-3 py-2"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="truncate">{{ action.label }}</p>
+                  <p class="mt-0.5 text-[11px] text-slate-500">{{ action.hint }}</p>
+                </div>
+                <code class="rounded-sm border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600">
+                  {{ formatShortcutDisplay(shortcutDraftConfig[action.id]) }}
+                </code>
+              </div>
+              <div class="mt-2 grid grid-cols-[1fr_auto] gap-2">
+                <select
+                  v-model="shortcutDraftConfig[action.id].key"
+                  class="h-9 rounded border border-slate-300 bg-white px-2 text-xs text-slate-700 focus:border-[#647269] focus:outline-none focus:ring-2 focus:ring-[#647269]/20"
+                >
+                  <option v-for="key in SHORTCUT_KEY_OPTIONS" :key="`shortcut-key-${action.id}-${key}`" :value="key">
+                    {{ key }}
+                  </option>
+                </select>
+                <label class="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 text-xs text-slate-600">
+                  <input
+                    v-model="shortcutDraftConfig[action.id].shift"
+                    type="checkbox"
+                    class="h-3.5 w-3.5 rounded border-slate-300 text-[#647269] focus:ring-[#647269]"
+                  />
+                  Shift
+                </label>
+              </div>
             </div>
           </div>
+
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
+            <button
+              @click="handleResetShortcutDraftToDefault"
+              class="h-9 rounded border border-slate-300 bg-white px-3 text-sm text-slate-600 hover:bg-slate-50"
+            >
+              恢复默认
+            </button>
+            <button
+              @click="handleSaveShortcutConfig"
+              :disabled="hasShortcutConflicts"
+              class="h-9 rounded bg-[#647269] px-3 text-sm text-white disabled:opacity-50"
+            >
+              保存配置
+            </button>
+          </div>
+
+          <p v-if="shortcutConfigMessage" class="mt-2 text-xs text-[#435549]">
+            {{ shortcutConfigMessage }}
+          </p>
         </div>
       </div>
 
@@ -2951,6 +3001,44 @@ import TipTapEditor from '../components/TipTapEditor.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import { normalizeTemplateTags } from '../stores/planTemplate'
 
+type EditorShortcutAction = 'save' | 'export' | 'publish' | 'openHelp'
+type EditorShortcutKey = 'S' | 'E' | 'P' | 'K' | 'D' | 'R' | 'H'
+
+interface EditorShortcutConfig {
+  key: EditorShortcutKey
+  shift: boolean
+}
+
+interface EditorShortcutActionMeta {
+  id: EditorShortcutAction
+  label: string
+  hint: string
+  requiresEditing?: boolean
+}
+
+interface EditorShortcutConflictGroup {
+  signature: string
+  actions: EditorShortcutAction[]
+}
+
+const SHORTCUT_ACTIONS: readonly EditorShortcutActionMeta[] = [
+  { id: 'save', label: '保存草稿', hint: '默认：Ctrl / Cmd + S' },
+  { id: 'export', label: '导出 Word（编辑页）', hint: '默认：Ctrl / Cmd + Shift + E', requiresEditing: true },
+  { id: 'publish', label: '发布教案（草稿状态）', hint: '默认：Ctrl / Cmd + Shift + P', requiresEditing: true },
+  { id: 'openHelp', label: '打开快捷键帮助', hint: '默认：Ctrl / Cmd + Shift + K' },
+] as const
+
+const SHORTCUT_KEY_OPTIONS: readonly EditorShortcutKey[] = ['S', 'E', 'P', 'K', 'D', 'R', 'H'] as const
+
+const DEFAULT_EDITOR_SHORTCUT_CONFIG: Record<EditorShortcutAction, EditorShortcutConfig> = {
+  save: { key: 'S', shift: false },
+  export: { key: 'E', shift: true },
+  publish: { key: 'P', shift: true },
+  openHelp: { key: 'K', shift: true },
+}
+
+const EDITOR_SHORTCUT_STORAGE_KEY = 'editor-shortcut-config-v1'
+
 const route = useRoute()
 const router = useRouter()
 const planStore = usePlanStore()
@@ -2980,6 +3068,13 @@ const expandedImportConflictSavedAt = ref<string[]>([])
 const contentSource = ref<EditorContentSource>('new')
 const showProgressAssistantDialog = ref(false)
 const showShortcutDialog = ref(false)
+const shortcutConfigMessage = ref('')
+const shortcutConfig = ref<Record<EditorShortcutAction, EditorShortcutConfig>>({
+  ...DEFAULT_EDITOR_SHORTCUT_CONFIG,
+})
+const shortcutDraftConfig = ref<Record<EditorShortcutAction, EditorShortcutConfig>>({
+  ...DEFAULT_EDITOR_SHORTCUT_CONFIG,
+})
 const showMobileActions = ref(false)
 const showTemplatePanel = ref(false)
 const templateSearch = ref('')
@@ -2998,6 +3093,106 @@ const lessonSkeletonPresetManuallySelected = ref(false)
 const isDraftPersistenceReady = ref(false)
 const PRESET_TEMPLATE_TAGS = ['导入', '探究', '复习', '实验', '评价'] as const
 const lessonSkeletonOptions = resolveEditorLessonSkeletonOptions()
+
+const cloneShortcutConfig = (
+  config: Record<EditorShortcutAction, EditorShortcutConfig>
+): Record<EditorShortcutAction, EditorShortcutConfig> => ({
+  save: { ...config.save },
+  export: { ...config.export },
+  publish: { ...config.publish },
+  openHelp: { ...config.openHelp },
+})
+
+const toShortcutSignature = (config: EditorShortcutConfig): string =>
+  `${config.shift ? 'Shift+' : ''}${config.key}`
+
+const formatShortcutDisplay = (config: EditorShortcutConfig): string =>
+  `Ctrl / Cmd + ${config.shift ? 'Shift + ' : ''}${config.key}`
+
+const resolveShortcutActionLabel = (action: EditorShortcutAction): string =>
+  SHORTCUT_ACTIONS.find((item) => item.id === action)?.label || action
+
+const isEditorShortcutKey = (value: string): value is EditorShortcutKey =>
+  SHORTCUT_KEY_OPTIONS.includes(value as EditorShortcutKey)
+
+const formatShortcutSignature = (signature: string): string => {
+  const shift = signature.startsWith('Shift+')
+  const rawKey = shift ? signature.slice('Shift+'.length) : signature
+  const key = rawKey.toUpperCase()
+  if (!isEditorShortcutKey(key)) {
+    return `Ctrl / Cmd + ${shift ? 'Shift + ' : ''}${rawKey}`
+  }
+  return formatShortcutDisplay({ key, shift })
+}
+
+const normalizeShortcutConfig = (value: unknown): Record<EditorShortcutAction, EditorShortcutConfig> | null => {
+  if (!value || typeof value !== 'object') {
+    return null
+  }
+  const record = value as Record<string, unknown>
+  const actions: EditorShortcutAction[] = ['save', 'export', 'publish', 'openHelp']
+  const next = cloneShortcutConfig(DEFAULT_EDITOR_SHORTCUT_CONFIG)
+
+  for (const action of actions) {
+    const item = record[action]
+    if (!item || typeof item !== 'object') {
+      return null
+    }
+    const shortcutItem = item as Record<string, unknown>
+    const key = typeof shortcutItem.key === 'string' ? shortcutItem.key.toUpperCase() : ''
+    if (!isEditorShortcutKey(key)) {
+      return null
+    }
+    if (typeof shortcutItem.shift !== 'boolean') {
+      return null
+    }
+    next[action] = { key, shift: shortcutItem.shift }
+  }
+
+  return next
+}
+
+const loadShortcutConfigFromStorage = () => {
+  if (typeof window === 'undefined') {
+    shortcutConfig.value = cloneShortcutConfig(DEFAULT_EDITOR_SHORTCUT_CONFIG)
+    shortcutDraftConfig.value = cloneShortcutConfig(DEFAULT_EDITOR_SHORTCUT_CONFIG)
+    return
+  }
+  const raw = window.localStorage.getItem(EDITOR_SHORTCUT_STORAGE_KEY)
+  if (!raw) {
+    shortcutConfig.value = cloneShortcutConfig(DEFAULT_EDITOR_SHORTCUT_CONFIG)
+    shortcutDraftConfig.value = cloneShortcutConfig(DEFAULT_EDITOR_SHORTCUT_CONFIG)
+    return
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    const normalized = normalizeShortcutConfig(parsed)
+    if (!normalized) {
+      shortcutConfig.value = cloneShortcutConfig(DEFAULT_EDITOR_SHORTCUT_CONFIG)
+      shortcutDraftConfig.value = cloneShortcutConfig(DEFAULT_EDITOR_SHORTCUT_CONFIG)
+      return
+    }
+    shortcutConfig.value = cloneShortcutConfig(normalized)
+    shortcutDraftConfig.value = cloneShortcutConfig(normalized)
+  } catch {
+    shortcutConfig.value = cloneShortcutConfig(DEFAULT_EDITOR_SHORTCUT_CONFIG)
+    shortcutDraftConfig.value = cloneShortcutConfig(DEFAULT_EDITOR_SHORTCUT_CONFIG)
+  }
+}
+
+const shortcutConflictGroups = computed<EditorShortcutConflictGroup[]>(() => {
+  const map = new Map<string, EditorShortcutAction[]>()
+  for (const action of SHORTCUT_ACTIONS) {
+    const signature = toShortcutSignature(shortcutDraftConfig.value[action.id])
+    const current = map.get(signature) || []
+    map.set(signature, [...current, action.id])
+  }
+  return [...map.entries()]
+    .filter(([, actions]) => actions.length > 1)
+    .map(([signature, actions]) => ({ signature, actions }))
+})
+
+const hasShortcutConflicts = computed(() => shortcutConflictGroups.value.length > 0)
 
 const isFormValid = computed(() => {
   return form.title.trim() && 
@@ -3702,41 +3897,78 @@ const confirmLeaveWithUnsavedDraft = (): boolean => {
   return window.confirm('当前教案有未保存更改，确定离开吗？')
 }
 
+const handleOpenShortcutDialog = () => {
+  shortcutDraftConfig.value = cloneShortcutConfig(shortcutConfig.value)
+  shortcutConfigMessage.value = ''
+  showShortcutDialog.value = true
+}
+
+const handleResetShortcutDraftToDefault = () => {
+  shortcutDraftConfig.value = cloneShortcutConfig(DEFAULT_EDITOR_SHORTCUT_CONFIG)
+  shortcutConfigMessage.value = ''
+}
+
+const handleSaveShortcutConfig = () => {
+  if (hasShortcutConflicts.value) {
+    shortcutConfigMessage.value = '存在快捷键冲突，请先调整后再保存。'
+    return
+  }
+  shortcutConfig.value = cloneShortcutConfig(shortcutDraftConfig.value)
+  shortcutConfigMessage.value = '快捷键配置已保存'
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem(EDITOR_SHORTCUT_STORAGE_KEY, JSON.stringify(shortcutConfig.value))
+  }
+}
+
+const isShortcutActionEnabled = (action: EditorShortcutAction): boolean => {
+  if (action === 'export') {
+    return isEditing.value
+  }
+  if (action === 'publish') {
+    return isEditing.value && planStore.currentPlan?.status === 'DRAFT'
+  }
+  return true
+}
+
+const matchesShortcut = (event: KeyboardEvent, config: EditorShortcutConfig): boolean =>
+  event.key.toUpperCase() === config.key && event.shiftKey === config.shift
+
+const runShortcutAction = async (action: EditorShortcutAction) => {
+  if (action === 'save') {
+    await handleSave()
+    return
+  }
+  if (action === 'openHelp') {
+    handleOpenShortcutDialog()
+    return
+  }
+  if (action === 'export') {
+    await handleExport()
+    return
+  }
+  await handlePublish()
+}
+
 const handleEditorKeyboardShortcuts = async (event: KeyboardEvent) => {
   if (event.key === 'Escape' && showShortcutDialog.value) {
     showShortcutDialog.value = false
     return
   }
 
-  if (!(event.metaKey || event.ctrlKey) || event.altKey) {
+  if (event.repeat || !(event.metaKey || event.ctrlKey) || event.altKey) {
     return
   }
 
-  if (event.key.toLowerCase() === 's' && !event.shiftKey) {
+  for (const action of SHORTCUT_ACTIONS) {
+    if (!isShortcutActionEnabled(action.id)) {
+      continue
+    }
+    if (!matchesShortcut(event, shortcutConfig.value[action.id])) {
+      continue
+    }
     event.preventDefault()
-    await handleSave()
+    await runShortcutAction(action.id)
     return
-  }
-
-  if (event.shiftKey && event.key.toLowerCase() === 'k') {
-    event.preventDefault()
-    showShortcutDialog.value = true
-    return
-  }
-
-  if (!isEditing.value) {
-    return
-  }
-
-  if (event.shiftKey && event.key.toLowerCase() === 'e') {
-    event.preventDefault()
-    await handleExport()
-    return
-  }
-
-  if (event.shiftKey && event.key.toLowerCase() === 'p') {
-    event.preventDefault()
-    await handlePublish()
   }
 }
 
@@ -3750,6 +3982,7 @@ onBeforeRouteLeave((_to, _from, next) => {
 })
 
 onMounted(async () => {
+  loadShortcutConfigFromStorage()
   contentSource.value = isEditing.value ? 'server' : 'new'
   if (isEditing.value) {
     await loadPlan()
@@ -4021,7 +4254,7 @@ const handleMobileOpenDraftDialog = () => {
 
 const handleMobileOpenShortcutDialog = () => {
   closeMobileActions()
-  showShortcutDialog.value = true
+  handleOpenShortcutDialog()
 }
 
 const handleMobileSave = async () => {
