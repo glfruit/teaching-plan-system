@@ -608,8 +608,24 @@
         <h3 class="text-base font-semibold text-slate-800">本地草稿箱</h3>
         <p class="mt-1 text-xs text-slate-500">用于恢复未保存内容，数据仅保存在当前浏览器。</p>
         <div v-if="currentLocalDraft" class="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-sm text-[#2f5f4f]">
-          <p>草稿时间：{{ formatDraftTimestamp(currentLocalDraft.savedAt) || currentLocalDraft.savedAt }}</p>
-          <p class="mt-1">内容来源将变更为：本地草稿</p>
+          <p>共 {{ localDraftHistory.length }} 条本地草稿</p>
+          <div class="mt-2 max-h-36 overflow-auto space-y-1">
+            <button
+              v-for="item in localDraftHistory"
+              :key="item.savedAt"
+              @click="handleSelectLocalDraft(item.savedAt)"
+              class="w-full text-left px-2 py-1.5 rounded-lg border transition-colors"
+              :class="
+                selectedLocalDraftSavedAt === item.savedAt
+                  ? 'border-emerald-300 bg-white text-emerald-700'
+                  : 'border-transparent bg-emerald-50/50 text-[#2f5f4f] hover:bg-white'
+              "
+            >
+              {{ formatDraftTimestamp(item.savedAt) || item.savedAt }}
+            </button>
+          </div>
+          <p class="mt-2">当前选择：{{ selectedLocalDraft ? (formatDraftTimestamp(selectedLocalDraft.savedAt) || selectedLocalDraft.savedAt) : '无' }}</p>
+          <p class="mt-1">恢复后内容来源将变更为：本地草稿</p>
         </div>
         <div v-else class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
           暂无本地草稿
@@ -865,11 +881,17 @@ export const hasEditorDraftChanges = (
 
 export const LOCAL_EDITOR_DRAFT_VERSION = 1
 export const LOCAL_EDITOR_DRAFT_PREFIX = 'editor-local-draft:'
+export const LOCAL_EDITOR_DRAFT_HISTORY_LIMIT = 6
 
 export type EditorLocalDraft = {
   version: number
   savedAt: string
   form: EditorPlanForm
+}
+
+export type EditorLocalDraftHistoryPayload = {
+  version: number
+  drafts: EditorLocalDraft[]
 }
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
@@ -913,33 +935,90 @@ export const serializeEditorLocalDraft = (
   return JSON.stringify(payload)
 }
 
-export const parseEditorLocalDraft = (raw: string | null | undefined): EditorLocalDraft | null => {
-  if (!raw) {
+const parseEditorLocalDraftItem = (value: unknown): EditorLocalDraft | null => {
+  if (!isObjectRecord(value)) {
     return null
+  }
+
+  if (typeof value.savedAt !== 'string' || !value.savedAt.trim()) {
+    return null
+  }
+
+  if (!isEditorPlanFormLike(value.form)) {
+    return null
+  }
+
+  return {
+    version: typeof value.version === 'number' ? value.version : LOCAL_EDITOR_DRAFT_VERSION,
+    savedAt: value.savedAt,
+    form: value.form,
+  }
+}
+
+export const serializeEditorLocalDraftHistory = (drafts: EditorLocalDraft[]): string => {
+  const payload: EditorLocalDraftHistoryPayload = {
+    version: LOCAL_EDITOR_DRAFT_VERSION,
+    drafts,
+  }
+  return JSON.stringify(payload)
+}
+
+export const parseEditorLocalDraftHistory = (raw: string | null | undefined): EditorLocalDraft[] => {
+  if (!raw) {
+    return []
   }
 
   try {
     const parsed = JSON.parse(raw) as unknown
-    if (!isObjectRecord(parsed)) {
-      return null
+
+    if (isObjectRecord(parsed) && Array.isArray(parsed.drafts)) {
+      return parsed.drafts
+        .map((item) => parseEditorLocalDraftItem(item))
+        .filter((item): item is EditorLocalDraft => Boolean(item))
     }
 
-    if (typeof parsed.savedAt !== 'string' || !parsed.savedAt.trim()) {
-      return null
+    if (Array.isArray(parsed)) {
+      return parsed
+        .map((item) => parseEditorLocalDraftItem(item))
+        .filter((item): item is EditorLocalDraft => Boolean(item))
     }
 
-    if (!isEditorPlanFormLike(parsed.form)) {
-      return null
-    }
-
-    return {
-      version: typeof parsed.version === 'number' ? parsed.version : LOCAL_EDITOR_DRAFT_VERSION,
-      savedAt: parsed.savedAt,
-      form: parsed.form,
-    }
+    const legacy = parseEditorLocalDraftItem(parsed)
+    return legacy ? [legacy] : []
   } catch {
-    return null
+    return []
   }
+}
+
+export const pushEditorLocalDraftHistory = (
+  history: EditorLocalDraft[],
+  form: EditorPlanForm,
+  savedAt = new Date().toISOString(),
+  limit = LOCAL_EDITOR_DRAFT_HISTORY_LIMIT
+): EditorLocalDraft[] => {
+  const nextDraft: EditorLocalDraft = {
+    version: LOCAL_EDITOR_DRAFT_VERSION,
+    savedAt,
+    form,
+  }
+
+  const normalized = history
+    .map((item) => parseEditorLocalDraftItem(item))
+    .filter((item): item is EditorLocalDraft => Boolean(item))
+
+  const nextSignature = buildEditorDraftSignature(form)
+  const firstSignature = normalized[0] ? buildEditorDraftSignature(normalized[0].form) : null
+
+  if (firstSignature === nextSignature) {
+    return [nextDraft, ...normalized.slice(1)].slice(0, Math.max(1, limit))
+  }
+
+  return [nextDraft, ...normalized].slice(0, Math.max(1, limit))
+}
+
+export const parseEditorLocalDraft = (raw: string | null | undefined): EditorLocalDraft | null => {
+  const history = parseEditorLocalDraftHistory(raw)
+  return history[0] ?? null
 }
 
 export type EditorContentSource = 'server' | 'local' | 'new'
@@ -1007,7 +1086,8 @@ const isEditing = computed(() => !!planId.value)
 const lastSaved = ref('')
 const savedDraftSignature = ref('')
 const localDraftMessage = ref('')
-const currentLocalDraft = ref<EditorLocalDraft | null>(null)
+const localDraftHistory = ref<EditorLocalDraft[]>([])
+const selectedLocalDraftSavedAt = ref('')
 const showDraftDialog = ref(false)
 const contentSource = ref<EditorContentSource>('new')
 const showMobileActions = ref(false)
@@ -1093,6 +1173,23 @@ const editorStatusText = computed(() => {
 
 const contentSourceLabel = computed(() => resolveEditorContentSourceLabel(contentSource.value))
 
+const currentLocalDraft = computed<EditorLocalDraft | null>(() => localDraftHistory.value[0] ?? null)
+
+const selectedLocalDraft = computed<EditorLocalDraft | null>(() => {
+  if (!localDraftHistory.value.length) {
+    return null
+  }
+
+  if (!selectedLocalDraftSavedAt.value) {
+    return localDraftHistory.value[0]
+  }
+
+  return (
+    localDraftHistory.value.find((item) => item.savedAt === selectedLocalDraftSavedAt.value) ??
+    localDraftHistory.value[0]
+  )
+})
+
 const localDraftStorageKey = computed(() =>
   buildEditorLocalDraftStorageKey(isEditing.value ? planId.value : null)
 )
@@ -1107,7 +1204,8 @@ const formatDraftTimestamp = (value: string): string => {
 
 const clearLocalDraft = () => {
   localStorage.removeItem(localDraftStorageKey.value)
-  currentLocalDraft.value = null
+  localDraftHistory.value = []
+  selectedLocalDraftSavedAt.value = ''
   localDraftMessage.value = ''
 }
 
@@ -1116,11 +1214,13 @@ const persistLocalDraft = (force = false) => {
     return
   }
 
-  const raw = serializeEditorLocalDraft(form as EditorPlanForm)
+  const nextHistory = pushEditorLocalDraftHistory(localDraftHistory.value, form as EditorPlanForm)
+  const raw = serializeEditorLocalDraftHistory(nextHistory)
   localStorage.setItem(localDraftStorageKey.value, raw)
-  const parsed = parseEditorLocalDraft(raw)
-  currentLocalDraft.value = parsed
-  const timeLabel = parsed ? formatDraftTimestamp(parsed.savedAt) : ''
+  localDraftHistory.value = parseEditorLocalDraftHistory(raw)
+  selectedLocalDraftSavedAt.value = localDraftHistory.value[0]?.savedAt || ''
+  const latest = localDraftHistory.value[0] || null
+  const timeLabel = latest ? formatDraftTimestamp(latest.savedAt) : ''
   localDraftMessage.value = force
     ? timeLabel
       ? `已离开前保存本地草稿：${timeLabel}`
@@ -1145,8 +1245,10 @@ const schedulePersistLocalDraft = () => {
 }
 
 const restoreLocalDraftIfNeeded = (): boolean => {
-  const draft = parseEditorLocalDraft(localStorage.getItem(localDraftStorageKey.value))
-  currentLocalDraft.value = draft
+  const draftHistory = parseEditorLocalDraftHistory(localStorage.getItem(localDraftStorageKey.value))
+  localDraftHistory.value = draftHistory
+  selectedLocalDraftSavedAt.value = draftHistory[0]?.savedAt || ''
+  const draft = draftHistory[0] ?? null
   if (!draft) {
     return false
   }
@@ -1167,7 +1269,15 @@ const restoreLocalDraftIfNeeded = (): boolean => {
 }
 
 const refreshLocalDraft = () => {
-  currentLocalDraft.value = parseEditorLocalDraft(localStorage.getItem(localDraftStorageKey.value))
+  localDraftHistory.value = parseEditorLocalDraftHistory(localStorage.getItem(localDraftStorageKey.value))
+  if (!localDraftHistory.value.length) {
+    selectedLocalDraftSavedAt.value = ''
+    return
+  }
+  const selectedExists = localDraftHistory.value.some((item) => item.savedAt === selectedLocalDraftSavedAt.value)
+  if (!selectedExists) {
+    selectedLocalDraftSavedAt.value = localDraftHistory.value[0].savedAt
+  }
 }
 
 const handleOpenDraftDialog = () => {
@@ -1175,12 +1285,16 @@ const handleOpenDraftDialog = () => {
   showDraftDialog.value = true
 }
 
+const handleSelectLocalDraft = (savedAt: string) => {
+  selectedLocalDraftSavedAt.value = savedAt
+}
+
 const handleRestoreLocalDraft = () => {
-  if (!currentLocalDraft.value) {
+  if (!selectedLocalDraft.value) {
     return
   }
-  Object.assign(form, currentLocalDraft.value.form)
-  const timeLabel = formatDraftTimestamp(currentLocalDraft.value.savedAt)
+  Object.assign(form, selectedLocalDraft.value.form)
+  const timeLabel = formatDraftTimestamp(selectedLocalDraft.value.savedAt)
   localDraftMessage.value = timeLabel ? `已恢复本地草稿：${timeLabel}` : '已恢复本地草稿'
   contentSource.value = 'local'
   showDraftDialog.value = false

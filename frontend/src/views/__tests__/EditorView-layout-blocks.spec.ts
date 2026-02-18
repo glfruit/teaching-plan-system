@@ -6,7 +6,11 @@ import {
   resolveTemplateEditSubmission,
   buildEditorLocalDraftStorageKey,
   serializeEditorLocalDraft,
+  serializeEditorLocalDraftHistory,
   parseEditorLocalDraft,
+  parseEditorLocalDraftHistory,
+  pushEditorLocalDraftHistory,
+  LOCAL_EDITOR_DRAFT_HISTORY_LIMIT,
   resolveEditorContentSourceLabel,
   shouldPersistLocalDraftOnLeave,
   buildPlanPayload,
@@ -412,6 +416,102 @@ describe('EditorView teaching layout persistence', () => {
         })
       )
     ).toBeNull()
+  })
+
+  it('parses local editor draft history payload and keeps latest first', () => {
+    const formA = {
+      title: '草稿A',
+      courseName: '课程',
+      className: '1班',
+      duration: 45,
+      methods: '',
+      resources: '',
+      objectives: '<p>A</p>',
+      keyPoints: '<p>A</p>',
+      process: '<p>A</p>',
+      blackboard: '<p></p>',
+      reflection: '<p></p>',
+      contentJson: {},
+    }
+    const formB = {
+      ...formA,
+      title: '草稿B',
+      process: '<p>B</p>',
+    }
+
+    const raw = serializeEditorLocalDraftHistory([
+      { version: 1, savedAt: '2026-02-17T12:01:00.000Z', form: formB as any },
+      { version: 1, savedAt: '2026-02-17T12:00:00.000Z', form: formA as any },
+    ])
+
+    const history = parseEditorLocalDraftHistory(raw)
+    expect(history).toHaveLength(2)
+    expect(history[0].form.title).toBe('草稿B')
+    expect(history[1].form.title).toBe('草稿A')
+  })
+
+  it('supports parsing legacy single-draft payload as history', () => {
+    const legacy = serializeEditorLocalDraft(
+      {
+        title: '旧格式草稿',
+        courseName: '课程',
+        className: '1班',
+        duration: 45,
+        methods: '',
+        resources: '',
+        objectives: '<p>目标</p>',
+        keyPoints: '<p>重点</p>',
+        process: '<p>过程</p>',
+        blackboard: '<p></p>',
+        reflection: '<p></p>',
+        contentJson: {},
+      } as any,
+      '2026-02-17T11:59:00.000Z'
+    )
+
+    const history = parseEditorLocalDraftHistory(legacy)
+    expect(history).toHaveLength(1)
+    expect(history[0].form.title).toBe('旧格式草稿')
+  })
+
+  it('pushes local draft history with limit and replaces same-signature latest', () => {
+    const base = {
+      title: '草稿',
+      courseName: '课程',
+      className: '1班',
+      duration: 45,
+      methods: '',
+      resources: '',
+      objectives: '<p>目标</p>',
+      keyPoints: '<p>重点</p>',
+      process: '<p>过程</p>',
+      blackboard: '<p></p>',
+      reflection: '<p></p>',
+      contentJson: {},
+    }
+
+    const first = pushEditorLocalDraftHistory([], base as any, '2026-02-17T12:00:00.000Z', 2)
+    const same = pushEditorLocalDraftHistory(first, base as any, '2026-02-17T12:00:30.000Z', 2)
+    expect(same).toHaveLength(1)
+    expect(same[0].savedAt).toBe('2026-02-17T12:00:30.000Z')
+
+    const second = pushEditorLocalDraftHistory(
+      same,
+      { ...base, process: '<p>过程2</p>' } as any,
+      '2026-02-17T12:01:00.000Z',
+      2
+    )
+    const third = pushEditorLocalDraftHistory(
+      second,
+      { ...base, process: '<p>过程3</p>' } as any,
+      '2026-02-17T12:02:00.000Z',
+      2
+    )
+    expect(third).toHaveLength(2)
+    expect(third[0].savedAt).toBe('2026-02-17T12:02:00.000Z')
+    expect(third[1].savedAt).toBe('2026-02-17T12:01:00.000Z')
+
+    expect(LOCAL_EDITOR_DRAFT_HISTORY_LIMIT).toBeGreaterThan(1)
   })
 
   it('resolves content source label for local/server/new', () => {

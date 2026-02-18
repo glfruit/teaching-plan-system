@@ -15,6 +15,13 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('更多操作')
   })
 
+  it('provides local draft center dialog with history restore controls', () => {
+    expect(editorViewSource).toContain('本地草稿箱')
+    expect(editorViewSource).toContain('共 {{ localDraftHistory.length }} 条本地草稿')
+    expect(editorViewSource).toContain('恢复草稿')
+    expect(editorViewSource).toContain('清空草稿')
+  })
+
   it('uses a mobile-safe two-row layout for quick actions', () => {
     expect(editorViewSource).toContain('px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] grid grid-cols-1 gap-2')
   })
