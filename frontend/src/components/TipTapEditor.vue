@@ -177,6 +177,17 @@
       <!-- Table -->
       <div class="flex items-center gap-0.5">
         <button
+          @click="showTableTools = !showTableTools"
+          :disabled="!editor"
+          class="editor-toolbar-btn text-xs font-medium"
+          :title="showTableTools ? '收起表格工具' : '展开表格工具'"
+        >
+          {{ showTableTools ? '收起表格' : '表格工具' }}
+        </button>
+      </div>
+
+      <div v-if="showTableTools" class="flex items-center gap-0.5">
+        <button
           @click="insertTable"
           :disabled="!editor"
           :class="{ 'is-active': editor?.isActive('table') }"
@@ -191,7 +202,7 @@
             <line x1="15" y1="3" x2="15" y2="21" />
           </svg>
         </button>
-        
+
         <button
           v-if="editor?.isActive('table')"
           @click="deleteTable"
@@ -205,114 +216,65 @@
             <line x1="15" y1="9" x2="9" y2="15" />
           </svg>
         </button>
-      </div>
 
-      <div v-if="editor?.isActive('table')" class="flex items-center gap-0.5">
-        <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
-        
-        <button
-          @click="addColumnBefore"
-          :disabled="!editor"
-          class="editor-toolbar-btn"
-          title="在前添加列"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 3v18M15 3v18M3 12h6M21 12h-6" />
-          </svg>
-        </button>
-        
-        <button
-          @click="addColumnAfter"
-          :disabled="!editor"
-          class="editor-toolbar-btn"
-          title="在后添加列"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 3v18M15 3v18M15 12h6M3 12h6" />
-          </svg>
-        </button>
-        
-        <button
-          @click="deleteColumn"
-          :disabled="!editor"
-          class="editor-toolbar-btn text-red-500 hover:bg-red-50"
-          title="删除列"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M9 3v18M15 3v18M19 12H5" />
-          </svg>
-        </button>
-        
-        <button
-          @click="addRowBefore"
-          :disabled="!editor"
-          class="editor-toolbar-btn"
-          title="在上添加行"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 9h18M3 15h18M12 3v6M12 21v-6" />
-          </svg>
-        </button>
-        
-        <button
-          @click="addRowAfter"
-          :disabled="!editor"
-          class="editor-toolbar-btn"
-          title="在下添加行"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 9h18M3 15h18M12 15v6M12 3v6" />
-          </svg>
-        </button>
-        
-        <button
-          @click="deleteRow"
-          :disabled="!editor"
-          class="editor-toolbar-btn text-red-500 hover:bg-red-50"
-          title="删除行"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 9h18M3 15h18M19 15V9M5 15V9" />
-          </svg>
-        </button>
-
-        <button
-          @click="mergeCells"
-          :disabled="!editor"
-          class="editor-toolbar-btn"
-          title="合并单元格"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <line x1="12" y1="3" x2="12" y2="21" />
-          </svg>
-        </button>
-
-        <button
-          @click="splitCell"
-          :disabled="!editor"
-          class="editor-toolbar-btn"
-          title="拆分单元格"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-            <line x1="12" y1="3" x2="12" y2="21" />
-            <line x1="3" y1="12" x2="21" y2="12" />
-          </svg>
-        </button>
-
-        <button
-          @click="toggleHeaderCell"
-          :disabled="!editor"
-          :class="{ 'is-active': editor?.isActive('tableHeader') }"
-          class="editor-toolbar-btn"
-          title="切换表头"
-        >
-          <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M3 6h18M3 12h18M3 18h18" />
-            <path d="M8 6v12M16 6v12" />
-          </svg>
-        </button>
+        <template v-if="editor?.isActive('table')">
+          <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
+          <button @click="addColumnBefore" :disabled="!editor" class="editor-toolbar-btn" title="在前添加列">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 3v18M15 3v18M3 12h6M21 12h-6" />
+            </svg>
+          </button>
+          <button @click="addColumnAfter" :disabled="!editor" class="editor-toolbar-btn" title="在后添加列">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 3v18M15 3v18M15 12h6M3 12h6" />
+            </svg>
+          </button>
+          <button @click="deleteColumn" :disabled="!editor" class="editor-toolbar-btn text-red-500 hover:bg-red-50" title="删除列">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M9 3v18M15 3v18M19 12H5" />
+            </svg>
+          </button>
+          <button @click="addRowBefore" :disabled="!editor" class="editor-toolbar-btn" title="在上添加行">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9h18M3 15h18M12 3v6M12 21v-6" />
+            </svg>
+          </button>
+          <button @click="addRowAfter" :disabled="!editor" class="editor-toolbar-btn" title="在下添加行">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9h18M3 15h18M12 15v6M12 3v6" />
+            </svg>
+          </button>
+          <button @click="deleteRow" :disabled="!editor" class="editor-toolbar-btn text-red-500 hover:bg-red-50" title="删除行">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 9h18M3 15h18M19 15V9M5 15V9" />
+            </svg>
+          </button>
+          <button @click="mergeCells" :disabled="!editor" class="editor-toolbar-btn" title="合并单元格">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="12" y1="3" x2="12" y2="21" />
+            </svg>
+          </button>
+          <button @click="splitCell" :disabled="!editor" class="editor-toolbar-btn" title="拆分单元格">
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" />
+              <line x1="12" y1="3" x2="12" y2="21" />
+              <line x1="3" y1="12" x2="21" y2="12" />
+            </svg>
+          </button>
+          <button
+            @click="toggleHeaderCell"
+            :disabled="!editor"
+            :class="{ 'is-active': editor?.isActive('tableHeader') }"
+            class="editor-toolbar-btn"
+            title="切换表头"
+          >
+            <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18M3 12h18M3 18h18" />
+              <path d="M8 6v12M16 6v12" />
+            </svg>
+          </button>
+        </template>
       </div>
 
       <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
@@ -379,6 +341,17 @@
 
       <!-- Teaching Layout -->
       <div class="flex items-center gap-0.5">
+        <button
+          @click="showTeachingTools = !showTeachingTools"
+          :disabled="!editor"
+          class="editor-toolbar-btn text-xs font-medium"
+          :title="showTeachingTools ? '收起教学块工具' : '展开教学块工具'"
+        >
+          {{ showTeachingTools ? '收起教学块' : '教学块工具' }}
+        </button>
+      </div>
+
+      <div v-if="showTeachingTools" class="flex items-center gap-0.5">
         <button
           @click="insertTimelineBlock"
           :disabled="!editor"
@@ -511,6 +484,8 @@ const slashQuery = ref('')
 const slashSelectedIndex = ref(0)
 const isSlashMenuOpen = ref(false)
 const operationMessage = ref('')
+const showTableTools = ref(false)
+const showTeachingTools = ref(false)
 
 const slashMenuItems = computed(() => filterTeachingSlashItems(slashQuery.value))
 
@@ -655,6 +630,7 @@ const addImage = () => {
 
 // Insert table
 const insertTable = () => {
+  showTableTools.value = true
   editor.value?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
 }
 

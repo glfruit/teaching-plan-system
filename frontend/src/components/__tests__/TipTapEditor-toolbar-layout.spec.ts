@@ -4,7 +4,13 @@ import TipTapEditor from '../TipTapEditor.vue'
 
 describe('TipTapEditor teaching layout toolbar', () => {
   it('renders buttons and inserts timeline block on click', async () => {
-    const { getByTitle, container } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
+    const { getByTitle, queryByTitle, container } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
+    expect(queryByTitle('插入时间轴')).toBeNull()
+    expect(queryByTitle('插入步骤卡')).toBeNull()
+    expect(queryByTitle('插入三栏块')).toBeNull()
+
+    await fireEvent.click(getByTitle('展开教学块工具'))
+
     const timelineBtn = getByTitle('插入时间轴')
     expect(timelineBtn).toBeTruthy()
     expect(getByTitle('插入步骤卡')).toBeTruthy()
@@ -18,6 +24,14 @@ describe('TipTapEditor teaching layout toolbar', () => {
     await waitFor(() => {
       expect(container.querySelector('[data-node-type="lessonTimeline"]')).toBeTruthy()
     })
+  })
+
+  it('collapses table tools by default and expands on demand', async () => {
+    const { getByTitle, queryByTitle } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
+
+    expect(queryByTitle('插入表格')).toBeNull()
+    await fireEvent.click(getByTitle('展开表格工具'))
+    expect(getByTitle('插入表格')).toBeTruthy()
   })
 
   it('does not register duplicate extensions', async () => {
@@ -65,6 +79,7 @@ describe('TipTapEditor teaching layout toolbar', () => {
 
     const placeholder = container.querySelector('[data-node-type="unknownNodePlaceholder"]') as HTMLElement
     await fireEvent.click(placeholder)
+    await fireEvent.click(getByTitle('展开教学块工具'))
     await fireEvent.click(getByTitle('删除当前块'))
 
     await waitFor(() => {
