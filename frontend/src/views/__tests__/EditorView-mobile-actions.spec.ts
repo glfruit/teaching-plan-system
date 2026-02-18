@@ -42,6 +42,8 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('仅新增')
     expect(editorViewSource).toContain('清空选择')
     expect(editorViewSource).toContain('确认导入')
+    expect(editorViewSource).toContain('本地：')
+    expect(editorViewSource).toContain('导入：')
     expect(editorViewSource).toContain('置顶 {{ pinnedDraftCount }} / 未置顶 {{ unpinnedDraftCount }}')
     expect(editorViewSource).toContain('handleToggleLocalDraftPinned')
     expect(editorViewSource).toContain('handleRenameLocalDraft')

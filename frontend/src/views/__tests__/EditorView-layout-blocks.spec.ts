@@ -28,6 +28,7 @@ import {
   buildEditorLocalDraftImportCandidates,
   pickEditorLocalDraftsForImport,
   selectEditorLocalDraftImportSavedAtByStrategy,
+  buildEditorLocalDraftImportConflictItems,
   buildEditorLocalDraftExportFileName,
   normalizeEditorLocalDraftSearchQuery,
   filterEditorLocalDraftHistory,
@@ -1060,6 +1061,46 @@ describe('EditorView teaching layout persistence', () => {
       '2026-02-17T13:00:00.000Z',
     ])
     expect(selectEditorLocalDraftImportSavedAtByStrategy(candidates as any, 'none')).toEqual([])
+  })
+
+  it('builds import conflict items with local and imported display names', () => {
+    const existing = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Local', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Local Draft', title: 'Local', courseName: '', className: '' },
+        pinned: false,
+      },
+    ]
+    const candidates = [
+      {
+        draft: {
+          version: 1,
+          savedAt: '2026-02-17T12:00:00.000Z',
+          form: { title: 'Imported', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+          snapshot: { displayName: 'Imported Draft', title: 'Imported', courseName: '', className: '' },
+          pinned: false,
+        },
+        conflict: true,
+      },
+      {
+        draft: {
+          version: 1,
+          savedAt: '2026-02-17T13:00:00.000Z',
+          form: { title: 'Non Conflict', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+          snapshot: { displayName: 'Non Conflict', title: 'Non Conflict', courseName: '', className: '' },
+          pinned: false,
+        },
+        conflict: false,
+      },
+    ]
+
+    const items = buildEditorLocalDraftImportConflictItems(existing as any, candidates as any)
+    expect(items).toHaveLength(1)
+    expect(items[0].savedAt).toBe('2026-02-17T12:00:00.000Z')
+    expect(items[0].localDisplayName).toBe('Local Draft')
+    expect(items[0].importedDisplayName).toBe('Imported Draft')
   })
 
   it('builds export filename with plan id and timestamp', () => {

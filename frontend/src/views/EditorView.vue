@@ -839,6 +839,13 @@
                 <p class="mt-0.5 text-[10px] text-slate-500">
                   {{ formatDraftTimestamp(item.draft.savedAt) || item.draft.savedAt }}
                 </p>
+                <p
+                  v-if="item.conflict && localDraftImportConflictItemMap.get(item.draft.savedAt)"
+                  class="mt-0.5 text-[10px] text-amber-700"
+                >
+                  本地：{{ localDraftImportConflictItemMap.get(item.draft.savedAt)?.localDisplayName }} ·
+                  导入：{{ localDraftImportConflictItemMap.get(item.draft.savedAt)?.importedDisplayName }}
+                </p>
               </div>
             </label>
           </div>
@@ -1149,6 +1156,12 @@ export type EditorLocalDraftImportCandidate = {
 }
 
 export type EditorLocalDraftImportSelectionStrategy = 'all' | 'conflict' | 'new' | 'none'
+
+export type EditorLocalDraftImportConflictItem = {
+  savedAt: string
+  localDisplayName: string
+  importedDisplayName: string
+}
 
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
@@ -1575,6 +1588,34 @@ export const selectEditorLocalDraftImportSavedAtByStrategy = (
   return candidates.filter((item) => !item.conflict).map((item) => item.draft.savedAt)
 }
 
+export const buildEditorLocalDraftImportConflictItems = (
+  existing: EditorLocalDraft[],
+  candidates: EditorLocalDraftImportCandidate[]
+): EditorLocalDraftImportConflictItem[] => {
+  const existingMap = new Map<string, EditorLocalDraft>()
+  for (const item of existing) {
+    const parsed = parseEditorLocalDraftItem(item)
+    if (parsed) {
+      existingMap.set(parsed.savedAt, parsed)
+    }
+  }
+
+  return candidates
+    .filter((item) => item.conflict)
+    .map((item) => {
+      const local = existingMap.get(item.draft.savedAt)
+      if (!local) {
+        return null
+      }
+      return {
+        savedAt: item.draft.savedAt,
+        localDisplayName: resolveEditorLocalDraftDisplayName(local),
+        importedDisplayName: resolveEditorLocalDraftDisplayName(item.draft),
+      }
+    })
+    .filter((item): item is EditorLocalDraftImportConflictItem => Boolean(item))
+}
+
 export const buildEditorLocalDraftImportPreview = (
   existing: EditorLocalDraft[],
   imported: EditorLocalDraft[],
@@ -1956,6 +1997,14 @@ const localDraftImportPreview = computed(() =>
 const localDraftImportPreviewMessage = computed(() =>
   buildEditorLocalDraftImportPreviewMessage(localDraftImportPreview.value)
 )
+
+const localDraftImportConflictItemMap = computed(() => {
+  const items = buildEditorLocalDraftImportConflictItems(
+    localDraftHistory.value,
+    localDraftImportCandidates.value
+  )
+  return new Map(items.map((item) => [item.savedAt, item]))
+})
 
 const resolveLocalDraftDisplayNameForView = (draft: EditorLocalDraft): string =>
   resolveEditorLocalDraftDisplayName(draft)
