@@ -868,6 +868,12 @@
           <p class="mt-1 text-[11px] text-slate-500">
             已选择 {{ selectedImportDraftSavedAt.length }} / {{ localDraftImportCandidates.length }}，当前显示 {{ filteredLocalDraftImportCandidates.length }} 条
           </p>
+          <input
+            v-model="localDraftImportSearch"
+            type="text"
+            placeholder="筛选导入草稿（标题/课程/班级/冲突字段）"
+            class="mt-2 h-8 w-full rounded-md border border-slate-300 bg-white px-2.5 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-emerald-300 focus:outline-none focus:ring-1 focus:ring-emerald-200"
+          />
           <div class="mt-2 max-h-48 overflow-auto space-y-1.5">
             <label
               v-for="item in filteredLocalDraftImportCandidates"
@@ -1811,6 +1817,39 @@ export const filterEditorLocalDraftImportCandidates = (
   })
 }
 
+export const searchEditorLocalDraftImportCandidates = (
+  candidates: EditorLocalDraftImportCandidate[],
+  query: string,
+  conflictDiffItems: EditorLocalDraftImportConflictDiffItem[]
+): EditorLocalDraftImportCandidate[] => {
+  const keyword = normalizeEditorLocalDraftSearchQuery(query)
+  if (!keyword) {
+    return candidates
+  }
+
+  const conflictDiffMap = new Map(conflictDiffItems.map((item) => [item.savedAt, item]))
+  return candidates.filter((item) => {
+    const searchableParts = [
+      resolveEditorLocalDraftDisplayName(item.draft),
+      item.draft.snapshot.title,
+      item.draft.snapshot.courseName,
+      item.draft.snapshot.className,
+      item.draft.savedAt,
+    ]
+
+    const conflictItem = conflictDiffMap.get(item.draft.savedAt)
+    if (conflictItem) {
+      searchableParts.push(conflictItem.fields.join(' '))
+    }
+
+    const searchable = searchableParts
+      .filter(Boolean)
+      .join(' ')
+      .toLocaleLowerCase('zh-CN')
+    return searchable.includes(keyword)
+  })
+}
+
 export const buildEditorLocalDraftImportPreparedDrafts = (
   existing: EditorLocalDraft[],
   candidates: EditorLocalDraftImportCandidate[],
@@ -2197,6 +2236,7 @@ const selectedLocalDraftSavedAt = ref('')
 const showDraftDialog = ref(false)
 const showImportPreviewDialog = ref(false)
 const localDraftImportCandidates = ref<EditorLocalDraftImportCandidate[]>([])
+const localDraftImportSearch = ref('')
 const selectedImportDraftSavedAt = ref<string[]>([])
 const localDraftImportMode = ref<EditorLocalDraftMergeMode>('prefer-imported')
 const localDraftImportFieldSelections = ref<EditorLocalDraftImportFieldSelections>({})
@@ -2337,13 +2377,22 @@ const localDraftImportPreparedDrafts = computed(() =>
   )
 )
 
-const filteredLocalDraftImportCandidates = computed(() =>
-  filterEditorLocalDraftImportCandidates(localDraftImportCandidates.value, {
+const localDraftImportConflictDiffItems = computed(() =>
+  buildEditorLocalDraftImportConflictDiffItems(localDraftHistory.value, localDraftImportCandidates.value)
+)
+
+const filteredLocalDraftImportCandidates = computed(() => {
+  const filtered = filterEditorLocalDraftImportCandidates(localDraftImportCandidates.value, {
     onlyConflict: showOnlyConflictImportDrafts.value,
     onlySelected: showOnlySelectedImportDrafts.value,
     selectedSavedAt: selectedImportDraftSavedAt.value,
   })
-)
+  return searchEditorLocalDraftImportCandidates(
+    filtered,
+    localDraftImportSearch.value,
+    localDraftImportConflictDiffItems.value
+  )
+})
 
 const localDraftImportConflictCount = computed(() =>
   localDraftImportCandidates.value.filter((item) => item.conflict).length
@@ -2370,13 +2419,9 @@ const localDraftImportConflictItemMap = computed(() => {
   return new Map(items.map((item) => [item.savedAt, item]))
 })
 
-const localDraftImportConflictDiffItemMap = computed(() => {
-  const items = buildEditorLocalDraftImportConflictDiffItems(
-    localDraftHistory.value,
-    localDraftImportCandidates.value
-  )
-  return new Map(items.map((item) => [item.savedAt, item]))
-})
+const localDraftImportConflictDiffItemMap = computed(() =>
+  new Map(localDraftImportConflictDiffItems.value.map((item) => [item.savedAt, item]))
+)
 
 const localDraftImportConflictDetailItemMap = computed(() => {
   const items = buildEditorLocalDraftImportConflictDetailItems(
@@ -2570,6 +2615,7 @@ const refreshLocalDraft = () => {
 const resetLocalDraftImportState = () => {
   showImportPreviewDialog.value = false
   localDraftImportCandidates.value = []
+  localDraftImportSearch.value = ''
   selectedImportDraftSavedAt.value = []
   localDraftImportFieldSelections.value = {}
   localDraftImportMode.value = 'prefer-imported'
@@ -2717,6 +2763,7 @@ const handleImportLocalDrafts = async (event: Event) => {
     }
 
     localDraftImportCandidates.value = candidates
+    localDraftImportSearch.value = ''
     selectedImportDraftSavedAt.value = candidates.map((item) => item.draft.savedAt)
     localDraftImportFieldSelections.value = {}
     localDraftImportMode.value = 'prefer-imported'

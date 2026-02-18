@@ -42,6 +42,7 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('仅新增')
     expect(editorViewSource).toContain('仅看冲突')
     expect(editorViewSource).toContain('仅看已勾选')
+    expect(editorViewSource).toContain('筛选导入草稿（标题/课程/班级/冲突字段）')
     expect(editorViewSource).toContain('冲突全覆盖')
     expect(editorViewSource).toContain('仅基础信息')
     expect(editorViewSource).toContain('仅正文')

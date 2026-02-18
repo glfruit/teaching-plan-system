@@ -29,6 +29,7 @@ import {
   pickEditorLocalDraftsForImport,
   selectEditorLocalDraftImportSavedAtByStrategy,
   filterEditorLocalDraftImportCandidates,
+  searchEditorLocalDraftImportCandidates,
   buildEditorLocalDraftImportConflictItems,
   buildEditorLocalDraftImportConflictDiffItems,
   buildEditorLocalDraftImportConflictDetailItems,
@@ -1211,6 +1212,54 @@ describe('EditorView teaching layout persistence', () => {
         selectedSavedAt: ['2026-02-17T13:00:00.000Z'],
       }).map((item) => item.draft.savedAt)
     ).toEqual(['2026-02-17T13:00:00.000Z'])
+  })
+
+  it('searches import candidates by snapshot and conflict fields', () => {
+    const candidates = [
+      {
+        draft: {
+          version: 1,
+          savedAt: '2026-02-17T12:00:00.000Z',
+          form: { title: '冲突稿', courseName: '语文', className: '1班', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+          snapshot: { displayName: '冲突草稿', title: '冲突稿', courseName: '语文', className: '1班' },
+          pinned: false,
+        },
+        conflict: true,
+      },
+      {
+        draft: {
+          version: 1,
+          savedAt: '2026-02-17T13:00:00.000Z',
+          form: { title: '实验教学', courseName: '物理', className: '2班', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+          snapshot: { displayName: '实验草稿', title: '实验教学', courseName: '物理', className: '2班' },
+          pinned: false,
+        },
+        conflict: false,
+      },
+    ]
+    const conflictDiffItems = [
+      {
+        savedAt: '2026-02-17T12:00:00.000Z',
+        changedCount: 1,
+        fields: ['教学过程'],
+      },
+    ]
+
+    expect(
+      searchEditorLocalDraftImportCandidates(candidates as any, '', conflictDiffItems as any).map(
+        (item) => item.draft.savedAt
+      )
+    ).toEqual(['2026-02-17T12:00:00.000Z', '2026-02-17T13:00:00.000Z'])
+    expect(
+      searchEditorLocalDraftImportCandidates(candidates as any, '实验', conflictDiffItems as any).map(
+        (item) => item.draft.savedAt
+      )
+    ).toEqual(['2026-02-17T13:00:00.000Z'])
+    expect(
+      searchEditorLocalDraftImportCandidates(candidates as any, '教学过程', conflictDiffItems as any).map(
+        (item) => item.draft.savedAt
+      )
+    ).toEqual(['2026-02-17T12:00:00.000Z'])
   })
 
   it('merges draft forms by selected fields only', () => {
