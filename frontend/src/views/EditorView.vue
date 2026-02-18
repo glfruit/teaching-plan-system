@@ -625,6 +625,22 @@
             </button>
           </div>
           <p class="mt-2">当前选择：{{ selectedLocalDraft ? (formatDraftTimestamp(selectedLocalDraft.savedAt) || selectedLocalDraft.savedAt) : '无' }}</p>
+          <p class="mt-1">与当前内容差异：{{ selectedLocalDraftDiff.changedCount }} 项</p>
+          <div
+            v-if="selectedLocalDraftDiff.changedCount > 0"
+            class="mt-2 max-h-36 overflow-auto space-y-1 rounded-lg border border-emerald-100 bg-white/70 p-2"
+          >
+            <div
+              v-for="item in selectedLocalDraftDiff.items"
+              :key="item.field"
+              class="rounded-md border border-emerald-100 bg-white px-2 py-1.5"
+            >
+              <p class="text-xs font-medium text-[#2f5f4f]">{{ item.label }}</p>
+              <p class="text-[11px] text-slate-500">当前：{{ item.currentPreview }}</p>
+              <p class="text-[11px] text-[#2f5f4f]">草稿：{{ item.draftPreview }}</p>
+            </div>
+          </div>
+          <p v-else class="mt-2 text-xs text-[#2f5f4f]">所选草稿与当前编辑内容一致</p>
           <p class="mt-1">恢复后内容来源将变更为：本地草稿</p>
         </div>
         <div v-else class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
@@ -1033,6 +1049,92 @@ export const resolveEditorContentSourceLabel = (source: EditorContentSource): st
   return '内容来源：新建教案'
 }
 
+type EditorDraftComparableField = Exclude<keyof EditorPlanForm, 'contentJson'>
+
+export type EditorDraftDiffItem = {
+  field: EditorDraftComparableField
+  label: string
+  currentPreview: string
+  draftPreview: string
+}
+
+export type EditorDraftDiffSummary = {
+  changedCount: number
+  items: EditorDraftDiffItem[]
+}
+
+const EDITOR_DRAFT_DIFF_FIELDS: Array<{ key: EditorDraftComparableField; label: string; richText?: boolean }> = [
+  { key: 'title', label: '教案标题' },
+  { key: 'courseName', label: '课程名称' },
+  { key: 'className', label: '授课班级' },
+  { key: 'duration', label: '课时长度' },
+  { key: 'methods', label: '教学方法' },
+  { key: 'resources', label: '教学资源' },
+  { key: 'objectives', label: '教学目标', richText: true },
+  { key: 'keyPoints', label: '教学重点', richText: true },
+  { key: 'process', label: '教学过程', richText: true },
+  { key: 'blackboard', label: '板书设计', richText: true },
+  { key: 'reflection', label: '教学反思', richText: true },
+]
+
+const normalizeDraftFieldValue = (
+  form: EditorPlanForm,
+  field: { key: EditorDraftComparableField; richText?: boolean }
+): string => {
+  const raw = form[field.key]
+  if (field.key === 'duration') {
+    return String(raw ?? '')
+  }
+
+  const text = typeof raw === 'string' ? raw : ''
+  if (field.richText) {
+    return htmlToText(text)
+  }
+  return text.trim()
+}
+
+const previewDraftFieldValue = (value: string, maxLength = 36): string => {
+  const text = value.trim()
+  if (!text) {
+    return '（空）'
+  }
+  if (text.length <= maxLength) {
+    return text
+  }
+  return `${text.slice(0, maxLength)}...`
+}
+
+export const buildEditorDraftDiffSummary = (
+  current: EditorPlanForm,
+  draft: EditorLocalDraft | null
+): EditorDraftDiffSummary => {
+  if (!draft) {
+    return { changedCount: 0, items: [] }
+  }
+
+  const items: EditorDraftDiffItem[] = []
+
+  for (const field of EDITOR_DRAFT_DIFF_FIELDS) {
+    const currentNormalized = normalizeDraftFieldValue(current, field)
+    const draftNormalized = normalizeDraftFieldValue(draft.form, field)
+    if (currentNormalized === draftNormalized) {
+      continue
+    }
+
+    items.push({
+      field: field.key,
+      label: field.label,
+      currentPreview: previewDraftFieldValue(currentNormalized),
+      draftPreview: previewDraftFieldValue(draftNormalized),
+    })
+  }
+
+  return {
+    changedCount: items.length,
+    items,
+  }
+}
+
 export const shouldPersistLocalDraftOnLeave = (
   hasUnsavedChanges: boolean,
   isSaving: boolean
@@ -1189,6 +1291,10 @@ const selectedLocalDraft = computed<EditorLocalDraft | null>(() => {
     localDraftHistory.value[0]
   )
 })
+
+const selectedLocalDraftDiff = computed(() =>
+  buildEditorDraftDiffSummary(form as EditorPlanForm, selectedLocalDraft.value)
+)
 
 const localDraftStorageKey = computed(() =>
   buildEditorLocalDraftStorageKey(isEditing.value ? planId.value : null)

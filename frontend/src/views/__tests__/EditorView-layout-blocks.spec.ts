@@ -11,6 +11,7 @@ import {
   parseEditorLocalDraftHistory,
   pushEditorLocalDraftHistory,
   LOCAL_EDITOR_DRAFT_HISTORY_LIMIT,
+  buildEditorDraftDiffSummary,
   resolveEditorContentSourceLabel,
   shouldPersistLocalDraftOnLeave,
   buildPlanPayload,
@@ -512,6 +513,66 @@ describe('EditorView teaching layout persistence', () => {
     expect(third[1].savedAt).toBe('2026-02-17T12:01:00.000Z')
 
     expect(LOCAL_EDITOR_DRAFT_HISTORY_LIMIT).toBeGreaterThan(1)
+  })
+
+  it('builds draft diff summary between current form and selected draft', () => {
+    const current = {
+      title: '教案A',
+      courseName: '课程',
+      className: '1班',
+      duration: 45,
+      methods: '讲授法',
+      resources: 'PPT',
+      objectives: '<p>目标：理解概念</p>',
+      keyPoints: '<p>重点A</p>',
+      process: '<p>过程A</p>',
+      blackboard: '<p>板书A</p>',
+      reflection: '<p>反思A</p>',
+      contentJson: {},
+    }
+
+    const selectedDraft = {
+      version: 1,
+      savedAt: '2026-02-17T12:00:00.000Z',
+      form: {
+        ...current,
+        title: '教案B',
+        duration: 40,
+        process: '<p>过程B（差异）</p>',
+      },
+    }
+
+    const diff = buildEditorDraftDiffSummary(current as any, selectedDraft as any)
+    expect(diff.changedCount).toBe(3)
+    expect(diff.items.map((item) => item.field)).toContain('title')
+    expect(diff.items.map((item) => item.field)).toContain('duration')
+    expect(diff.items.map((item) => item.field)).toContain('process')
+  })
+
+  it('returns empty diff summary when draft is null or same as current', () => {
+    const current = {
+      title: '教案A',
+      courseName: '课程',
+      className: '1班',
+      duration: 45,
+      methods: '讲授法',
+      resources: 'PPT',
+      objectives: '<p>目标：理解概念</p>',
+      keyPoints: '<p>重点A</p>',
+      process: '<p>过程A</p>',
+      blackboard: '<p>板书A</p>',
+      reflection: '<p>反思A</p>',
+      contentJson: {},
+    }
+
+    expect(buildEditorDraftDiffSummary(current as any, null).changedCount).toBe(0)
+
+    const sameDraft = {
+      version: 1,
+      savedAt: '2026-02-17T12:00:00.000Z',
+      form: current,
+    }
+    expect(buildEditorDraftDiffSummary(current as any, sameDraft as any).changedCount).toBe(0)
   })
 
   it('resolves content source label for local/server/new', () => {

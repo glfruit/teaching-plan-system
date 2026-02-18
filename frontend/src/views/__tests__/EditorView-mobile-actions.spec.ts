@@ -18,6 +18,7 @@ describe('EditorView mobile quick actions', () => {
   it('provides local draft center dialog with history restore controls', () => {
     expect(editorViewSource).toContain('本地草稿箱')
     expect(editorViewSource).toContain('共 {{ localDraftHistory.length }} 条本地草稿')
+    expect(editorViewSource).toContain('与当前内容差异：{{ selectedLocalDraftDiff.changedCount }} 项')
     expect(editorViewSource).toContain('恢复草稿')
     expect(editorViewSource).toContain('清空草稿')
   })
