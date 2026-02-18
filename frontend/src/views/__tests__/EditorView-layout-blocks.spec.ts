@@ -46,6 +46,9 @@ import {
   buildEditorQualityTips,
   applyEditorLessonSkeleton,
   buildEditorExportPrecheck,
+  recommendEditorLessonSkeletonPreset,
+  buildEditorExportPrecheckFixActions,
+  applyEditorExportPrecheckFix,
   shouldPersistLocalDraftOnLeave,
   buildPlanPayload,
   mapFetchedPlanToForm,
@@ -1703,6 +1706,71 @@ describe('EditorView teaching layout persistence', () => {
     expect(report.blockingIssues.length).toBeGreaterThan(0)
     expect(report.warningIssues.length).toBeGreaterThan(0)
     expect(report.passed).toBe(false)
+  })
+
+  it('recommends skeleton preset by course name keywords', () => {
+    expect(recommendEditorLessonSkeletonPreset('数据库实验')).toBe('lab')
+    expect(recommendEditorLessonSkeletonPreset('Web项目实训')).toBe('practice')
+    expect(recommendEditorLessonSkeletonPreset('高等数学')).toBe('lecture')
+  })
+
+  it('builds precheck fix actions for blocking and warning issues', () => {
+    const completion = buildEditorCompletionSummary({
+      title: '',
+      courseName: '',
+      className: '',
+      duration: 0,
+      methods: '',
+      resources: '',
+      objectives: '<p></p>',
+      keyPoints: '<p></p>',
+      process: '<p></p>',
+      blackboard: '',
+      reflection: '',
+      contentJson: {},
+    } as any)
+    const qualityTips = buildEditorQualityTips({
+      title: '',
+      courseName: '',
+      className: '',
+      duration: 0,
+      methods: '',
+      resources: '',
+      objectives: '<p>短</p>',
+      keyPoints: '<p></p>',
+      process: '<p>短</p>',
+      blackboard: '',
+      reflection: '',
+      contentJson: {},
+    } as any)
+    const actions = buildEditorExportPrecheckFixActions(completion, qualityTips)
+
+    expect(actions.some((item) => item.key === 'fill-title')).toBe(true)
+    expect(actions.some((item) => item.key === 'fill-objectives')).toBe(true)
+    expect(actions.some((item) => item.key === 'enhance-process')).toBe(true)
+  })
+
+  it('applies export precheck fix action to form', () => {
+    const fixed = applyEditorExportPrecheckFix(
+      {
+        title: '',
+        courseName: '',
+        className: '',
+        duration: 0,
+        methods: '',
+        resources: '',
+        objectives: '<p></p>',
+        keyPoints: '<p></p>',
+        process: '<p></p>',
+        blackboard: '',
+        reflection: '',
+        contentJson: {},
+      } as any,
+      'fill-objectives'
+    )
+
+    expect(fixed.objectives).toContain('待补充')
+    expect(fixed.title).toBe('')
   })
 
   it('resolves content source label for local/server/new', () => {

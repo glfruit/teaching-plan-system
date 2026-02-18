@@ -166,6 +166,25 @@
             </li>
           </ul>
           <div
+            v-if="editorExportPrecheckFixActions.length > 0"
+            class="mt-2 flex flex-wrap gap-1.5"
+          >
+            <button
+              v-for="action in editorExportPrecheckFixActions.slice(0, 3)"
+              :key="`precheck-fix-${action.key}`"
+              @click="handleApplyExportPrecheckFix(action)"
+              class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-700 hover:bg-emerald-100"
+            >
+              一键修复：{{ action.label }}
+            </button>
+            <button
+              @click="handleApplyAllExportPrecheckFixes"
+              class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+            >
+              全部修复
+            </button>
+          </div>
+          <div
             v-if="editorExportPrecheck.focusSections.length > 0"
             class="mt-2 flex flex-wrap gap-1.5"
           >
@@ -497,7 +516,8 @@
           <div class="flex flex-wrap items-center gap-2">
             <p class="text-sm font-medium text-slate-700">快速骨架模板</p>
             <select
-              v-model="selectedLessonSkeletonPreset"
+              :value="selectedLessonSkeletonPreset"
+              @change="handleSelectLessonSkeletonPreset"
               class="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700"
             >
               <option
@@ -519,6 +539,13 @@
               class="h-8 rounded-md border border-amber-300 bg-amber-50 px-2.5 text-xs text-amber-700 hover:bg-amber-100"
             >
               覆盖套用
+            </button>
+            <p class="text-[11px] text-slate-500">推荐：{{ recommendedLessonSkeletonLabel }}</p>
+            <button
+              @click="handleApplyRecommendedLessonSkeleton"
+              class="h-8 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 text-xs text-emerald-700 hover:bg-emerald-100"
+            >
+              使用推荐
             </button>
           </div>
           <p class="mt-1 text-[11px] text-slate-500">
@@ -2282,6 +2309,12 @@ export type EditorExportPrecheckReport = {
   focusSections: EditorSectionKey[]
 }
 
+export type EditorExportPrecheckFixAction = {
+  key: string
+  label: string
+  section: EditorSectionKey
+}
+
 type EditorLessonSkeletonDefinition = {
   label: string
   description: string
@@ -2483,6 +2516,25 @@ export const resolveEditorLessonSkeletonOptions = (): Array<{
     description: EDITOR_LESSON_SKELETONS[id].description,
   }))
 
+export const resolveEditorLessonSkeletonLabel = (preset: EditorLessonSkeletonPreset): string =>
+  EDITOR_LESSON_SKELETONS[preset].label
+
+export const recommendEditorLessonSkeletonPreset = (
+  courseName: string
+): EditorLessonSkeletonPreset => {
+  const keyword = courseName.trim().toLocaleLowerCase('zh-CN')
+  if (!keyword) {
+    return 'lecture'
+  }
+  if (keyword.includes('实验') || keyword.includes('机房')) {
+    return 'lab'
+  }
+  if (keyword.includes('实训') || keyword.includes('项目') || keyword.includes('实践')) {
+    return 'practice'
+  }
+  return 'lecture'
+}
+
 export const applyEditorLessonSkeleton = (
   form: EditorPlanForm,
   preset: EditorLessonSkeletonPreset,
@@ -2625,6 +2677,123 @@ export const buildEditorExportPrecheck = (
   }
 }
 
+export const buildEditorExportPrecheckFixActions = (
+  completion: EditorCompletionSummary,
+  qualityTips: EditorQualityTip[]
+): EditorExportPrecheckFixAction[] => {
+  const actions: EditorExportPrecheckFixAction[] = []
+  const pushUnique = (action: EditorExportPrecheckFixAction) => {
+    if (actions.some((item) => item.key === action.key)) {
+      return
+    }
+    actions.push(action)
+  }
+
+  for (const label of completion.missingLabels) {
+    if (label === '教案标题') {
+      pushUnique({ key: 'fill-title', label: '补全教案标题占位', section: 'basic' })
+    } else if (label === '课程名称') {
+      pushUnique({ key: 'fill-course-name', label: '补全课程名称占位', section: 'basic' })
+    } else if (label === '授课班级') {
+      pushUnique({ key: 'fill-class-name', label: '补全授课班级占位', section: 'basic' })
+    } else if (label === '课时长度') {
+      pushUnique({ key: 'fill-duration', label: '补全课时长度默认值', section: 'basic' })
+    } else if (label === '教学目标') {
+      pushUnique({ key: 'fill-objectives', label: '补全教学目标段落', section: 'objectives' })
+    } else if (label === '教学过程') {
+      pushUnique({ key: 'fill-process', label: '补全教学过程段落', section: 'process' })
+    } else if (label === '教学反思') {
+      pushUnique({ key: 'fill-reflection', label: '补全教学反思段落', section: 'reflection' })
+    }
+  }
+
+  for (const tip of qualityTips) {
+    if (tip.message.includes('教学目标建议不少于20字')) {
+      pushUnique({ key: 'enhance-objectives', label: '扩展教学目标表述', section: 'objectives' })
+    } else if (tip.message.includes('教学过程建议包含关键环节与时间安排')) {
+      pushUnique({ key: 'enhance-process', label: '补全教学过程时间结构', section: 'process' })
+    } else if (tip.message.includes('建议补充教学方法或教学资源')) {
+      pushUnique({ key: 'fill-methods-resources', label: '补全教学方法与资源', section: 'basic' })
+    } else if (tip.message.includes('建议补充教学反思')) {
+      pushUnique({ key: 'fill-reflection', label: '补全教学反思段落', section: 'reflection' })
+    }
+  }
+
+  return actions
+}
+
+export const applyEditorExportPrecheckFix = (
+  form: EditorPlanForm,
+  actionKey: string
+): EditorPlanForm => {
+  const next = {
+    ...form,
+    contentJson: { ...form.contentJson },
+  } as EditorPlanForm
+
+  switch (actionKey) {
+    case 'fill-title':
+      if (!next.title.trim()) {
+        next.title = '未命名教案（请修改）'
+      }
+      break
+    case 'fill-course-name':
+      if (!next.courseName.trim()) {
+        next.courseName = '待补充课程名称'
+      }
+      break
+    case 'fill-class-name':
+      if (!next.className.trim()) {
+        next.className = '待补充授课班级'
+      }
+      break
+    case 'fill-duration':
+      if (next.duration <= 0) {
+        next.duration = 45
+      }
+      break
+    case 'fill-objectives':
+      if (!htmlToText(next.objectives).trim()) {
+        next.objectives = '<p>【待补充】请填写本节课的知识目标、能力目标与素养目标。</p>'
+      }
+      break
+    case 'enhance-objectives':
+      if (htmlToText(next.objectives).trim().length < 20) {
+        next.objectives =
+          '<p>通过本节课学习，学生能够理解核心概念，完成基础应用任务，并能说明关键思路。</p>'
+      }
+      break
+    case 'fill-process':
+      if (!htmlToText(next.process).trim()) {
+        next.process = '<p>导入（5分钟）→ 新知讲解（25分钟）→ 任务练习（10分钟）→ 总结反馈（5分钟）。</p>'
+      }
+      break
+    case 'enhance-process':
+      if (htmlToText(next.process).trim().length < 40) {
+        next.process =
+          '<p>导入（5分钟）明确任务，讲解（25分钟）拆解关键步骤，练习（10分钟）巩固应用，总结（5分钟）回顾要点。</p>'
+      }
+      break
+    case 'fill-methods-resources':
+      if (!next.methods.trim()) {
+        next.methods = '讲授法、任务驱动法'
+      }
+      if (!next.resources.trim()) {
+        next.resources = 'PPT、案例材料'
+      }
+      break
+    case 'fill-reflection':
+      if (!htmlToText(next.reflection).trim()) {
+        next.reflection = '<p>【待补充】记录本课教学效果、学生反馈与后续改进措施。</p>'
+      }
+      break
+    default:
+      break
+  }
+
+  return next
+}
+
 export const shouldPersistLocalDraftOnLeave = (
   hasUnsavedChanges: boolean,
   isSaving: boolean
@@ -2708,6 +2877,7 @@ const templateEditTitle = ref('')
 const templateEditTagInput = ref('')
 const templateEditTags = ref<string[]>([])
 const selectedLessonSkeletonPreset = ref<EditorLessonSkeletonPreset>('lecture')
+const lessonSkeletonPresetManuallySelected = ref(false)
 const isDraftPersistenceReady = ref(false)
 const PRESET_TEMPLATE_TAGS = ['导入', '探究', '复习', '实验', '评价'] as const
 const lessonSkeletonOptions = resolveEditorLessonSkeletonOptions()
@@ -2786,6 +2956,15 @@ const editorQualityTips = computed(() =>
 )
 const editorExportPrecheck = computed(() =>
   buildEditorExportPrecheck(editorCompletionSummary.value, editorQualityTips.value)
+)
+const editorExportPrecheckFixActions = computed(() =>
+  buildEditorExportPrecheckFixActions(editorCompletionSummary.value, editorQualityTips.value)
+)
+const recommendedLessonSkeletonPreset = computed(() =>
+  recommendEditorLessonSkeletonPreset(form.courseName)
+)
+const recommendedLessonSkeletonLabel = computed(() =>
+  resolveEditorLessonSkeletonLabel(recommendedLessonSkeletonPreset.value)
 )
 const resolveEditorSectionLabelForView = (section: EditorSectionKey): string =>
   resolveEditorSectionLabel(section)
@@ -3006,6 +3185,16 @@ const handleFocusEditorSection = (section: EditorSectionKey) => {
   target.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
+const handleSelectLessonSkeletonPreset = (event: Event) => {
+  const target = event.target as HTMLSelectElement | null
+  const nextPreset = target?.value ?? ''
+  if (!lessonSkeletonOptions.some((option) => option.id === nextPreset)) {
+    return
+  }
+  selectedLessonSkeletonPreset.value = nextPreset as EditorLessonSkeletonPreset
+  lessonSkeletonPresetManuallySelected.value = true
+}
+
 const handleApplyLessonSkeleton = (mode: EditorLessonSkeletonApplyMode) => {
   if (mode === 'overwrite') {
     const confirmed = window.confirm('覆盖套用将替换当前已填写内容，是否继续？')
@@ -3019,6 +3208,36 @@ const handleApplyLessonSkeleton = (mode: EditorLessonSkeletonApplyMode) => {
     mode
   )
   Object.assign(form, next)
+}
+
+const handleApplyRecommendedLessonSkeleton = () => {
+  selectedLessonSkeletonPreset.value = recommendedLessonSkeletonPreset.value
+  lessonSkeletonPresetManuallySelected.value = false
+  handleApplyLessonSkeleton('fill-empty')
+}
+
+const handleApplyExportPrecheckFix = (action: EditorExportPrecheckFixAction) => {
+  const next = applyEditorExportPrecheckFix(form as EditorPlanForm, action.key)
+  Object.assign(form, next)
+  handleFocusEditorSection(action.section)
+}
+
+const handleApplyAllExportPrecheckFixes = () => {
+  if (!editorExportPrecheckFixActions.value.length) {
+    return
+  }
+  let nextForm = {
+    ...(form as EditorPlanForm),
+    contentJson: { ...form.contentJson },
+  } as EditorPlanForm
+  for (const action of editorExportPrecheckFixActions.value) {
+    nextForm = applyEditorExportPrecheckFix(nextForm, action.key)
+  }
+  Object.assign(form, nextForm)
+  const lastAction = editorExportPrecheckFixActions.value[editorExportPrecheckFixActions.value.length - 1]
+  if (lastAction) {
+    handleFocusEditorSection(lastAction.section)
+  }
 }
 
 const buildEditorExportPrecheckMessage = (report: EditorExportPrecheckReport): string => {
@@ -3419,6 +3638,17 @@ watch(
   () => {
     schedulePersistLocalDraft()
   }
+)
+
+watch(
+  () => form.courseName,
+  () => {
+    if (lessonSkeletonPresetManuallySelected.value) {
+      return
+    }
+    selectedLessonSkeletonPreset.value = recommendedLessonSkeletonPreset.value
+  },
+  { immediate: true }
 )
 
 watch(filteredLocalDraftHistory, (nextHistory) => {
