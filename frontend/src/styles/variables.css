@@ -1,48 +1,48 @@
 :root {
-  /* Primary - Amber scale */
-  --color-primary-50: 255 251 240;
-  --color-primary-100: 254 243 199;
-  --color-primary-200: 253 230 138;
-  --color-primary-300: 252 211 77;
-  --color-primary-400: 251 191 36;
-  --color-primary-500: 245 158 11;
-  --color-primary-600: 217 119 6;
-  --color-primary-700: 180 83 9;
-  --color-primary-800: 146 64 14;
-  --color-primary-900: 120 53 15;
+  /* Primary - Slate green scale */
+  --color-primary-50: 244 247 245;
+  --color-primary-100: 233 238 235;
+  --color-primary-200: 209 221 213;
+  --color-primary-300: 183 198 188;
+  --color-primary-400: 133 153 140;
+  --color-primary-500: 100 114 105;
+  --color-primary-600: 67 85 73;
+  --color-primary-700: 54 69 59;
+  --color-primary-800: 47 60 52;
+  --color-primary-900: 31 49 40;
 
   /* Accent */
-  --color-secondary: 249 115 22;
-  --color-tertiary: 244 63 94;
+  --color-secondary: 71 85 105;
+  --color-tertiary: 161 98 7;
 
   /* Semantic */
   --color-success: 5 150 105;
-  --color-warning: 217 119 6;
+  --color-warning: 245 158 11;
   --color-error: 220 38 38;
-  --color-info: 37 99 235;
+  --color-info: 67 85 73;
 
   /* Text */
-  --text-primary: 69 26 3;
-  --text-secondary: 120 53 15;
-  --text-muted: 161 98 7;
+  --text-primary: 15 23 42;
+  --text-secondary: 51 65 85;
+  --text-muted: 100 116 139;
   --text-inverse: 255 255 255;
 
   /* Background */
-  --bg-cream: 255 251 240;
-  --bg-warm-white: 254 252 248;
+  --bg-cream: 248 250 252;
+  --bg-warm-white: 255 255 255;
   --bg-card: 255 255 255;
-  --bg-hover: 254 243 199;
+  --bg-hover: 241 245 249;
 
   /* Border */
-  --border-light: 253 230 138;
-  --border-medium: 251 191 36;
+  --border-light: 226 232 240;
+  --border-medium: 203 213 225;
 
   /* Shadow */
-  --shadow-sm: 0 1px 2px 0 rgb(217 119 6 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(217 119 6 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(217 119 6 / 0.1);
-  --shadow-warm: 0 4px 20px -2px rgb(217 119 6 / 0.15);
-  --shadow-warm-lg: 0 10px 40px -4px rgb(217 119 6 / 0.2);
+  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(15 23 42 / 0.12);
+  --shadow-warm: 0 4px 20px -2px rgb(67 85 73 / 0.15);
+  --shadow-warm-lg: 0 10px 40px -4px rgb(67 85 73 / 0.2);
 
   /* Typography */
   --font-display: 'Noto Serif SC', 'Source Han Serif CN', Georgia, serif;
@@ -80,9 +80,9 @@
   --space-16: 4rem;
 
   /* Radius */
-  --radius-sm: 0.5rem;
-  --radius-md: 0.75rem;
-  --radius-lg: 1rem;
-  --radius-xl: 1.5rem;
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.625rem;
   --radius-full: 9999px;
 }

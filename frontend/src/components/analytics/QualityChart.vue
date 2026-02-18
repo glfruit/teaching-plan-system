@@ -56,14 +56,14 @@ const updateChart = () => {
             value: props.data.map(item => item.score),
             name: '当前教案',
             areaStyle: {
-              color: 'rgba(37, 99, 235, 0.2)'
+              color: 'rgba(100, 114, 105, 0.2)'
             },
             lineStyle: { 
-              color: '#2563eb', 
+              color: '#647269', 
               width: 2 
             },
             itemStyle: { 
-              color: '#2563eb'
+              color: '#647269'
             }
           }
         ]

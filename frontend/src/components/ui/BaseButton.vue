@@ -45,16 +45,16 @@ defineEmits<{
 
 const buttonClasses = computed(() => {
   const baseClasses =
-    'inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed'
+    'inline-flex items-center justify-center rounded-sm font-medium transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed'
 
   const variantClasses = {
     primary:
-      'text-white bg-amber-600 hover:bg-amber-700 shadow-[var(--shadow-warm)] hover:shadow-[var(--shadow-warm-lg)]',
+      'text-white bg-[#647269] hover:bg-[#55645b] shadow-[var(--shadow-md)]',
     secondary:
-      'text-amber-900 bg-white border border-amber-200 hover:bg-amber-50',
-    ghost: 'text-amber-800 hover:text-amber-900 hover:bg-amber-100',
+      'text-slate-600 bg-white border border-slate-200 hover:bg-slate-100',
+    ghost: 'text-slate-600 hover:text-slate-800 hover:bg-slate-100',
     danger: 'text-white bg-red-600 hover:bg-red-700 shadow-[var(--shadow-md)]',
-    warning: 'text-white bg-orange-500 hover:bg-orange-600 shadow-[var(--shadow-md)]',
+    warning: 'text-white bg-amber-500 hover:bg-amber-600 shadow-[var(--shadow-md)]',
   }
 
   const sizeClasses = {

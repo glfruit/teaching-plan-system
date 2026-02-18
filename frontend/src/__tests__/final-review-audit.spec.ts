@@ -15,11 +15,11 @@ const indexHtml = read('../index.html')
 const variablesCss = read('styles/variables.css')
 
 describe('final review audit', () => {
-  it('applies warm palette in key pages', () => {
-    expect(loginView).toContain('amber-')
-    expect(homeView).toContain('amber-')
-    expect(analyticsView).toContain('amber-')
-    expect(editorView).toContain('amber-')
+  it('applies slate/blue palette in key pages', () => {
+    expect(loginView).toContain('slate-')
+    expect(homeView).toContain('slate-')
+    expect(analyticsView).toContain('slate-')
+    expect(editorView).toContain('slate-')
   })
 
   it('loads and defines required font system', () => {
@@ -40,5 +40,12 @@ describe('final review audit', () => {
     expect(homeView).toContain('sm:')
     expect(analyticsView).toContain('sm:')
     expect(editorView).toContain('sm:')
+  })
+
+  it('keeps radius system restrained and consistent', () => {
+    expect(baseInput).toContain('rounded border')
+    expect(loginView).not.toContain('rounded-3xl')
+    expect(homeView).not.toContain('rounded-3xl')
+    expect(editorView).not.toContain('rounded-3xl')
   })
 })

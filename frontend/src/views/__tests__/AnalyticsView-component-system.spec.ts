@@ -11,8 +11,8 @@ describe('AnalyticsView component system usage', () => {
     expect(analyticsViewSource).toContain('BaseCard')
   })
 
-  it('uses warm palette for trend chart and stat accents', () => {
-    expect(analyticsViewSource).toContain('bg-amber-500')
-    expect(analyticsViewSource).toContain('text-amber-900')
+  it('uses slate/blue palette for trend chart and stat accents', () => {
+    expect(analyticsViewSource).toContain('bg-slate-500')
+    expect(analyticsViewSource).toContain('text-slate-800')
   })
 })

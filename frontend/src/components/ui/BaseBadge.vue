@@ -21,13 +21,13 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const badgeClasses = computed(() => {
-  const baseClasses = 'inline-flex items-center rounded-full font-medium'
+  const baseClasses = 'inline-flex items-center rounded-sm font-medium'
 
   const variantClasses = {
-    default: 'bg-amber-100 text-amber-900',
-    primary: 'bg-amber-200 text-amber-900',
+    default: 'bg-slate-100 text-slate-700',
+    primary: 'bg-[#eef3f0] text-[#435549]',
     success: 'bg-emerald-100 text-emerald-700',
-    warning: 'bg-orange-100 text-orange-700',
+    warning: 'bg-amber-100 text-amber-700',
     danger: 'bg-red-100 text-red-700',
     info: 'bg-sky-100 text-sky-700',
   }

@@ -40,7 +40,7 @@ export const unknownNodePlaceholder = Node.create({
     return [
       'div',
       mergeAttributes(HTMLAttributes, {
-        class: 'unknown-node-placeholder rounded-md border border-amber-300 bg-amber-50 p-2 text-sm text-amber-800',
+        class: 'unknown-node-placeholder rounded-sm border border-amber-300 bg-amber-50 p-2 text-sm text-amber-800',
         'data-node-type': 'unknownNodePlaceholder',
         contenteditable: 'false',
       }),

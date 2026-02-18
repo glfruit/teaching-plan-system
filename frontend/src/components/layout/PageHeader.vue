@@ -4,7 +4,7 @@
       <button
         v-if="backLink"
         type="button"
-        class="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-amber-200 bg-white text-amber-800 hover:bg-amber-50 transition-colors"
+        class="inline-flex h-10 w-10 items-center justify-center rounded border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
         @click="handleBack"
       >
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -13,13 +13,13 @@
       </button>
 
       <div>
-        <p v-if="superTitle" class="text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
+        <p v-if="superTitle" class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
           {{ superTitle }}
         </p>
-        <h1 class="font-serif text-3xl sm:text-4xl font-semibold text-amber-900 mt-1">
+        <h1 class="font-serif text-3xl sm:text-4xl font-semibold text-slate-800 mt-1">
           {{ title }}
         </h1>
-        <p v-if="subtitle" class="mt-2 text-amber-800/85 max-w-2xl leading-relaxed">
+        <p v-if="subtitle" class="mt-2 text-slate-600 max-w-2xl leading-relaxed">
           {{ subtitle }}
         </p>
       </div>

@@ -22,7 +22,7 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const cardClasses = computed(() => {
-  const baseClasses = 'bg-white rounded-xl'
+  const baseClasses = 'bg-white rounded'
 
   const paddingClasses = {
     none: '',
@@ -39,9 +39,9 @@ const cardClasses = computed(() => {
     lg: 'shadow-[var(--shadow-lg)]',
   }
 
-  const borderClass = props.border ? 'border border-amber-100' : ''
+  const borderClass = props.border ? 'border border-slate-200' : ''
   const hoverClass = props.hoverable
-    ? 'cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-warm-lg)]'
+    ? 'cursor-pointer transition-all duration-300 hover:-translate-y-1 hover:shadow-[var(--shadow-lg)]'
     : ''
 
   return [baseClasses, paddingClasses[props.padding], shadowClasses[props.shadow], borderClass, hoverClass].join(' ')

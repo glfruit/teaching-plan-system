@@ -74,8 +74,25 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('清空草稿')
   })
 
+  it('uses a collapsed progress entry and opens assistant dialog on demand', () => {
+    expect(editorViewSource).toContain('查看编写助手')
+    expect(editorViewSource).toContain('showProgressAssistantDialog = ref(false)')
+    expect(editorViewSource).toContain('showProgressAssistantDialog = true')
+    expect(editorViewSource).toContain('showProgressAssistantDialog = false')
+    expect(editorViewSource).toContain('实时查看完成度、质量建议与导出前预检结果')
+  })
+
   it('uses a mobile-safe two-row layout for quick actions', () => {
     expect(editorViewSource).toContain('px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] grid grid-cols-1 gap-2')
+  })
+
+  it('uses tighter radius for dialogs and action buttons', () => {
+    expect(editorViewSource).toContain('h-10 rounded border text-sm font-medium transition-colors')
+    expect(editorViewSource).toContain('h-10 rounded bg-[#647269] text-white text-sm font-medium disabled:opacity-50')
+    expect(editorViewSource).toContain('absolute bottom-0 inset-x-0 rounded-t bg-white border-t border-[#d9e1dc]')
+    expect(editorViewSource).toContain('max-w-3xl rounded border border-slate-200 bg-white p-5 shadow-lg sm:p-6')
+    expect(editorViewSource).toContain('max-w-md mx-auto mt-10 rounded border border-slate-200 bg-white shadow-lg p-5 sm:p-6')
+    expect(editorViewSource).toContain('max-w-lg mx-auto mt-8 rounded border border-slate-200 bg-white shadow-lg p-5 sm:p-6')
   })
 
   it('keeps unsaved-draft protection hooks for navigation and refresh', () => {

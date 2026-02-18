@@ -1,24 +1,23 @@
 <template>
-  <div class="min-h-screen bg-warm-50">
+  <div class="min-h-screen bg-slate-50">
     <!-- Header -->
-    <header class="bg-white/80 backdrop-blur-md border-b border-amber-100 sticky top-0 z-20">
+    <header class="bg-white/90 backdrop-blur-md border-b border-slate-200 sticky top-0 z-20">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex items-center justify-between h-16">
-          <div class="flex items-center gap-4">
+        <div class="flex min-h-16 items-center justify-between gap-2 py-2">
+          <div class="flex min-w-0 items-center gap-3 sm:gap-4">
             <router-link
               to="/"
-              class="p-2 hover:bg-warm-100 rounded-lg transition-colors text-warm-600 hover:text-warm-800"
+              class="shrink-0 p-2 hover:bg-slate-100 rounded transition-colors text-slate-600 hover:text-slate-800"
             >
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
             </router-link>
             
-            <div>
-              <h1 class="text-base sm:text-lg font-semibold text-slate-800">{{ isEditing ? '编辑教案' : '新建教案' }}</h1>
-              <p class="text-[11px] sm:text-xs text-[#647269] hidden sm:block">{{ contentSourceLabel }}</p>
-              <p class="text-xs sm:text-sm text-slate-500 hidden sm:block">{{ editorStatusText }}</p>
-              <p v-if="localDraftMessage" class="text-[11px] text-emerald-600 hidden sm:block">{{ localDraftMessage }}</p>
+            <div class="min-w-0">
+              <h1 class="text-base sm:text-lg font-semibold text-slate-800 truncate">{{ isEditing ? '编辑教案' : '新建教案' }}</h1>
+              <p class="hidden lg:block text-xs text-[#647269] truncate">{{ contentSourceLabel }} · {{ editorStatusText }}</p>
+              <p v-if="localDraftMessage" class="hidden xl:block text-[11px] text-emerald-600 truncate max-w-[24rem]">{{ localDraftMessage }}</p>
             </div>
           </div>
           
@@ -27,15 +26,18 @@
             <div class="hidden sm:flex items-center gap-3">
               <button
                 @click="showTemplatePanel = !showTemplatePanel"
-                class="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                class="inline-flex items-center gap-1.5 px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors font-medium"
               >
-                {{ showTemplatePanel ? '收起模板' : '模板库' }}
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5 5.145 5 3.118 5.87 2 7.124v11.502C3.118 17.37 5.145 16.5 7.5 16.5c1.746 0 3.332.477 4.5 1.253m0-11.5C13.168 5.477 14.754 5 16.5 5c2.355 0 4.382.87 5.5 2.124v11.502C20.882 17.37 18.855 16.5 16.5 16.5c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                <span>{{ showTemplatePanel ? '收起模板' : '模板库' }}</span>
               </button>
 
               <button
                 v-if="isEditing"
                 @click="handleExport"
-                class="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                class="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors font-medium"
               >
                 导出 Word
               </button>
@@ -44,22 +46,25 @@
                 v-if="isEditing && planStore.currentPlan?.status === 'DRAFT'"
                 @click="handlePublish"
                 :disabled="planStore.isSaving"
-                class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50 shadow-sm"
+                class="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50 shadow-sm"
               >
                 发布
               </button>
 
               <button
                 @click="handleOpenDraftDialog"
-                class="px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors font-medium"
+                class="inline-flex items-center gap-1.5 px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors font-medium"
               >
-                草稿箱
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M7 8v11a2 2 0 002 2h6a2 2 0 002-2V8m-9 0V6a2 2 0 012-2h4a2 2 0 012 2v2" />
+                </svg>
+                <span>草稿箱</span>
               </button>
               
               <button
                 @click="handleSave"
                 :disabled="planStore.isSaving || !isFormValid"
-                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium disabled:opacity-50 shadow-sm"
+                class="px-4 py-2 bg-[#647269] text-white rounded hover:bg-[#55645b] transition-colors font-medium disabled:opacity-50 shadow-sm"
               >
                 {{ planStore.isSaving ? '保存中...' : '保存' }}
               </button>
@@ -67,7 +72,7 @@
 
             <button
               @click="showMobileActions = true"
-              class="sm:hidden h-9 w-9 inline-flex items-center justify-center rounded-xl border border-[#d1ddd5] bg-white text-slate-600"
+              class="sm:hidden h-9 w-9 inline-flex items-center justify-center rounded border border-[#d1ddd5] bg-white text-slate-600"
               title="更多操作"
             >
               <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -84,127 +89,175 @@
       <!-- Error Message -->
       <div
         v-if="planStore.error"
-        class="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm sm:text-base"
+        class="mb-4 sm:mb-6 p-3 sm:p-4 bg-red-50 border border-red-200 rounded text-red-600 text-sm sm:text-base"
       >
         {{ planStore.error }}
       </div>
 
-      <section class="mb-4 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <div class="flex items-center justify-between gap-2">
-          <p class="text-sm font-semibold text-slate-800">编写进度</p>
-          <p class="text-sm font-semibold text-emerald-700">{{ editorCompletionSummary.score }}%</p>
-        </div>
-        <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-100">
-          <div
-            class="h-full rounded-full bg-emerald-500 transition-all"
-            :style="{ width: `${editorCompletionSummary.score}%` }"
-          />
-        </div>
-        <p class="mt-2 text-xs text-slate-500">
-          已完成 {{ editorCompletionSummary.filledCount }} / {{ editorCompletionSummary.totalCount }} 项
-        </p>
-        <p
-          v-if="editorCompletionSummary.missingLabels.length > 0"
-          class="mt-1 text-xs text-amber-700"
-        >
-          待补充：{{ editorCompletionSummary.missingLabels.slice(0, 4).join('、') }}
-          <span v-if="editorCompletionSummary.missingLabels.length > 4">
-            等 {{ editorCompletionSummary.missingLabels.length }} 项
-          </span>
-        </p>
-        <div
-          v-if="editorQualityTips.length > 0"
-          class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2"
-        >
-          <p class="text-xs font-medium text-amber-700">质量建议</p>
-          <ul class="mt-1 space-y-1">
-            <li
-              v-for="tip in editorQualityTips"
-              :key="tip.message"
-              class="text-[11px]"
-              :class="tip.level === 'warning' ? 'text-amber-700' : 'text-slate-600'"
-            >
-              {{ tip.message }}
-            </li>
-          </ul>
-        </div>
-        <div class="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
-          <div class="flex items-center justify-between gap-2">
-            <p class="text-xs font-medium text-slate-700">导出前预检</p>
-            <span
-              class="text-[11px] font-medium"
-              :class="editorExportPrecheck.passed ? 'text-emerald-700' : 'text-red-600'"
-            >
-              {{ editorExportPrecheck.passed ? '通过' : '未通过' }}
+      <section
+        class="mb-4 rounded border border-slate-200 bg-white p-4 shadow-sm"
+        :class="showTemplatePanel ? '' : 'mx-auto w-full max-w-4xl'"
+      >
+        <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex flex-wrap items-center gap-2">
+            <p class="inline-flex items-center gap-2 text-base font-semibold text-slate-800">
+              <svg class="h-4 w-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197 2.132A4 4 0 017.2 6.7l.4-.4a4 4 0 016.6 4.868l-.448.6zM9 14l6 6m-6 0h6" />
+              </svg>
+              <span>编写助手</span>
+            </p>
+            <span class="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-medium text-emerald-700">
+              进度 {{ editorCompletionSummary.score }}%
             </span>
           </div>
-          <p v-if="editorExportPrecheck.blockingIssues.length === 0" class="mt-1 text-[11px] text-emerald-700">
-            未发现阻塞项，可直接导出。
-          </p>
-          <ul
-            v-else
-            class="mt-1 space-y-1"
+          <button
+            @click="showProgressAssistantDialog = true"
+            class="h-10 rounded border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
           >
-            <li
-              v-for="issue in editorExportPrecheck.blockingIssues"
-              :key="issue"
-              class="text-[11px] text-red-600"
-            >
-              {{ issue }}
-            </li>
-          </ul>
-          <ul
-            v-if="editorExportPrecheck.warningIssues.length > 0"
-            class="mt-1 space-y-1"
-          >
-            <li
-              v-for="warning in editorExportPrecheck.warningIssues.slice(0, 2)"
-              :key="warning"
-              class="text-[11px] text-amber-700"
-            >
-              {{ warning }}
-            </li>
-          </ul>
-          <div
-            v-if="editorExportPrecheckFixActions.length > 0"
-            class="mt-2 flex flex-wrap gap-1.5"
-          >
-            <button
-              v-for="action in editorExportPrecheckFixActions.slice(0, 3)"
-              :key="`precheck-fix-${action.key}`"
-              @click="handleApplyExportPrecheckFix(action)"
-              class="rounded-md border border-emerald-200 bg-emerald-50 px-2 py-1 text-[11px] text-emerald-700 hover:bg-emerald-100"
-            >
-              一键修复：{{ action.label }}
-            </button>
-            <button
-              @click="handleApplyAllExportPrecheckFixes"
-              class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
-            >
-              全部修复
-            </button>
-          </div>
-          <div
-            v-if="editorExportPrecheck.focusSections.length > 0"
-            class="mt-2 flex flex-wrap gap-1.5"
-          >
-            <button
-              v-for="section in editorExportPrecheck.focusSections"
-              :key="`focus-${section}`"
-              @click="handleFocusEditorSection(section)"
-              class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
-            >
-              定位到{{ resolveEditorSectionLabelForView(section) }}
-            </button>
-          </div>
+            查看编写助手
+          </button>
         </div>
       </section>
 
-      <div class="editor-layout-shell grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-6">
+      <div
+        v-if="showProgressAssistantDialog"
+        class="fixed inset-0 z-40 bg-slate-900/45 p-4 overflow-y-auto"
+        @click.self="showProgressAssistantDialog = false"
+      >
+        <div class="mx-auto mt-6 max-w-3xl rounded border border-slate-200 bg-white p-5 shadow-lg sm:p-6">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-xl font-semibold text-slate-900">编写进度</p>
+              <p class="mt-1 text-base text-slate-500">实时查看完成度、质量建议与导出前预检结果</p>
+            </div>
+            <button
+              @click="showProgressAssistantDialog = false"
+              class="inline-flex h-9 w-9 items-center justify-center rounded border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+              title="关闭"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="mt-4 h-3 overflow-hidden rounded-full bg-slate-100">
+            <div
+              class="h-full rounded-full bg-emerald-500 transition-all"
+              :style="{ width: `${editorCompletionSummary.score}%` }"
+            />
+          </div>
+          <p class="mt-3 text-base text-slate-600">
+            已完成 {{ editorCompletionSummary.filledCount }} / {{ editorCompletionSummary.totalCount }} 项
+          </p>
+          <p
+            v-if="editorCompletionSummary.missingLabels.length > 0"
+            class="mt-1 text-base text-amber-700"
+          >
+            待补充：{{ editorCompletionSummary.missingLabels.slice(0, 4).join('、') }}
+            <span v-if="editorCompletionSummary.missingLabels.length > 4">
+              等 {{ editorCompletionSummary.missingLabels.length }} 项
+            </span>
+          </p>
+
+          <div
+            v-if="editorQualityTips.length > 0"
+            class="mt-4 rounded border border-amber-200 bg-amber-50 p-4"
+          >
+            <p class="text-base font-medium text-amber-700">质量建议</p>
+            <ul class="mt-1.5 space-y-1">
+              <li
+                v-for="tip in editorQualityTips"
+                :key="tip.message"
+                class="text-base"
+                :class="tip.level === 'warning' ? 'text-amber-700' : 'text-slate-600'"
+              >
+                {{ tip.message }}
+              </li>
+            </ul>
+          </div>
+
+          <div class="mt-4 rounded border border-slate-200 bg-slate-50 p-4">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-base font-medium text-slate-700">导出前预检</p>
+              <span
+                class="text-base font-medium"
+                :class="editorExportPrecheck.passed ? 'text-emerald-700' : 'text-red-600'"
+              >
+                {{ editorExportPrecheck.passed ? '通过' : '未通过' }}
+              </span>
+            </div>
+            <p v-if="editorExportPrecheck.blockingIssues.length === 0" class="mt-1 text-base text-emerald-700">
+              未发现阻塞项，可直接导出。
+            </p>
+            <ul
+              v-else
+              class="mt-1.5 space-y-1"
+            >
+              <li
+                v-for="issue in editorExportPrecheck.blockingIssues"
+                :key="issue"
+                class="text-base text-red-600"
+              >
+                {{ issue }}
+              </li>
+            </ul>
+            <ul
+              v-if="editorExportPrecheck.warningIssues.length > 0"
+              class="mt-1.5 space-y-1"
+            >
+              <li
+                v-for="warning in editorExportPrecheck.warningIssues.slice(0, 2)"
+                :key="warning"
+                class="text-base text-amber-700"
+              >
+                {{ warning }}
+              </li>
+            </ul>
+            <div
+              v-if="editorExportPrecheckFixActions.length > 0"
+              class="mt-3 flex flex-wrap gap-2"
+            >
+              <button
+                v-for="action in editorExportPrecheckFixActions.slice(0, 3)"
+                :key="`precheck-fix-${action.key}`"
+                @click="handleApplyExportPrecheckFix(action)"
+                class="rounded-sm border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 hover:bg-emerald-100"
+              >
+                一键修复：{{ action.label }}
+              </button>
+              <button
+                @click="handleApplyAllExportPrecheckFixes"
+                class="rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                全部修复
+              </button>
+            </div>
+            <div
+              v-if="editorExportPrecheck.focusSections.length > 0"
+              class="mt-3 flex flex-wrap gap-2"
+            >
+              <button
+                v-for="section in editorExportPrecheck.focusSections"
+                :key="`focus-${section}`"
+                @click="handleFocusEditorSection(section)"
+                class="rounded-sm border border-slate-300 bg-white px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              >
+                定位到{{ resolveEditorSectionLabelForView(section) }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        class="editor-layout-shell grid grid-cols-1 gap-4 lg:gap-6"
+        :class="showTemplatePanel ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : 'lg:grid-cols-1 lg:justify-items-center'"
+      >
       <aside
         v-if="showTemplatePanel"
         aria-label="模板工作台"
-        class="editor-template-panel bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6 lg:sticky lg:top-24"
+        class="editor-template-panel bg-white rounded shadow-sm border border-slate-100 p-4 sm:p-6 lg:sticky lg:top-24"
       >
         <h2 class="text-base sm:text-lg font-semibold text-slate-800 mb-1">模板工作台</h2>
         <p class="text-xs text-slate-500 mb-4">可检索、套用与维护个人模板</p>
@@ -216,11 +269,11 @@
                 v-model="templateSearch"
                 type="text"
                 placeholder="输入模板标题关键词"
-                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
               />
               <button
                 @click="handleSearchTemplates"
-                class="px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50"
+                class="px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded hover:bg-slate-50"
               >
                 查询
               </button>
@@ -233,12 +286,12 @@
                 v-model="templateTitle"
                 type="text"
                 placeholder="默认使用当前教案标题"
-                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
               />
               <button
                 @click="handleSaveAsTemplate"
                 :disabled="templateStore.isSaving"
-                class="px-3 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                class="px-3 py-2 text-sm text-white bg-[#647269] rounded hover:bg-[#55645b] disabled:opacity-50"
               >
                 保存模板
               </button>
@@ -248,7 +301,7 @@
                 v-for="tag in PRESET_TEMPLATE_TAGS"
                 :key="`create-${tag}`"
                 @click="handleAddCreateTag(tag)"
-                class="px-2 py-1 text-xs text-slate-700 bg-slate-100 rounded-full hover:bg-slate-200"
+                class="px-2 py-1 text-xs text-slate-700 bg-slate-100 rounded-sm hover:bg-slate-200"
               >
                 +{{ tag }}
               </button>
@@ -259,11 +312,11 @@
                 type="text"
                 placeholder="自定义标签（回车添加）"
                 @keydown.enter.prevent="handleAddCreateTag(templateTagInput)"
-                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
               />
               <button
                 @click="handleAddCreateTag(templateTagInput)"
-                class="px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50"
+                class="px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded hover:bg-slate-50"
               >
                 添加
               </button>
@@ -272,7 +325,7 @@
               <span
                 v-for="tag in templateDraftTags"
                 :key="`draft-${tag}`"
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-full"
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-[#eef3f0] text-[#435549] rounded-sm"
               >
                 {{ tag }}
                 <button @click="handleRemoveCreateTag(tag)">×</button>
@@ -286,7 +339,7 @@
           <div class="flex flex-col gap-2">
             <select
               v-model="selectedTemplateId"
-              class="flex-1 px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              class="flex-1 px-3 sm:px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
             >
               <option value="">请选择模板</option>
               <option v-for="item in templateStore.templates" :key="item.id" :value="item.id">
@@ -295,19 +348,19 @@
             </select>
             <button
               @click="handleApplyTemplate"
-              class="px-4 py-2 text-sm text-white bg-emerald-600 rounded-lg hover:bg-emerald-700"
+              class="px-4 py-2 text-sm text-white bg-emerald-600 rounded hover:bg-emerald-700"
             >
               套用并覆盖
             </button>
             <button
               @click="handleOpenTemplateEditor"
-              class="px-4 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50"
+              class="px-4 py-2 text-sm text-slate-700 border border-slate-300 rounded hover:bg-slate-50"
             >
               编辑模板
             </button>
             <button
               @click="handleDeleteTemplate"
-              class="px-4 py-2 text-sm text-red-600 border border-red-300 rounded-lg hover:bg-red-50"
+              class="px-4 py-2 text-sm text-red-600 border border-red-300 rounded hover:bg-red-50"
             >
               删除模板
             </button>
@@ -316,8 +369,8 @@
             <button
               @click="handleSelectTagFilter('')"
               :class="[
-                'px-2 py-1 text-xs rounded-full border',
-                selectedTagFilter ? 'text-slate-700 border-slate-300' : 'text-blue-700 border-blue-300 bg-blue-50',
+                'px-2 py-1 text-xs rounded-sm border',
+                selectedTagFilter ? 'text-slate-700 border-slate-300' : 'text-[#435549] border-[#c9d6cf] bg-[#eef3f0]',
               ]"
             >
               全部
@@ -327,9 +380,9 @@
               :key="`filter-${tag}`"
               @click="handleSelectTagFilter(tag)"
               :class="[
-                'px-2 py-1 text-xs rounded-full border',
+                'px-2 py-1 text-xs rounded-sm border',
                 selectedTagFilter === tag
-                  ? 'text-blue-700 border-blue-300 bg-blue-50'
+                  ? 'text-[#435549] border-[#c9d6cf] bg-[#eef3f0]'
                   : 'text-slate-700 border-slate-300',
               ]"
             >
@@ -343,12 +396,12 @@
         v-if="showTemplateEditDialog"
         class="fixed inset-0 z-40 bg-slate-900/50 p-4 overflow-y-auto"
       >
-        <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-lg border border-slate-200 p-4 sm:p-6">
+        <div class="max-w-4xl mx-auto bg-white rounded shadow-lg border border-slate-200 p-4 sm:p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-lg font-semibold text-slate-800">编辑模板</h3>
             <button
               @click="handleCancelTemplateEdit"
-              class="px-3 py-1.5 text-sm text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50"
+              class="px-3 py-1.5 text-sm text-slate-600 border border-slate-300 rounded hover:bg-slate-50"
             >
               关闭
             </button>
@@ -360,7 +413,7 @@
               <input
                 v-model="templateEditTitle"
                 type="text"
-                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
               />
             </div>
             <div>
@@ -368,7 +421,7 @@
               <input
                 v-model="templateEditForm.courseName"
                 type="text"
-                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
               />
             </div>
             <div>
@@ -376,7 +429,7 @@
               <input
                 v-model="templateEditForm.className"
                 type="text"
-                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
               />
             </div>
             <div>
@@ -386,7 +439,7 @@
                 type="number"
                 min="1"
                 max="300"
-                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
               />
             </div>
             <div>
@@ -395,7 +448,7 @@
                 v-model="templateEditForm.methods"
                 type="text"
                 placeholder="例如：讲授法、案例教学"
-                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
               />
             </div>
             <div class="md:col-span-2">
@@ -404,7 +457,7 @@
                 v-model="templateEditForm.resources"
                 type="text"
                 placeholder="例如：PPT、视频、实验设备"
-                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
               />
             </div>
           </div>
@@ -415,7 +468,7 @@
                 v-for="tag in PRESET_TEMPLATE_TAGS"
                 :key="`edit-${tag}`"
                 @click="handleAddEditTag(tag)"
-                class="px-2 py-1 text-xs text-slate-700 bg-slate-100 rounded-full hover:bg-slate-200"
+                class="px-2 py-1 text-xs text-slate-700 bg-slate-100 rounded-sm hover:bg-slate-200"
               >
                 +{{ tag }}
               </button>
@@ -426,11 +479,11 @@
                 type="text"
                 placeholder="自定义标签（回车添加）"
                 @keydown.enter.prevent="handleAddEditTag(templateEditTagInput)"
-                class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
               />
               <button
                 @click="handleAddEditTag(templateEditTagInput)"
-                class="px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50"
+                class="px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded hover:bg-slate-50"
               >
                 添加
               </button>
@@ -439,7 +492,7 @@
               <span
                 v-for="tag in templateEditTags"
                 :key="`edit-chip-${tag}`"
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-full"
+                class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-[#eef3f0] text-[#435549] rounded-sm"
               >
                 {{ tag }}
                 <button @click="handleRemoveEditTag(tag)">×</button>
@@ -486,14 +539,14 @@
             <div class="flex items-center justify-end gap-2">
               <button
                 @click="handleCancelTemplateEdit"
-                class="px-4 py-2 text-sm text-slate-700 border border-slate-300 rounded-lg hover:bg-slate-50"
+                class="px-4 py-2 text-sm text-slate-700 border border-slate-300 rounded hover:bg-slate-50"
               >
                 取消
               </button>
               <button
                 @click="handleSaveTemplateEdits"
                 :disabled="templateStore.isSaving"
-                class="px-4 py-2 text-sm text-white bg-blue-600 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                class="px-4 py-2 text-sm text-white bg-[#647269] rounded hover:bg-[#55645b] disabled:opacity-50"
               >
                 保存修改
               </button>
@@ -502,23 +555,26 @@
         </div>
       </div>
 
-      <div class="min-w-0 space-y-4 sm:space-y-6">
+      <div
+        class="min-w-0 space-y-4 sm:space-y-6"
+        :class="showTemplatePanel ? '' : 'w-full max-w-4xl'"
+      >
       <!-- Basic Info -->
-      <section id="editor-section-basic" class="bg-white rounded-xl shadow-sm border border-slate-100 p-4 sm:p-6">
+      <section id="editor-section-basic" class="bg-white rounded shadow-sm border border-slate-100 p-4 sm:p-6">
         <h2 class="text-base sm:text-lg font-semibold text-slate-800 mb-3 sm:mb-4 flex items-center gap-2">
-          <svg class="w-5 h-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg class="w-5 h-5 text-[#647269]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           基本信息
         </h2>
 
-        <div class="mb-4 rounded-lg border border-[#dbe5df] bg-[#f7faf8] p-3">
+        <div class="mb-4 rounded border border-[#dbe5df] bg-[#f7faf8] p-3">
           <div class="flex flex-wrap items-center gap-2">
             <p class="text-sm font-medium text-slate-700">快速骨架模板</p>
             <select
               :value="selectedLessonSkeletonPreset"
               @change="handleSelectLessonSkeletonPreset"
-              class="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs text-slate-700"
+              class="h-8 rounded-sm border border-slate-300 bg-white px-2 text-xs text-slate-700"
             >
               <option
                 v-for="option in lessonSkeletonOptions"
@@ -530,20 +586,20 @@
             </select>
             <button
               @click="handleApplyLessonSkeleton('fill-empty')"
-              class="h-8 rounded-md border border-slate-300 bg-white px-2.5 text-xs text-slate-600 hover:bg-slate-50"
+              class="h-8 rounded-sm border border-slate-300 bg-white px-2.5 text-xs text-slate-600 hover:bg-slate-50"
             >
               仅填空
             </button>
             <button
               @click="handleApplyLessonSkeleton('overwrite')"
-              class="h-8 rounded-md border border-amber-300 bg-amber-50 px-2.5 text-xs text-amber-700 hover:bg-amber-100"
+              class="h-8 rounded-sm border border-amber-300 bg-amber-50 px-2.5 text-xs text-amber-700 hover:bg-amber-100"
             >
               覆盖套用
             </button>
             <p class="text-[11px] text-slate-500">推荐：{{ recommendedLessonSkeletonLabel }}</p>
             <button
               @click="handleApplyRecommendedLessonSkeleton"
-              class="h-8 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 text-xs text-emerald-700 hover:bg-emerald-100"
+              class="h-8 rounded-sm border border-emerald-300 bg-emerald-50 px-2.5 text-xs text-emerald-700 hover:bg-emerald-100"
             >
               使用推荐
             </button>
@@ -621,7 +677,7 @@
       </section>
 
       <!-- Teaching Objectives -->
-      <section id="editor-section-objectives" class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+      <section id="editor-section-objectives" class="bg-white rounded shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -633,7 +689,7 @@
       </section>
 
       <!-- Key Points -->
-      <section id="editor-section-keypoints" class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+      <section id="editor-section-keypoints" class="bg-white rounded shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
@@ -645,7 +701,7 @@
       </section>
 
       <!-- Teaching Process -->
-      <section id="editor-section-process" class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+      <section id="editor-section-process" class="bg-white rounded shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -657,7 +713,7 @@
       </section>
 
       <!-- Blackboard Design -->
-      <section id="editor-section-blackboard" class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+      <section id="editor-section-blackboard" class="bg-white rounded shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
@@ -669,7 +725,7 @@
       </section>
 
       <!-- Teaching Reflection -->
-      <section id="editor-section-reflection" class="bg-white rounded-xl shadow-sm border border-slate-100 p-6">
+      <section id="editor-section-reflection" class="bg-white rounded shadow-sm border border-slate-100 p-6">
         <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -687,7 +743,7 @@
       <div class="max-w-6xl mx-auto px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] grid grid-cols-1 gap-2">
         <button
           @click="handleMobileToggleTemplatePanel"
-          class="h-10 rounded-xl border text-sm font-medium transition-colors"
+          class="h-10 rounded border text-sm font-medium transition-colors"
           :class="showTemplatePanel ? 'border-[#647269] bg-[#eef4f0] text-[#1f3128]' : 'border-[#d1ddd5] bg-white text-[#435549]'"
         >
           模板库
@@ -695,13 +751,13 @@
         <button
           @click="handleMobileSave"
           :disabled="planStore.isSaving || !isFormValid"
-          class="h-10 rounded-xl bg-[#647269] text-white text-sm font-medium disabled:opacity-50"
+          class="h-10 rounded bg-[#647269] text-white text-sm font-medium disabled:opacity-50"
         >
           {{ planStore.isSaving ? '保存中...' : '保存草稿' }}
         </button>
         <button
           @click="showMobileActions = true"
-          class="h-10 rounded-xl border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
+          class="h-10 rounded border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
         >
           更多操作
         </button>
@@ -713,26 +769,26 @@
       class="sm:hidden fixed inset-0 z-40 bg-slate-900/45"
       @click.self="closeMobileActions"
     >
-      <div class="absolute bottom-0 inset-x-0 rounded-t-2xl bg-white border-t border-[#d9e1dc] px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
+      <div class="absolute bottom-0 inset-x-0 rounded-t bg-white border-t border-[#d9e1dc] px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]">
         <div class="w-10 h-1.5 bg-[#d1ddd5] rounded-full mx-auto mb-3"></div>
         <p class="text-sm font-semibold text-[#33463c] mb-3">更多操作</p>
         <div class="space-y-2">
           <button
             @click="handleMobileToggleTemplatePanel"
-            class="w-full h-11 rounded-xl border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
+            class="w-full h-11 rounded border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
           >
             {{ showTemplatePanel ? '收起模板库' : '打开模板库' }}
           </button>
           <button
             @click="handleMobileOpenDraftDialog"
-            class="w-full h-11 rounded-xl border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
+            class="w-full h-11 rounded border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
           >
             草稿箱
           </button>
           <button
             v-if="isEditing"
             @click="handleMobileExport"
-            class="w-full h-11 rounded-xl border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
+            class="w-full h-11 rounded border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
           >
             导出 Word
           </button>
@@ -740,13 +796,13 @@
             v-if="isEditing && planStore.currentPlan?.status === 'DRAFT'"
             @click="handleMobilePublish"
             :disabled="planStore.isSaving"
-            class="w-full h-11 rounded-xl bg-emerald-600 text-white text-sm font-medium disabled:opacity-50"
+            class="w-full h-11 rounded bg-emerald-600 text-white text-sm font-medium disabled:opacity-50"
           >
             发布教案
           </button>
           <button
             @click="closeMobileActions"
-            class="w-full h-11 rounded-xl bg-[#f4f7f5] text-[#435549] text-sm font-medium"
+            class="w-full h-11 rounded bg-[#f4f7f5] text-[#435549] text-sm font-medium"
           >
             关闭
           </button>
@@ -759,16 +815,16 @@
       class="fixed inset-0 z-40 bg-slate-900/45 p-4 overflow-y-auto"
       @click.self="handleCloseDraftDialog"
     >
-      <div class="max-w-md mx-auto mt-10 rounded-2xl border border-slate-200 bg-white shadow-xl p-5 sm:p-6">
+      <div class="max-w-md mx-auto mt-10 rounded border border-slate-200 bg-white shadow-lg p-5 sm:p-6">
         <h3 class="text-base font-semibold text-slate-800">本地草稿箱</h3>
         <p class="mt-1 text-xs text-slate-500">用于恢复未保存内容，数据仅保存在当前浏览器。</p>
-        <div v-if="currentLocalDraft" class="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3 text-sm text-[#2f5f4f]">
+        <div v-if="currentLocalDraft" class="mt-4 rounded border border-emerald-100 bg-emerald-50/70 p-3 text-sm text-[#2f5f4f]">
           <div class="mt-2">
             <input
               v-model="localDraftSearch"
               type="text"
               placeholder="搜索草稿名称/课程/班级"
-              class="w-full rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200"
+              class="w-full rounded border border-emerald-200 bg-white px-3 py-2 text-xs text-slate-700 placeholder:text-slate-400 focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-200"
             />
           </div>
           <p class="mt-2">
@@ -779,19 +835,19 @@
             <div
               v-for="item in filteredLocalDraftHistory"
               :key="item.savedAt"
-              class="rounded-lg border p-1.5 transition-colors"
+              class="rounded border p-1.5 transition-colors"
               :class="selectedLocalDraftSavedAt === item.savedAt ? 'border-emerald-300 bg-white' : 'border-transparent bg-emerald-50/50'"
             >
               <button
                 @click="handleSelectLocalDraft(item.savedAt)"
-                class="w-full text-left rounded-md px-2 py-1 transition-colors hover:bg-emerald-50"
+                class="w-full text-left rounded-sm px-2 py-1 transition-colors hover:bg-emerald-50"
               >
                 <div class="flex items-start justify-between gap-2">
                   <span class="text-xs font-medium leading-5 text-[#2f5f4f]">
                     {{ resolveLocalDraftDisplayNameForView(item) }}
                     <span
                       v-if="item.pinned"
-                      class="ml-1 inline-flex items-center rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700"
+                      class="ml-1 inline-flex items-center rounded-sm border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700"
                     >
                       置顶
                     </span>
@@ -807,13 +863,13 @@
               <div class="mt-1 flex items-center gap-1 px-2 pb-1">
                 <button
                   @click.stop="handleToggleLocalDraftPinned(item.savedAt)"
-                  class="rounded-md border border-emerald-200 bg-white px-2 py-1 text-[10px] text-emerald-700 hover:bg-emerald-50"
+                  class="rounded-sm border border-emerald-200 bg-white px-2 py-1 text-[10px] text-emerald-700 hover:bg-emerald-50"
                 >
                   {{ item.pinned ? '取消置顶' : '置顶' }}
                 </button>
                 <button
                   @click.stop="handleRenameLocalDraft(item.savedAt)"
-                  class="rounded-md border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600 hover:bg-slate-50"
+                  class="rounded-sm border border-slate-200 bg-white px-2 py-1 text-[10px] text-slate-600 hover:bg-slate-50"
                 >
                   重命名
                 </button>
@@ -824,12 +880,12 @@
           <p class="mt-1">与当前内容差异：{{ selectedLocalDraftDiff.changedCount }} 项</p>
           <div
             v-if="selectedLocalDraftDiff.changedCount > 0"
-            class="mt-2 max-h-36 overflow-auto space-y-1 rounded-lg border border-emerald-100 bg-white/70 p-2"
+            class="mt-2 max-h-36 overflow-auto space-y-1 rounded border border-emerald-100 bg-white/70 p-2"
           >
             <div
               v-for="item in selectedLocalDraftDiff.items"
               :key="item.field"
-              class="rounded-md border border-emerald-100 bg-white px-2 py-1.5"
+              class="rounded-sm border border-emerald-100 bg-white px-2 py-1.5"
             >
               <p class="text-xs font-medium text-[#2f5f4f]">{{ item.label }}</p>
               <p class="text-[11px] text-slate-500">当前：{{ item.currentPreview }}</p>
@@ -839,47 +895,47 @@
           <p v-else class="mt-2 text-xs text-[#2f5f4f]">所选草稿与当前编辑内容一致</p>
           <p class="mt-1">恢复后内容来源将变更为：本地草稿</p>
         </div>
-        <div v-else class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+        <div v-else class="mt-4 rounded border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
           暂无本地草稿
         </div>
         <div class="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button
             @click="handleRestoreLocalDraft"
             :disabled="!selectedLocalDraft"
-            class="h-10 rounded-xl bg-[#647269] text-white text-sm font-medium disabled:opacity-50"
+            class="h-10 rounded bg-[#647269] text-white text-sm font-medium disabled:opacity-50"
           >
             恢复草稿
           </button>
           <button
             @click="handleClearLocalDraft"
             :disabled="!currentLocalDraft"
-            class="h-10 rounded-xl border border-red-200 bg-red-50 text-red-600 text-sm font-medium disabled:opacity-50"
+            class="h-10 rounded border border-red-200 bg-red-50 text-red-600 text-sm font-medium disabled:opacity-50"
           >
             清空草稿
           </button>
           <button
             @click="handleClearUnpinnedLocalDrafts"
             :disabled="unpinnedDraftCount === 0"
-            class="h-10 rounded-xl border border-amber-200 bg-amber-50 text-amber-700 text-sm font-medium disabled:opacity-50"
+            class="h-10 rounded border border-amber-200 bg-amber-50 text-amber-700 text-sm font-medium disabled:opacity-50"
           >
             清理未置顶
           </button>
           <button
             @click="handleExportLocalDrafts"
             :disabled="localDraftHistory.length === 0"
-            class="h-10 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-sm font-medium disabled:opacity-50"
+            class="h-10 rounded border border-[#c9d6cf] bg-[#eef3f0] text-[#435549] text-sm font-medium disabled:opacity-50"
           >
             导出草稿
           </button>
           <button
             @click="triggerImportLocalDrafts"
-            class="h-10 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-medium"
+            class="h-10 rounded border border-slate-300 bg-white text-slate-700 text-sm font-medium"
           >
             导入草稿
           </button>
           <button
             @click="handleCloseDraftDialog"
-            class="h-10 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-medium sm:col-span-2"
+            class="h-10 rounded border border-slate-300 bg-white text-slate-700 text-sm font-medium sm:col-span-2"
           >
             关闭
           </button>
@@ -899,12 +955,12 @@
       class="fixed inset-0 z-50 bg-slate-900/60 p-4 overflow-y-auto"
       @click.self="handleCancelImportPreview"
     >
-      <div class="max-w-lg mx-auto mt-8 rounded-2xl border border-slate-200 bg-white shadow-2xl p-5 sm:p-6">
+      <div class="max-w-lg mx-auto mt-8 rounded border border-slate-200 bg-white shadow-lg p-5 sm:p-6">
         <h3 class="text-base font-semibold text-slate-800">导入草稿预览</h3>
         <p class="mt-1 text-xs text-slate-500">仅导入勾选草稿，导入前可选择冲突处理策略。</p>
         <p
           v-if="localDraftImportConflictCount > 0"
-          class="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"
+          class="mt-3 rounded border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700"
         >
           检测到重复时间戳草稿 {{ localDraftImportConflictCount }} 条
         </p>
@@ -913,7 +969,7 @@
           <button
             @click="localDraftImportMode = 'prefer-imported'"
             :class="[
-              'h-10 rounded-xl border text-sm font-medium',
+              'h-10 rounded border text-sm font-medium',
               localDraftImportMode === 'prefer-imported'
                 ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
                 : 'border-slate-300 bg-white text-slate-600',
@@ -924,7 +980,7 @@
           <button
             @click="localDraftImportMode = 'keep-existing'"
             :class="[
-              'h-10 rounded-xl border text-sm font-medium',
+              'h-10 rounded border text-sm font-medium',
               localDraftImportMode === 'keep-existing'
                 ? 'border-amber-300 bg-amber-50 text-amber-700'
                 : 'border-slate-300 bg-white text-slate-600',
@@ -936,7 +992,7 @@
 
         <div
           v-if="localDraftImportConflictCount > 0"
-          class="mt-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3"
+          class="mt-3 rounded border border-amber-200 bg-amber-50/70 p-3"
         >
           <p class="text-xs font-medium text-amber-700">冲突字段策略</p>
           <p class="mt-0.5 text-[11px] text-amber-700">一键批量设置所有冲突项的字段覆盖范围</p>
@@ -951,39 +1007,39 @@
           <div class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
             <button
               @click="handleApplyLocalDraftImportConflictPreset('all')"
-              class="rounded-md border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-50"
+              class="rounded-sm border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-50"
             >
               冲突全覆盖
             </button>
             <button
               @click="handleApplyLocalDraftImportConflictPreset('metadata')"
-              class="rounded-md border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-50"
+              class="rounded-sm border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-50"
             >
               仅基础信息
             </button>
             <button
               @click="handleApplyLocalDraftImportConflictPreset('content')"
-              class="rounded-md border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-50"
+              class="rounded-sm border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-50"
             >
               仅正文
             </button>
             <button
               @click="handleApplyLocalDraftImportConflictPreset('none')"
-              class="rounded-md border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-50"
+              class="rounded-sm border border-amber-300 bg-white px-2 py-1 text-[11px] text-amber-700 hover:bg-amber-50"
             >
               清空冲突字段
             </button>
           </div>
         </div>
 
-        <div class="mt-4 rounded-xl border border-slate-200 bg-slate-50/80 p-3">
+        <div class="mt-4 rounded border border-slate-200 bg-slate-50/80 p-3">
           <div class="flex items-center justify-between gap-2">
             <p class="text-xs font-medium text-slate-700">仅导入勾选草稿</p>
             <div class="flex items-center gap-2">
               <button
                 @click="showOnlyConflictImportDrafts = !showOnlyConflictImportDrafts"
                 :class="[
-                  'rounded-md border px-2 py-1 text-[11px] hover:bg-slate-50',
+                  'rounded-sm border px-2 py-1 text-[11px] hover:bg-slate-50',
                   showOnlyConflictImportDrafts
                     ? 'border-amber-300 bg-amber-50 text-amber-700'
                     : 'border-slate-300 bg-white text-slate-600',
@@ -994,7 +1050,7 @@
               <button
                 @click="showOnlySelectedImportDrafts = !showOnlySelectedImportDrafts"
                 :class="[
-                  'rounded-md border px-2 py-1 text-[11px] hover:bg-slate-50',
+                  'rounded-sm border px-2 py-1 text-[11px] hover:bg-slate-50',
                   showOnlySelectedImportDrafts
                     ? 'border-emerald-300 bg-emerald-50 text-emerald-700'
                     : 'border-slate-300 bg-white text-slate-600',
@@ -1004,25 +1060,25 @@
               </button>
               <button
                 @click="handleSelectAllImportDrafts"
-                class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+                class="rounded-sm border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
               >
                 全选
               </button>
               <button
                 @click="handleSelectConflictImportDrafts"
-                class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+                class="rounded-sm border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
               >
                 仅冲突
               </button>
               <button
                 @click="handleSelectNewImportDrafts"
-                class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+                class="rounded-sm border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
               >
                 仅新增
               </button>
               <button
                 @click="handleClearImportDraftSelection"
-                class="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
+                class="rounded-sm border border-slate-300 bg-white px-2 py-1 text-[11px] text-slate-600 hover:bg-slate-50"
               >
                 清空选择
               </button>
@@ -1035,13 +1091,13 @@
             v-model="localDraftImportSearch"
             type="text"
             placeholder="筛选导入草稿（标题/课程/班级/冲突字段）"
-            class="mt-2 h-8 w-full rounded-md border border-slate-300 bg-white px-2.5 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-emerald-300 focus:outline-none focus:ring-1 focus:ring-emerald-200"
+            class="mt-2 h-8 w-full rounded-sm border border-slate-300 bg-white px-2.5 text-[11px] text-slate-700 placeholder:text-slate-400 focus:border-emerald-300 focus:outline-none focus:ring-1 focus:ring-emerald-200"
           />
           <div class="mt-2 max-h-48 overflow-auto space-y-1.5">
             <label
               v-for="item in filteredLocalDraftImportCandidates"
               :key="`import-${item.draft.savedAt}`"
-              class="flex items-start gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2"
+              class="flex items-start gap-2 rounded border border-slate-200 bg-white px-2.5 py-2"
             >
               <input
                 type="checkbox"
@@ -1056,7 +1112,7 @@
                   </span>
                   <span
                     v-if="item.conflict"
-                    class="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700"
+                    class="shrink-0 rounded-sm border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] text-amber-700"
                   >
                     冲突
                   </span>
@@ -1080,14 +1136,14 @@
                 <div v-if="item.conflict" class="mt-1">
                   <button
                     @click.prevent="handleToggleLocalDraftImportConflictExpanded(item.draft.savedAt)"
-                    class="rounded-md border border-slate-300 bg-white px-2 py-0.5 text-[10px] text-slate-600 hover:bg-slate-50"
+                    class="rounded-sm border border-slate-300 bg-white px-2 py-0.5 text-[10px] text-slate-600 hover:bg-slate-50"
                   >
                     {{ isLocalDraftImportConflictExpanded(item.draft.savedAt) ? '收起差异' : '展开差异' }}
                   </button>
                 </div>
                 <div
                   v-if="item.conflict && isLocalDraftImportConflictExpanded(item.draft.savedAt)"
-                  class="mt-1.5 rounded-md border border-slate-200 bg-slate-50 p-2 space-y-1"
+                  class="mt-1.5 rounded-sm border border-slate-200 bg-slate-50 p-2 space-y-1"
                 >
                   <div class="flex items-center gap-1 pb-1">
                     <button
@@ -1125,7 +1181,7 @@
           </div>
         </div>
 
-        <div class="mt-4 rounded-xl border border-emerald-100 bg-emerald-50/70 p-3">
+        <div class="mt-4 rounded border border-emerald-100 bg-emerald-50/70 p-3">
           <p class="text-xs text-[#2f5f4f]">检测到 {{ localDraftImportPreview.importedCount }} 条有效草稿</p>
           <p class="mt-1 text-xs text-[#2f5f4f]">
             预计新增 {{ localDraftImportPreview.newCount }} 条，覆盖 {{ localDraftImportPreview.overwriteCount }} 条
@@ -1142,14 +1198,14 @@
         <div class="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button
             @click="handleCancelImportPreview"
-            class="h-10 rounded-xl border border-slate-300 bg-white text-slate-700 text-sm font-medium"
+            class="h-10 rounded border border-slate-300 bg-white text-slate-700 text-sm font-medium"
           >
             取消
           </button>
           <button
             @click="handleConfirmImportPreview"
             :disabled="selectedImportDraftSavedAt.length === 0"
-            class="h-10 rounded-xl bg-[#647269] text-white text-sm font-medium disabled:opacity-50"
+            class="h-10 rounded bg-[#647269] text-white text-sm font-medium disabled:opacity-50"
           >
             确认导入
           </button>
@@ -2863,6 +2919,7 @@ const showOnlySelectedImportDrafts = ref(false)
 const applyPresetToSelectedConflictOnly = ref(true)
 const expandedImportConflictSavedAt = ref<string[]>([])
 const contentSource = ref<EditorContentSource>('new')
+const showProgressAssistantDialog = ref(false)
 const showMobileActions = ref(false)
 const showTemplatePanel = ref(false)
 const templateSearch = ref('')

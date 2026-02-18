@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-[#fffbf0]">
+  <div class="min-h-screen bg-slate-50">
     <NavBar
       :username="authStore.user?.username || ''"
       @new="router.push('/editor')"
@@ -10,7 +10,7 @@
       <PageHeader title="数据分析" subtitle="查看您的教案数据趋势和统计信息" />
 
       <div v-if="isLoading" class="flex items-center justify-center py-24">
-        <div class="flex items-center gap-3 text-amber-700">
+        <div class="flex items-center gap-3 text-slate-600">
           <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
             <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -22,11 +22,11 @@
       <template v-else>
         <BaseCard padding="lg" class="mb-6">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <h2 class="text-lg font-semibold font-serif text-amber-900">教案创建趋势</h2>
+            <h2 class="text-lg font-semibold font-serif text-slate-800">教案创建趋势</h2>
             <select
               v-model="daysFilter"
               @change="refreshData"
-              class="w-full sm:w-auto min-h-[44px] px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
+              class="w-full sm:w-auto min-h-[44px] px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#647269]/20"
             >
               <option :value="7">近7天</option>
               <option :value="30">近30天</option>
@@ -36,7 +36,7 @@
 
           <div class="h-52 sm:h-64">
             <div v-if="hasTrendData" ref="chartRef" class="w-full h-full"></div>
-            <div v-else class="h-full rounded-lg border border-dashed border-amber-200 bg-amber-50/50 flex items-center justify-center text-sm text-amber-700/65">
+            <div v-else class="h-full rounded border border-dashed border-slate-200 bg-slate-50/70 flex items-center justify-center text-sm text-slate-400">
               暂无趋势数据
             </div>
           </div>
@@ -60,52 +60,52 @@
 
         <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <BaseCard padding="lg">
-            <h2 class="text-lg font-semibold font-serif text-amber-900 mb-4">状态分布</h2>
+            <h2 class="text-lg font-semibold font-serif text-slate-800 mb-4">状态分布</h2>
             <div v-if="summary" class="space-y-4">
               <div>
                 <div class="flex items-center justify-between text-sm mb-2">
-                  <span class="text-amber-800/80">已发布</span>
-                  <span class="font-medium text-amber-950">
-                    {{ summary.totalPublished }} <span class="text-amber-700/70">({{ summary.publishedRate }}%)</span>
+                  <span class="text-slate-500">已发布</span>
+                  <span class="font-medium text-slate-900">
+                    {{ summary.totalPublished }} <span class="text-slate-400">({{ summary.publishedRate }}%)</span>
                   </span>
                 </div>
-                <div class="h-2 bg-amber-100 rounded-full overflow-hidden">
+                <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
                   <div class="h-full bg-emerald-500 rounded-full transition-all" :style="{ width: summary.publishedRate + '%' }"></div>
                 </div>
               </div>
 
               <div>
                 <div class="flex items-center justify-between text-sm mb-2">
-                  <span class="text-amber-800/80">草稿</span>
-                  <span class="font-medium text-amber-950">
-                    {{ summary.totalDrafts }} <span class="text-amber-700/70">({{ 100 - summary.publishedRate }}%)</span>
+                  <span class="text-slate-500">草稿</span>
+                  <span class="font-medium text-slate-900">
+                    {{ summary.totalDrafts }} <span class="text-slate-400">({{ 100 - summary.publishedRate }}%)</span>
                   </span>
                 </div>
-                <div class="h-2 bg-amber-100 rounded-full overflow-hidden">
-                  <div class="h-full bg-amber-500 rounded-full transition-all" :style="{ width: 100 - summary.publishedRate + '%' }"></div>
+                <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div class="h-full bg-slate-500 rounded-full transition-all" :style="{ width: 100 - summary.publishedRate + '%' }"></div>
                 </div>
               </div>
             </div>
-            <div v-else class="text-center text-amber-700/70 py-8">暂无数据</div>
+            <div v-else class="text-center text-slate-400 py-8">暂无数据</div>
           </BaseCard>
 
           <BaseCard padding="lg">
-            <h2 class="text-lg font-semibold font-serif text-amber-900 mb-4">近期活动</h2>
+            <h2 class="text-lg font-semibold font-serif text-slate-800 mb-4">近期活动</h2>
             <div v-if="summary?.periodStats" class="space-y-0">
-              <div class="flex items-center justify-between py-3 border-b border-amber-100">
-                <span class="text-sm text-amber-800/80">期间发布</span>
-                <span class="font-medium text-amber-950">{{ summary.periodStats.published || 0 }} 个</span>
+              <div class="flex items-center justify-between py-3 border-b border-slate-200">
+                <span class="text-sm text-slate-500">期间发布</span>
+                <span class="font-medium text-slate-900">{{ summary.periodStats.published || 0 }} 个</span>
               </div>
-              <div class="flex items-center justify-between py-3 border-b border-amber-100">
-                <span class="text-sm text-amber-800/80">期间修改</span>
-                <span class="font-medium text-amber-950">{{ summary.periodStats.updated || 0 }} 个</span>
+              <div class="flex items-center justify-between py-3 border-b border-slate-200">
+                <span class="text-sm text-slate-500">期间修改</span>
+                <span class="font-medium text-slate-900">{{ summary.periodStats.updated || 0 }} 个</span>
               </div>
               <div class="flex items-center justify-between py-3">
-                <span class="text-sm text-amber-800/80">平均每日</span>
-                <span class="font-medium text-amber-950">{{ ((summary.periodStats.newPlans || 0) / daysFilter).toFixed(1) }} 个</span>
+                <span class="text-sm text-slate-500">平均每日</span>
+                <span class="font-medium text-slate-900">{{ ((summary.periodStats.newPlans || 0) / daysFilter).toFixed(1) }} 个</span>
               </div>
             </div>
-            <div v-else class="text-center text-amber-700/70 py-8">暂无数据</div>
+            <div v-else class="text-center text-slate-400 py-8">暂无数据</div>
           </BaseCard>
         </section>
       </template>
@@ -164,15 +164,15 @@ const statCards = computed(() => [
   {
     label: '平均时长',
     value: `${summary.value?.avgDuration || 0} 分钟`,
-    color: 'amber' as const,
-    iconClass: 'text-amber-600',
+    color: 'blue' as const,
+    iconClass: 'text-[#435549]',
     icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z',
   },
   {
     label: '发布率',
     value: `${summary.value?.publishRate || 0}%`,
-    color: 'orange' as const,
-    iconClass: 'text-orange-600',
+    color: 'indigo' as const,
+    iconClass: 'text-amber-600',
     icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z',
   },
 ])
@@ -249,9 +249,9 @@ const initChart = () => {
     tooltip: {
       trigger: 'axis',
       backgroundColor: '#ffffff',
-      borderColor: '#fde68a',
+      borderColor: '#cbd5e1',
       borderWidth: 1,
-      textStyle: { color: '#78350f', fontSize: 12 },
+      textStyle: { color: '#1e293b', fontSize: 12 },
     },
     grid: {
       left: '3%',
@@ -263,15 +263,15 @@ const initChart = () => {
     xAxis: {
       type: 'category',
       data: trendData.value.dates,
-      axisLine: { lineStyle: { color: '#fcd34d' } },
-      axisLabel: { color: '#b45309', fontSize: 11 },
+      axisLine: { lineStyle: { color: '#cbd5e1' } },
+      axisLabel: { color: '#64748b', fontSize: 11 },
     },
     yAxis: {
       type: 'value',
       axisLine: { show: false },
       axisTick: { show: false },
-      splitLine: { lineStyle: { color: '#fef3c7' } },
-      axisLabel: { color: '#b45309', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#e2e8f0' } },
+      axisLabel: { color: '#64748b', fontSize: 11 },
     },
     series: [
       {
@@ -281,13 +281,13 @@ const initChart = () => {
         smooth: true,
         symbol: 'circle',
         symbolSize: 6,
-        lineStyle: { color: '#f59e0b', width: 2.5 },
-        itemStyle: { color: '#f59e0b', borderColor: '#fff', borderWidth: 2 },
+        lineStyle: { color: '#647269', width: 2.5 },
+        itemStyle: { color: '#647269', borderColor: '#fff', borderWidth: 2 },
         areaStyle: {
           color: new graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: 'rgba(245, 158, 11, 0.28)' },
-            { offset: 0.6, color: 'rgba(249, 115, 22, 0.1)' },
-            { offset: 1, color: 'rgba(249, 115, 22, 0.02)' },
+            { offset: 0, color: 'rgba(100, 114, 105, 0.28)' },
+            { offset: 0.6, color: 'rgba(100, 114, 105, 0.1)' },
+            { offset: 1, color: 'rgba(100, 114, 105, 0.02)' },
           ]),
         },
       },

@@ -5,7 +5,7 @@
         v-for="item in items"
         :key="item.key"
         type="button"
-        class="text-xs px-2 py-1 rounded-md border border-slate-300 text-slate-700 hover:bg-slate-100"
+        class="text-xs px-2 py-1 rounded-sm border border-slate-300 text-slate-700 hover:bg-slate-100"
         @click="$emit('select', item)"
       >
         {{ item.label }}

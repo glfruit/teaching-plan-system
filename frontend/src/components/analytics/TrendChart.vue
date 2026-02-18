@@ -70,15 +70,15 @@ const updateChart = () => {
         symbol: 'circle',
         symbolSize: 6,
         itemStyle: { 
-          color: '#2563eb',
+          color: '#647269',
           borderWidth: 2,
           borderColor: '#fff'
         },
         areaStyle: {
-          color: 'rgba(37, 99, 235, 0.1)'
+          color: 'rgba(100, 114, 105, 0.12)'
         },
         lineStyle: { 
-          color: '#2563eb', 
+          color: '#647269', 
           width: 2 
         },
         data: props.data.map(item => item.count)
