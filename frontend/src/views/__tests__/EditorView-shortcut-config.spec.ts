@@ -18,6 +18,8 @@ describe('EditorView shortcut config dialog', () => {
     expect(editorViewSource).toContain('hasShortcutConflicts')
     expect(editorViewSource).toContain('检测到快捷键冲突')
     expect(editorViewSource).toContain('shortcutConflictGroups')
+    expect(editorViewSource).toContain('isShortcutActionConflicted(action.id)')
+    expect(editorViewSource).toContain("border-red-200 bg-red-50/60")
     expect(editorViewSource).toContain(':disabled="hasShortcutConflicts"')
     expect(editorViewSource).toContain('存在快捷键冲突，请先调整后再保存。')
   })

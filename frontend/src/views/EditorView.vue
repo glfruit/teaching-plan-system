@@ -299,7 +299,8 @@
             <div
               v-for="action in SHORTCUT_ACTIONS"
               :key="`shortcut-action-${action.id}`"
-              class="rounded border border-slate-200 bg-slate-50 px-3 py-2"
+              class="rounded border bg-slate-50 px-3 py-2"
+              :class="isShortcutActionConflicted(action.id) ? 'border-red-200 bg-red-50/60' : 'border-slate-200'"
             >
               <div class="flex items-center justify-between gap-2">
                 <div class="min-w-0">
@@ -3193,6 +3194,15 @@ const shortcutConflictGroups = computed<EditorShortcutConflictGroup[]>(() => {
 })
 
 const hasShortcutConflicts = computed(() => shortcutConflictGroups.value.length > 0)
+const shortcutConflictActionSet = computed(
+  () =>
+    new Set<EditorShortcutAction>(
+      shortcutConflictGroups.value.flatMap((group) => group.actions)
+    )
+)
+
+const isShortcutActionConflicted = (action: EditorShortcutAction): boolean =>
+  shortcutConflictActionSet.value.has(action)
 
 const isFormValid = computed(() => {
   return form.title.trim() && 
