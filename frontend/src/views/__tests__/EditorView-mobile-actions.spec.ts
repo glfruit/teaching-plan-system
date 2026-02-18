@@ -13,6 +13,7 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('保存草稿')
     expect(editorViewSource).toContain('草稿箱')
     expect(editorViewSource).toContain('更多操作')
+    expect(editorViewSource).toContain('快捷键帮助')
   })
 
   it('provides local draft center dialog with history restore controls', () => {
@@ -102,5 +103,14 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('当前教案有未保存更改，确定离开吗？')
     expect(editorViewSource).toContain('persistLocalDraftBeforeLeave')
     expect(editorViewSource).toContain('shouldPersistLocalDraftOnLeave')
+  })
+
+  it('binds keyboard shortcuts for save, export and publish actions', () => {
+    expect(editorViewSource).toContain('window.addEventListener(\'keydown\', handleEditorKeyboardShortcuts)')
+    expect(editorViewSource).toContain('window.removeEventListener(\'keydown\', handleEditorKeyboardShortcuts)')
+    expect(editorViewSource).toContain('event.key.toLowerCase() === \'s\'')
+    expect(editorViewSource).toContain('await handleSave()')
+    expect(editorViewSource).toContain('await handleExport()')
+    expect(editorViewSource).toContain('await handlePublish()')
   })
 })

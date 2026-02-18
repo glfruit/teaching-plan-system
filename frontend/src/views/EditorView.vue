@@ -60,6 +60,16 @@
                 </svg>
                 <span>草稿箱</span>
               </button>
+
+              <button
+                @click="showShortcutDialog = true"
+                class="inline-flex items-center gap-1.5 px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors font-medium"
+              >
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h3m2 0h5m-9 4h3m2 0h3M5 5h14a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
+                </svg>
+                <span>快捷键</span>
+              </button>
               
               <button
                 @click="handleSave"
@@ -245,6 +255,49 @@
               >
                 定位到{{ resolveEditorSectionLabelForView(section) }}
               </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="showShortcutDialog"
+        class="fixed inset-0 z-40 bg-slate-900/45 p-4 overflow-y-auto"
+        @click.self="showShortcutDialog = false"
+      >
+        <div class="mx-auto mt-8 max-w-lg rounded border border-slate-200 bg-white p-5 shadow-lg sm:p-6">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-lg font-semibold text-slate-900">常用快捷键</p>
+              <p class="mt-1 text-sm text-slate-500">提升教案编辑效率，支持 Windows 与 macOS。</p>
+            </div>
+            <button
+              @click="showShortcutDialog = false"
+              class="inline-flex h-9 w-9 items-center justify-center rounded border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+              title="关闭"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="mt-4 space-y-2 text-sm text-slate-700">
+            <div class="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-3 py-2">
+              <span>保存草稿</span>
+              <code class="rounded-sm border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600">Ctrl / Cmd + S</code>
+            </div>
+            <div class="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-3 py-2">
+              <span>导出 Word（编辑页）</span>
+              <code class="rounded-sm border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600">Ctrl / Cmd + Shift + E</code>
+            </div>
+            <div class="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-3 py-2">
+              <span>发布教案（草稿状态）</span>
+              <code class="rounded-sm border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600">Ctrl / Cmd + Shift + P</code>
+            </div>
+            <div class="flex items-center justify-between rounded border border-slate-200 bg-slate-50 px-3 py-2">
+              <span>打开快捷键帮助</span>
+              <code class="rounded-sm border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600">Ctrl / Cmd + Shift + K</code>
             </div>
           </div>
         </div>
@@ -784,6 +837,12 @@
             class="w-full h-11 rounded border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
           >
             草稿箱
+          </button>
+          <button
+            @click="handleMobileOpenShortcutDialog"
+            class="w-full h-11 rounded border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
+          >
+            快捷键帮助
           </button>
           <button
             v-if="isEditing"
@@ -2920,6 +2979,7 @@ const applyPresetToSelectedConflictOnly = ref(true)
 const expandedImportConflictSavedAt = ref<string[]>([])
 const contentSource = ref<EditorContentSource>('new')
 const showProgressAssistantDialog = ref(false)
+const showShortcutDialog = ref(false)
 const showMobileActions = ref(false)
 const showTemplatePanel = ref(false)
 const templateSearch = ref('')
@@ -3642,6 +3702,44 @@ const confirmLeaveWithUnsavedDraft = (): boolean => {
   return window.confirm('当前教案有未保存更改，确定离开吗？')
 }
 
+const handleEditorKeyboardShortcuts = async (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && showShortcutDialog.value) {
+    showShortcutDialog.value = false
+    return
+  }
+
+  if (!(event.metaKey || event.ctrlKey) || event.altKey) {
+    return
+  }
+
+  if (event.key.toLowerCase() === 's' && !event.shiftKey) {
+    event.preventDefault()
+    await handleSave()
+    return
+  }
+
+  if (event.shiftKey && event.key.toLowerCase() === 'k') {
+    event.preventDefault()
+    showShortcutDialog.value = true
+    return
+  }
+
+  if (!isEditing.value) {
+    return
+  }
+
+  if (event.shiftKey && event.key.toLowerCase() === 'e') {
+    event.preventDefault()
+    await handleExport()
+    return
+  }
+
+  if (event.shiftKey && event.key.toLowerCase() === 'p') {
+    event.preventDefault()
+    await handlePublish()
+  }
+}
+
 onBeforeRouteLeave((_to, _from, next) => {
   persistLocalDraftBeforeLeave()
   if (confirmLeaveWithUnsavedDraft()) {
@@ -3662,10 +3760,12 @@ onMounted(async () => {
   isDraftPersistenceReady.value = true
   await loadTemplates()
   window.addEventListener('beforeunload', handleBeforeUnload)
+  window.addEventListener('keydown', handleEditorKeyboardShortcuts)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
+  window.removeEventListener('keydown', handleEditorKeyboardShortcuts)
   if (localDraftPersistTimer) {
     clearTimeout(localDraftPersistTimer)
     localDraftPersistTimer = null
@@ -3917,6 +4017,11 @@ const handleMobileToggleTemplatePanel = () => {
 const handleMobileOpenDraftDialog = () => {
   closeMobileActions()
   handleOpenDraftDialog()
+}
+
+const handleMobileOpenShortcutDialog = () => {
+  closeMobileActions()
+  showShortcutDialog.value = true
 }
 
 const handleMobileSave = async () => {

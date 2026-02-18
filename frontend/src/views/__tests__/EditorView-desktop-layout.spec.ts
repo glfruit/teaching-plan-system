@@ -40,4 +40,11 @@ describe('EditorView desktop two-column layout', () => {
     expect(editorViewSource).toContain('inline-flex items-center gap-2 text-base font-semibold text-slate-800')
     expect(editorViewSource).toContain('>编写助手</span>')
   })
+
+  it('provides keyboard shortcut help entry and dialog', () => {
+    expect(editorViewSource).toContain('快捷键')
+    expect(editorViewSource).toContain('showShortcutDialog = ref(false)')
+    expect(editorViewSource).toContain('常用快捷键')
+    expect(editorViewSource).toContain('Ctrl / Cmd + S')
+  })
 })
