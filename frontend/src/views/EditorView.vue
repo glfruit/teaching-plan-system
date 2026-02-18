@@ -993,6 +993,17 @@ export type EditorLocalDraftExportPayload = {
   drafts: EditorLocalDraft[]
 }
 
+export type EditorLocalDraftMergeMode = 'keep-existing' | 'prefer-imported'
+
+export type EditorLocalDraftImportPreview = {
+  importedCount: number
+  newCount: number
+  overwriteCount: number
+  droppedByLimitCount: number
+  nextCount: number
+  mergedHistory: EditorLocalDraft[]
+}
+
 const isObjectRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
@@ -1332,7 +1343,8 @@ export const parseEditorLocalDraftImportPayload = (raw: string | null | undefine
 export const mergeEditorLocalDraftHistory = (
   existing: EditorLocalDraft[],
   imported: EditorLocalDraft[],
-  limit = LOCAL_EDITOR_DRAFT_HISTORY_LIMIT
+  limit = LOCAL_EDITOR_DRAFT_HISTORY_LIMIT,
+  mode: EditorLocalDraftMergeMode = 'keep-existing'
 ): EditorLocalDraft[] => {
   const normalizedExisting = existing
     .map((item) => parseEditorLocalDraftItem(item))
@@ -1342,7 +1354,18 @@ export const mergeEditorLocalDraftHistory = (
     .filter((item): item is EditorLocalDraft => Boolean(item))
 
   const deduped = new Map<string, EditorLocalDraft>()
-  for (const draft of [...normalizedExisting, ...normalizedImported]) {
+
+  for (const draft of normalizedExisting) {
+    if (!deduped.has(draft.savedAt)) {
+      deduped.set(draft.savedAt, draft)
+    }
+  }
+
+  for (const draft of normalizedImported) {
+    if (mode === 'prefer-imported') {
+      deduped.set(draft.savedAt, draft)
+      continue
+    }
     if (!deduped.has(draft.savedAt)) {
       deduped.set(draft.savedAt, draft)
     }
@@ -1351,6 +1374,61 @@ export const mergeEditorLocalDraftHistory = (
   return [...deduped.values()]
     .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
     .slice(0, Math.max(1, limit))
+}
+
+export const buildEditorLocalDraftImportPreview = (
+  existing: EditorLocalDraft[],
+  imported: EditorLocalDraft[],
+  limit = LOCAL_EDITOR_DRAFT_HISTORY_LIMIT
+): EditorLocalDraftImportPreview => {
+  const normalizedExisting = existing
+    .map((item) => parseEditorLocalDraftItem(item))
+    .filter((item): item is EditorLocalDraft => Boolean(item))
+  const normalizedImported = imported
+    .map((item) => parseEditorLocalDraftItem(item))
+    .filter((item): item is EditorLocalDraft => Boolean(item))
+
+  const importedUniqueMap = new Map<string, EditorLocalDraft>()
+  for (const draft of normalizedImported) {
+    importedUniqueMap.set(draft.savedAt, draft)
+  }
+  const importedUnique = [...importedUniqueMap.values()]
+  const existingSavedAt = new Set(normalizedExisting.map((item) => item.savedAt))
+  const overwriteCount = importedUnique.filter((item) => existingSavedAt.has(item.savedAt)).length
+  const newCount = importedUnique.length - overwriteCount
+  const mergedHistory = mergeEditorLocalDraftHistory(
+    normalizedExisting,
+    importedUnique,
+    limit,
+    'prefer-imported'
+  )
+  const droppedByLimitCount = Math.max(0, normalizedExisting.length + newCount - mergedHistory.length)
+
+  return {
+    importedCount: importedUnique.length,
+    newCount,
+    overwriteCount,
+    droppedByLimitCount,
+    nextCount: mergedHistory.length,
+    mergedHistory,
+  }
+}
+
+export const buildEditorLocalDraftImportPreviewMessage = (
+  preview: EditorLocalDraftImportPreview
+): string => {
+  const lines = [
+    `检测到 ${preview.importedCount} 条有效草稿`,
+    `预计新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条`,
+  ]
+
+  if (preview.droppedByLimitCount > 0) {
+    lines.push(`受历史上限影响，将移除最旧 ${preview.droppedByLimitCount} 条草稿`)
+  }
+
+  lines.push(`导入后本地共 ${preview.nextCount} 条草稿`)
+  lines.push('是否继续导入？')
+  return lines.join('\n')
 }
 
 export const buildEditorLocalDraftExportFileName = (
@@ -1813,12 +1891,20 @@ const handleImportLocalDrafts = async (event: Event) => {
       return
     }
 
-    const nextHistory = mergeEditorLocalDraftHistory(localDraftHistory.value, imported)
-    const previousCount = localDraftHistory.value.length
-    writeLocalDraftHistory(nextHistory)
+    const preview = buildEditorLocalDraftImportPreview(localDraftHistory.value, imported)
+    const confirmed = window.confirm(buildEditorLocalDraftImportPreviewMessage(preview))
+    if (!confirmed) {
+      return
+    }
+
+    writeLocalDraftHistory(preview.mergedHistory)
     localDraftSearch.value = ''
-    selectedLocalDraftSavedAt.value = sortEditorLocalDraftHistoryForView(nextHistory)[0]?.savedAt || ''
-    localDraftMessage.value = `草稿导入成功：新增 ${Math.max(0, nextHistory.length - previousCount)} 条，当前 ${nextHistory.length} 条`
+    selectedLocalDraftSavedAt.value =
+      sortEditorLocalDraftHistoryForView(preview.mergedHistory)[0]?.savedAt || ''
+    localDraftMessage.value =
+      preview.droppedByLimitCount > 0
+        ? `草稿导入成功：新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条，因上限移除 ${preview.droppedByLimitCount} 条`
+        : `草稿导入成功：新增 ${preview.newCount} 条，覆盖 ${preview.overwriteCount} 条`
   } catch {
     alert('导入失败：请检查文件格式')
   } finally {

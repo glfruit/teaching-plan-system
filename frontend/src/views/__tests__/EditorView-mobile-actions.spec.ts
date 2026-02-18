@@ -31,6 +31,8 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('handleExportLocalDrafts')
     expect(editorViewSource).toContain('triggerImportLocalDrafts')
     expect(editorViewSource).toContain('handleImportLocalDrafts')
+    expect(editorViewSource).toContain('buildEditorLocalDraftImportPreview(')
+    expect(editorViewSource).toContain('buildEditorLocalDraftImportPreviewMessage(')
     expect(editorViewSource).toContain('置顶 {{ pinnedDraftCount }} / 未置顶 {{ unpinnedDraftCount }}')
     expect(editorViewSource).toContain('handleToggleLocalDraftPinned')
     expect(editorViewSource).toContain('handleRenameLocalDraft')

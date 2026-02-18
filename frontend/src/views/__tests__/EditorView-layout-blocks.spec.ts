@@ -23,6 +23,8 @@ import {
   serializeEditorLocalDraftExportPayload,
   parseEditorLocalDraftImportPayload,
   mergeEditorLocalDraftHistory,
+  buildEditorLocalDraftImportPreview,
+  buildEditorLocalDraftImportPreviewMessage,
   buildEditorLocalDraftExportFileName,
   normalizeEditorLocalDraftSearchQuery,
   filterEditorLocalDraftHistory,
@@ -841,6 +843,70 @@ describe('EditorView teaching layout persistence', () => {
     expect(merged[0].savedAt).toBe('2026-02-17T13:00:00.000Z')
     expect(merged[1].snapshot.displayName).toBe('Existing')
     expect(merged[1].pinned).toBe(true)
+  })
+
+  it('supports prefer-imported mode to overwrite same savedAt draft', () => {
+    const existing = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Existing', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Existing', title: 'Existing', courseName: '', className: '' },
+        pinned: true,
+      },
+    ]
+    const imported = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Imported', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Imported', title: 'Imported', courseName: '', className: '' },
+        pinned: false,
+      },
+    ]
+
+    const merged = mergeEditorLocalDraftHistory(existing as any, imported as any, 5, 'prefer-imported')
+    expect(merged).toHaveLength(1)
+    expect(merged[0].snapshot.displayName).toBe('Imported')
+    expect(merged[0].pinned).toBe(false)
+  })
+
+  it('builds import preview and confirmation message', () => {
+    const existing = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Existing', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Existing', title: 'Existing', courseName: '', className: '' },
+        pinned: true,
+      },
+    ]
+    const imported = [
+      {
+        version: 1,
+        savedAt: '2026-02-17T12:00:00.000Z',
+        form: { title: 'Overwrite', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'Overwrite', title: 'Overwrite', courseName: '', className: '' },
+        pinned: false,
+      },
+      {
+        version: 1,
+        savedAt: '2026-02-17T13:00:00.000Z',
+        form: { title: 'New', courseName: '', className: '', duration: 45, methods: '', resources: '', objectives: '<p></p>', keyPoints: '<p></p>', process: '<p></p>', blackboard: '<p></p>', reflection: '<p></p>', contentJson: {} },
+        snapshot: { displayName: 'New', title: 'New', courseName: '', className: '' },
+        pinned: false,
+      },
+    ]
+
+    const preview = buildEditorLocalDraftImportPreview(existing as any, imported as any, 5)
+    expect(preview.importedCount).toBe(2)
+    expect(preview.newCount).toBe(1)
+    expect(preview.overwriteCount).toBe(1)
+    expect(preview.nextCount).toBe(2)
+
+    const message = buildEditorLocalDraftImportPreviewMessage(preview)
+    expect(message).toContain('预计新增 1 条，覆盖 1 条')
+    expect(message).toContain('是否继续导入')
   })
 
   it('builds export filename with plan id and timestamp', () => {
