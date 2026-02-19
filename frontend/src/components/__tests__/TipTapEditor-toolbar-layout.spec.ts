@@ -1,8 +1,50 @@
 import { render, fireEvent, waitFor } from '@testing-library/vue'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import TipTapEditor from '../TipTapEditor.vue'
 
+const TOOLBAR_VISIBILITY_STORAGE_KEY = 'tiptap-toolbar-visibility-v1'
+const createMockStorage = (): Storage => {
+  const map = new Map<string, string>()
+  return {
+    get length() {
+      return map.size
+    },
+    clear: () => map.clear(),
+    getItem: (key: string) => map.get(key) ?? null,
+    key: (index: number) => Array.from(map.keys())[index] ?? null,
+    removeItem: (key: string) => map.delete(key),
+    setItem: (key: string, value: string) => {
+      map.set(key, value)
+    },
+  }
+}
+
 describe('TipTapEditor teaching layout toolbar', () => {
+  beforeEach(() => {
+    Object.defineProperty(window, 'localStorage', {
+      value: createMockStorage(),
+      configurable: true,
+    })
+  })
+
+  it('restores toolbar visibility from local storage', async () => {
+    window.localStorage.setItem(
+      TOOLBAR_VISIBILITY_STORAGE_KEY,
+      JSON.stringify({ table: true, teaching: true })
+    )
+
+    const { getByTitle } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
+
+    await waitFor(() => {
+      expect(getByTitle('收起表格工具')).toBeTruthy()
+      expect(getByTitle('收起教学块工具')).toBeTruthy()
+      expect(getByTitle('插入表格')).toBeTruthy()
+      expect(getByTitle('插入时间轴')).toBeTruthy()
+    })
+
+    window.localStorage.removeItem(TOOLBAR_VISIBILITY_STORAGE_KEY)
+  })
+
   it('renders buttons and inserts timeline block on click', async () => {
     const { getByTitle, queryByTitle, container } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
     expect(queryByTitle('插入时间轴')).toBeNull()
@@ -27,6 +69,7 @@ describe('TipTapEditor teaching layout toolbar', () => {
   })
 
   it('collapses table tools by default and expands on demand', async () => {
+    window.localStorage.removeItem(TOOLBAR_VISIBILITY_STORAGE_KEY)
     const { getByTitle, queryByTitle } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
 
     expect(queryByTitle('插入表格')).toBeNull()

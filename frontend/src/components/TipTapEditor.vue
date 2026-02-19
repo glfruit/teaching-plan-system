@@ -478,14 +478,66 @@ const emit = defineEmits<{
   (e: 'update:modelJson', value: JSONContent): void
 }>()
 
+interface ToolbarVisibilityState {
+  table: boolean
+  teaching: boolean
+}
+
+const TOOLBAR_VISIBILITY_STORAGE_KEY = 'tiptap-toolbar-visibility-v1'
+const DEFAULT_TOOLBAR_VISIBILITY: ToolbarVisibilityState = {
+  table: false,
+  teaching: false,
+}
+
+const readToolbarVisibility = (): ToolbarVisibilityState => {
+  if (typeof window === 'undefined') {
+    return DEFAULT_TOOLBAR_VISIBILITY
+  }
+
+  const storage = window.localStorage
+  if (!storage || typeof storage.getItem !== 'function') {
+    return DEFAULT_TOOLBAR_VISIBILITY
+  }
+
+  const raw = storage.getItem(TOOLBAR_VISIBILITY_STORAGE_KEY)
+  if (!raw) {
+    return DEFAULT_TOOLBAR_VISIBILITY
+  }
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<ToolbarVisibilityState>
+    return {
+      table: parsed.table === true,
+      teaching: parsed.teaching === true,
+    }
+  } catch {
+    return DEFAULT_TOOLBAR_VISIBILITY
+  }
+}
+
+const writeToolbarVisibility = (next: ToolbarVisibilityState): void => {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const storage = window.localStorage
+  if (!storage || typeof storage.setItem !== 'function') {
+    return
+  }
+
+  storage.setItem(TOOLBAR_VISIBILITY_STORAGE_KEY, JSON.stringify(next))
+}
+
+const initialToolbarVisibility = readToolbarVisibility()
+
 const showImageDialog = ref(false)
 const imageUrl = ref('')
 const slashQuery = ref('')
 const slashSelectedIndex = ref(0)
 const isSlashMenuOpen = ref(false)
 const operationMessage = ref('')
-const showTableTools = ref(false)
-const showTeachingTools = ref(false)
+const showTableTools = ref(initialToolbarVisibility.table)
+const showTeachingTools = ref(initialToolbarVisibility.teaching)
 
 const slashMenuItems = computed(() => filterTeachingSlashItems(slashQuery.value))
 
@@ -506,6 +558,10 @@ const editorMetrics = computed(() => {
     characters: text.replace(/\s+/g, '').length,
     paragraphs: countParagraphs(props.modelValue || ''),
   }
+})
+
+watch([showTableTools, showTeachingTools], ([table, teaching]) => {
+  writeToolbarVisibility({ table, teaching })
 })
 
 const editor = useEditor({
