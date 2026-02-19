@@ -217,4 +217,53 @@ describe('TipTapEditor teaching layout toolbar', () => {
       expect(container.querySelector('[data-testid="editor-operation-message"]')?.className).toContain('text-red-700')
     })
   })
+
+  it('shows success feedback after inserting table', async () => {
+    const { getByTitle, getByText, container } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
+
+    await fireEvent.click(getByTitle('展开表格工具'))
+    await fireEvent.click(getByTitle('插入表格'))
+
+    await waitFor(() => {
+      expect(getByText('已插入3×3表格，可继续调整行列。')).toBeTruthy()
+      expect(container.querySelector('[data-testid="editor-operation-message"]')?.className).toContain('text-emerald-700')
+    })
+  })
+
+  it('shows failure feedback when splitting a non-merged table cell', async () => {
+    const { getByTitle, getByText, container } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
+
+    await fireEvent.click(getByTitle('展开表格工具'))
+    await fireEvent.click(getByTitle('插入表格'))
+    const firstCell = container.querySelector('th,td') as HTMLElement
+    await fireEvent.click(firstCell)
+    await waitFor(() => {
+      expect(getByTitle('拆分单元格')).toBeTruthy()
+    })
+    await fireEvent.click(getByTitle('拆分单元格'))
+
+    await waitFor(() => {
+      expect(getByText('拆分失败：请先选中一个已合并的单元格。')).toBeTruthy()
+      expect(container.querySelector('[data-testid="editor-operation-message"]')?.className).toContain('text-red-700')
+    })
+  })
+
+  it('clears feedback timeout when unmounting component', async () => {
+    vi.useFakeTimers()
+    const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
+
+    try {
+      const { getByTitle, unmount } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
+      await fireEvent.click(getByTitle('展开教学块工具'))
+      await fireEvent.click(getByTitle('插入时间轴'))
+
+      const beforeUnmount = clearTimeoutSpy.mock.calls.length
+      unmount()
+
+      expect(clearTimeoutSpy.mock.calls.length).toBeGreaterThan(beforeUnmount)
+    } finally {
+      clearTimeoutSpy.mockRestore()
+      vi.useRealTimers()
+    }
+  })
 })

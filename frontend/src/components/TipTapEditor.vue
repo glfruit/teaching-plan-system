@@ -474,7 +474,7 @@ import { Table } from '@tiptap/extension-table'
 import { TableRow } from '@tiptap/extension-table-row'
 import { TableCell } from '@tiptap/extension-table-cell'
 import { TableHeader } from '@tiptap/extension-table-header'
-import { watch, ref, computed } from 'vue'
+import { watch, ref, computed, onBeforeUnmount } from 'vue'
 import {
   lessonTimeline,
   activityStepCard,
@@ -719,7 +719,11 @@ const addImage = () => {
 // Insert table
 const insertTable = () => {
   showTableTools.value = true
-  editor.value?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+  runTableOperation(
+    (editorInstance) => editorInstance.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run(),
+    '已插入3×3表格，可继续调整行列。',
+    '插入表格失败，请调整光标位置后重试。'
+  )
 }
 
 const toggleAllAdvancedToolGroups = () => {
@@ -730,52 +734,92 @@ const toggleAllAdvancedToolGroups = () => {
 
 // Delete table
 const deleteTable = () => {
-  editor.value?.chain().focus().deleteTable().run()
+  runTableOperation(
+    (editorInstance) => editorInstance.chain().focus().deleteTable().run(),
+    '已删除表格，可按 Ctrl/Cmd+Z 撤销。',
+    '删除表格失败：请先将光标置于表格内。'
+  )
 }
 
 // Add column before
 const addColumnBefore = () => {
-  editor.value?.chain().focus().addColumnBefore().run()
+  runTableOperation(
+    (editorInstance) => editorInstance.chain().focus().addColumnBefore().run(),
+    '已在前方新增一列。',
+    '添加列失败：请先将光标置于表格单元格内。'
+  )
 }
 
 // Add column after
 const addColumnAfter = () => {
-  editor.value?.chain().focus().addColumnAfter().run()
+  runTableOperation(
+    (editorInstance) => editorInstance.chain().focus().addColumnAfter().run(),
+    '已在后方新增一列。',
+    '添加列失败：请先将光标置于表格单元格内。'
+  )
 }
 
 // Delete column
 const deleteColumn = () => {
-  editor.value?.chain().focus().deleteColumn().run()
+  runTableOperation(
+    (editorInstance) => editorInstance.chain().focus().deleteColumn().run(),
+    '已删除当前列，可按 Ctrl/Cmd+Z 撤销。',
+    '删除列失败：请先将光标置于目标列。'
+  )
 }
 
 // Add row before
 const addRowBefore = () => {
-  editor.value?.chain().focus().addRowBefore().run()
+  runTableOperation(
+    (editorInstance) => editorInstance.chain().focus().addRowBefore().run(),
+    '已在上方新增一行。',
+    '添加行失败：请先将光标置于表格单元格内。'
+  )
 }
 
 // Add row after
 const addRowAfter = () => {
-  editor.value?.chain().focus().addRowAfter().run()
+  runTableOperation(
+    (editorInstance) => editorInstance.chain().focus().addRowAfter().run(),
+    '已在下方新增一行。',
+    '添加行失败：请先将光标置于表格单元格内。'
+  )
 }
 
 // Delete row
 const deleteRow = () => {
-  editor.value?.chain().focus().deleteRow().run()
+  runTableOperation(
+    (editorInstance) => editorInstance.chain().focus().deleteRow().run(),
+    '已删除当前行，可按 Ctrl/Cmd+Z 撤销。',
+    '删除行失败：请先将光标置于目标行。'
+  )
 }
 
 // Toggle header cell
 const toggleHeaderCell = () => {
-  editor.value?.chain().focus().toggleHeaderCell().run()
+  runTableOperation(
+    (editorInstance) => editorInstance.chain().focus().toggleHeaderCell().run(),
+    '已切换表头样式。',
+    '切换表头失败：请先选中表格单元格。'
+  )
 }
 
 // Merge cells
 const mergeCells = () => {
-  editor.value?.chain().focus().mergeCells().run()
+  runTableOperation(
+    (editorInstance) => editorInstance.chain().focus().mergeCells().run(),
+    '已合并选中单元格。',
+    '合并失败：请先框选多个相邻单元格。'
+  )
 }
 
 // Split cell
 const splitCell = () => {
-  editor.value?.chain().focus().splitCell().run()
+  runTableOperation(
+    (editorInstance) => editorInstance.chain().focus().splitCell().run(),
+    '已拆分当前单元格。',
+    '拆分失败：请先选中一个已合并的单元格。'
+  )
 }
 
 const insertTimelineBlock = () => {
@@ -870,4 +914,22 @@ const clearOperationFeedback = () => {
     operationMessageTimer = null
   }
 }
+
+const runTableOperation = (
+  command: (editorInstance: NonNullable<typeof editor.value>) => boolean,
+  successMessage: string,
+  failureMessage: string
+) => {
+  if (!editor.value) {
+    setOperationFeedback(false, successMessage, failureMessage)
+    return
+  }
+
+  const ok = command(editor.value)
+  setOperationFeedback(ok, successMessage, failureMessage)
+}
+
+onBeforeUnmount(() => {
+  clearOperationFeedback()
+})
 </script>
