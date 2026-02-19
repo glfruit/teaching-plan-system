@@ -263,6 +263,66 @@ describe('TipTapEditor teaching layout toolbar', () => {
     })
   })
 
+  it('shows success feedback after uploading local image file', async () => {
+    const originalFileReader = globalThis.FileReader
+    class MockFileReader {
+      result: string | ArrayBuffer | null = null
+      onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null
+      onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null
+
+      readAsDataURL() {
+        this.result = 'data:image/png;base64,ZmFrZQ=='
+        this.onload?.call(this as unknown as FileReader, new ProgressEvent('load'))
+      }
+    }
+    vi.stubGlobal('FileReader', MockFileReader as unknown as typeof FileReader)
+
+    try {
+      const { getByTitle, getByLabelText, getByText, container } = render(TipTapEditor, {
+        props: { modelValue: '<p></p>' },
+      })
+
+      await fireEvent.click(getByTitle('插入图片'))
+      const fileInput = getByLabelText('上传本地图片') as HTMLInputElement
+      const file = new File(['fake-image'], 'demo.png', { type: 'image/png' })
+      Object.defineProperty(fileInput, 'files', {
+        value: [file],
+        configurable: true,
+      })
+      fileInput.dispatchEvent(new Event('change'))
+
+      await waitFor(() => {
+        expect(getByText('已插入本地图片。')).toBeTruthy()
+        expect(container.querySelector('img')).toBeTruthy()
+      })
+    } finally {
+      vi.unstubAllGlobals()
+      if (!originalFileReader) {
+        delete (globalThis as { FileReader?: unknown }).FileReader
+      }
+    }
+  })
+
+  it('shows failure feedback when uploading non-image file', async () => {
+    const { getByTitle, getByLabelText, getByText, container } = render(TipTapEditor, {
+      props: { modelValue: '<p></p>' },
+    })
+
+    await fireEvent.click(getByTitle('插入图片'))
+    const fileInput = getByLabelText('上传本地图片') as HTMLInputElement
+    const file = new File(['not-image'], 'demo.txt', { type: 'text/plain' })
+    Object.defineProperty(fileInput, 'files', {
+      value: [file],
+      configurable: true,
+    })
+    fileInput.dispatchEvent(new Event('change'))
+
+    await waitFor(() => {
+      expect(getByText('请选择图片文件（PNG/JPG/WebP 等）。')).toBeTruthy()
+      expect(container.querySelector('[data-testid="editor-operation-message"]')?.className).toContain('text-red-700')
+    })
+  })
+
   it('shows success feedback after clearing formatting', async () => {
     const { getByTitle, getByText, container } = render(TipTapEditor, {
       props: { modelValue: '<p><strong>格式文本</strong></p>' },

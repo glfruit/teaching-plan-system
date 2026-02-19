@@ -19,12 +19,13 @@
       </button>
     </div>
     <!-- Image Dialog -->
-    <div v-if="showImageDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showImageDialog = false">
+    <div v-if="showImageDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="closeImageDialog">
       <div class="bg-white rounded p-6 w-full max-w-md mx-4 shadow-lg">
         <h3 class="text-lg font-semibold text-slate-800 mb-4">插入图片</h3>
         <div class="mb-4">
-          <label class="block text-sm font-medium text-slate-700 mb-2">图片 URL</label>
+          <label for="image-url-input" class="block text-sm font-medium text-slate-700 mb-2">图片 URL</label>
           <input
+            id="image-url-input"
             v-model="imageUrl"
             type="text"
             placeholder="https://example.com/image.jpg"
@@ -32,9 +33,20 @@
             @keyup.enter="addImage"
           />
         </div>
+        <div class="mb-5">
+          <label for="image-local-input" class="mb-2 block text-sm font-medium text-slate-700">上传本地图片</label>
+          <input
+            id="image-local-input"
+            ref="localImageInput"
+            type="file"
+            accept="image/*"
+            class="block w-full cursor-pointer rounded border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded file:border-0 file:bg-[#f2f6f3] file:px-3 file:py-1.5 file:text-[#435549]"
+            @change="addLocalImage"
+          />
+        </div>
         <div class="flex items-center justify-end gap-3">
           <button
-            @click="showImageDialog = false"
+            @click="closeImageDialog"
             class="px-4 py-2 text-slate-600 border border-slate-200 bg-white hover:bg-slate-100 rounded transition-colors"
           >
             取消
@@ -588,6 +600,7 @@ const initialToolbarVisibility = readToolbarVisibility()
 
 const showImageDialog = ref(false)
 const imageUrl = ref('')
+const localImageInput = ref<HTMLInputElement | null>(null)
 const slashQuery = ref('')
 const slashSelectedIndex = ref(0)
 const isSlashMenuOpen = ref(false)
@@ -768,6 +781,17 @@ watch(() => props.modelValue, (newValue) => {
   }
 })
 
+const closeImageDialog = () => {
+  showImageDialog.value = false
+  imageUrl.value = ''
+  if (localImageInput.value) {
+    localImageInput.value.value = ''
+  }
+}
+
+const isImageFile = (file: File): boolean =>
+  file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(file.name)
+
 // Add image from URL
 const addImage = () => {
   const nextUrl = imageUrl.value.trim()
@@ -782,9 +806,57 @@ const addImage = () => {
     '插入图片失败，请检查 URL 或光标位置后重试。'
   )
   if (ok) {
-    imageUrl.value = ''
-    showImageDialog.value = false
+    closeImageDialog()
   }
+}
+
+const addLocalImage = (event: Event) => {
+  const target = event.target as HTMLInputElement | null
+  const file = target?.files?.[0]
+  if (!file) {
+    return
+  }
+
+  if (!isImageFile(file)) {
+    setOperationFeedback(false, '已插入本地图片。', '请选择图片文件（PNG/JPG/WebP 等）。')
+    if (target) {
+      target.value = ''
+    }
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onerror = () => {
+    setOperationFeedback(false, '已插入本地图片。', '读取图片失败，请重试或改用图片 URL。')
+    if (target) {
+      target.value = ''
+    }
+  }
+  reader.onload = () => {
+    const result = reader.result
+    if (typeof result !== 'string' || !result.startsWith('data:image/')) {
+      setOperationFeedback(false, '已插入本地图片。', '读取图片失败，请重试或改用图片 URL。')
+      if (target) {
+        target.value = ''
+      }
+      return
+    }
+
+    const ok = runEditorOperation(
+      (editorInstance) => editorInstance.chain().focus().setImage({ src: result }).run(),
+      '已插入本地图片。',
+      '插入本地图片失败，请调整光标位置后重试。'
+    )
+
+    if (target) {
+      target.value = ''
+    }
+
+    if (ok) {
+      closeImageDialog()
+    }
+  }
+  reader.readAsDataURL(file)
 }
 
 const clearFormatting = () => {
