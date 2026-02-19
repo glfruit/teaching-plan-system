@@ -303,6 +303,51 @@ describe('TipTapEditor teaching layout toolbar', () => {
     }
   })
 
+  it('shows success feedback after pasting local image file', async () => {
+    const originalFileReader = globalThis.FileReader
+    class MockFileReader {
+      result: string | ArrayBuffer | null = null
+      onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null
+      onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null
+
+      readAsDataURL() {
+        this.result = 'data:image/png;base64,ZmFrZQ=='
+        this.onload?.call(this as unknown as FileReader, new ProgressEvent('load'))
+      }
+    }
+    vi.stubGlobal('FileReader', MockFileReader as unknown as typeof FileReader)
+
+    try {
+      const { getByText, container } = render(TipTapEditor, {
+        props: { modelValue: '<p></p>' },
+      })
+
+      await waitFor(() => {
+        expect(container.querySelector('[role="textbox"]')).toBeTruthy()
+      })
+      const editorRoot = container.querySelector('[role="textbox"]') as HTMLElement
+      const file = new File(['fake-image'], 'paste.png', { type: 'image/png' })
+      await fireEvent.paste(editorRoot, {
+        clipboardData: {
+          files: [file],
+          items: [],
+          types: ['Files'],
+          getData: () => '',
+        },
+      })
+
+      await waitFor(() => {
+        expect(getByText('已粘贴本地图片。')).toBeTruthy()
+        expect(container.querySelector('img')).toBeTruthy()
+      })
+    } finally {
+      vi.unstubAllGlobals()
+      if (!originalFileReader) {
+        delete (globalThis as { FileReader?: unknown }).FileReader
+      }
+    }
+  })
+
   it('shows failure feedback when uploading non-image file', async () => {
     const { getByTitle, getByLabelText, getByText, container } = render(TipTapEditor, {
       props: { modelValue: '<p></p>' },

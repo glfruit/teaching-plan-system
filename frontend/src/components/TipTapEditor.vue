@@ -532,6 +532,13 @@ interface TipTapShortcutConfig {
   deleteTable: TipTapShortcutBinding
 }
 
+interface LocalImageInsertOptions {
+  successMessage: string
+  failureMessage: string
+  onSuccess?: () => void
+  onFinally?: () => void
+}
+
 const TOOLBAR_VISIBILITY_STORAGE_KEY = 'tiptap-toolbar-visibility-v1'
 const DEFAULT_TOOLBAR_VISIBILITY: ToolbarVisibilityState = {
   table: false,
@@ -681,6 +688,24 @@ const editor = useEditor({
     emit('update:modelValue', editor.getHTML())
   },
   editorProps: {
+    handlePaste: (_, event) => {
+      const files = event.clipboardData?.files
+      if (!files?.length) {
+        return false
+      }
+
+      const imageFile = Array.from(files).find((file) => isImageFile(file))
+      if (!imageFile) {
+        return false
+      }
+
+      event.preventDefault()
+      insertLocalImageFile(imageFile, {
+        successMessage: '已粘贴本地图片。',
+        failureMessage: '粘贴图片失败，请调整光标位置后重试。',
+      })
+      return true
+    },
     handleKeyDown: (_, event) => {
       if (!event.repeat && !event.altKey && (event.metaKey || event.ctrlKey)) {
         if (matchesShortcut(event, resolvedShortcutConfig.value.insertTable)) {
@@ -793,6 +818,45 @@ const closeImageDialog = () => {
 const isImageFile = (file: File): boolean =>
   file.type.startsWith('image/') || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(file.name)
 
+const insertLocalImageFile = (file: File, options: LocalImageInsertOptions) => {
+  if (!isImageFile(file)) {
+    setOperationFeedback(false, options.successMessage, '请选择图片文件（PNG/JPG/WebP 等）。')
+    options.onFinally?.()
+    return
+  }
+
+  if (file.size > MAX_LOCAL_IMAGE_SIZE_BYTES) {
+    setOperationFeedback(false, options.successMessage, '图片体积不能超过 5MB，请压缩后重试。')
+    options.onFinally?.()
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onerror = () => {
+    setOperationFeedback(false, options.successMessage, '读取图片失败，请重试或改用图片 URL。')
+    options.onFinally?.()
+  }
+  reader.onload = () => {
+    const result = reader.result
+    if (typeof result !== 'string' || !result.startsWith('data:image/')) {
+      setOperationFeedback(false, options.successMessage, '读取图片失败，请重试或改用图片 URL。')
+      options.onFinally?.()
+      return
+    }
+
+    const ok = runEditorOperation(
+      (editorInstance) => editorInstance.chain().focus().setImage({ src: result }).run(),
+      options.successMessage,
+      options.failureMessage
+    )
+    if (ok) {
+      options.onSuccess?.()
+    }
+    options.onFinally?.()
+  }
+  reader.readAsDataURL(file)
+}
+
 // Add image from URL
 const addImage = () => {
   const nextUrl = imageUrl.value.trim()
@@ -818,54 +882,16 @@ const addLocalImage = (event: Event) => {
     return
   }
 
-  if (!isImageFile(file)) {
-    setOperationFeedback(false, '已插入本地图片。', '请选择图片文件（PNG/JPG/WebP 等）。')
-    if (target) {
-      target.value = ''
-    }
-    return
-  }
-
-  if (file.size > MAX_LOCAL_IMAGE_SIZE_BYTES) {
-    setOperationFeedback(false, '已插入本地图片。', '图片体积不能超过 5MB，请压缩后重试。')
-    if (target) {
-      target.value = ''
-    }
-    return
-  }
-
-  const reader = new FileReader()
-  reader.onerror = () => {
-    setOperationFeedback(false, '已插入本地图片。', '读取图片失败，请重试或改用图片 URL。')
-    if (target) {
-      target.value = ''
-    }
-  }
-  reader.onload = () => {
-    const result = reader.result
-    if (typeof result !== 'string' || !result.startsWith('data:image/')) {
-      setOperationFeedback(false, '已插入本地图片。', '读取图片失败，请重试或改用图片 URL。')
+  insertLocalImageFile(file, {
+    successMessage: '已插入本地图片。',
+    failureMessage: '插入本地图片失败，请调整光标位置后重试。',
+    onSuccess: closeImageDialog,
+    onFinally: () => {
       if (target) {
         target.value = ''
       }
-      return
-    }
-
-    const ok = runEditorOperation(
-      (editorInstance) => editorInstance.chain().focus().setImage({ src: result }).run(),
-      '已插入本地图片。',
-      '插入本地图片失败，请调整光标位置后重试。'
-    )
-
-    if (target) {
-      target.value = ''
-    }
-
-    if (ok) {
-      closeImageDialog()
-    }
-  }
-  reader.readAsDataURL(file)
+    },
+  })
 }
 
 const clearFormatting = () => {
