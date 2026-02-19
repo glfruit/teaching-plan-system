@@ -300,6 +300,36 @@ describe('TipTapEditor teaching layout toolbar', () => {
     })
   })
 
+  it('supports configurable table shortcut to delete table', async () => {
+    const { container, getByTitle, getByText } = render(TipTapEditor, {
+      props: {
+        modelValue: '<p></p>',
+        shortcutConfig: {
+          insertTable: { key: 'T', shift: true },
+          deleteTable: { key: 'G', shift: true },
+        },
+      },
+    })
+
+    await fireEvent.click(getByTitle('展开表格工具'))
+    await fireEvent.click(getByTitle('插入表格'))
+    await waitFor(() => {
+      expect(container.querySelector('table')).toBeTruthy()
+      expect(container.querySelector('.ProseMirror')).toBeTruthy()
+    })
+
+    const firstCell = container.querySelector('th,td') as HTMLElement
+    await fireEvent.click(firstCell)
+    const editable = container.querySelector('.ProseMirror') as HTMLElement
+    await fireEvent.focus(editable)
+    await fireEvent.keyDown(editable, { key: 'G', ctrlKey: true, shiftKey: true })
+
+    await waitFor(() => {
+      expect(container.querySelector('table')).toBeNull()
+      expect(getByText('已删除表格，可按 Ctrl/Cmd+Z 撤销。')).toBeTruthy()
+    })
+  })
+
   it('clears feedback timeout when unmounting component', async () => {
     vi.useFakeTimers()
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')

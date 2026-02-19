@@ -295,41 +295,55 @@
             </ul>
           </div>
 
-          <div class="mt-4 space-y-2 text-sm text-slate-700">
-            <div
-              v-for="action in SHORTCUT_ACTIONS"
-              :key="`shortcut-action-${action.id}`"
-              class="rounded border bg-slate-50 px-3 py-2"
-              :class="isShortcutActionConflicted(action.id) ? 'border-red-200 bg-red-50/60' : 'border-slate-200'"
+          <div class="mt-4 space-y-3 text-sm text-slate-700">
+            <section
+              v-for="section in shortcutActionSections"
+              :key="`shortcut-section-${section.id}`"
+              class="rounded border border-slate-200 bg-slate-50/50 p-2"
             >
-              <div class="flex items-center justify-between gap-2">
-                <div class="min-w-0">
-                  <p class="truncate">{{ action.label }}</p>
-                  <p class="mt-0.5 text-[11px] text-slate-500">{{ action.hint }}</p>
-                </div>
-                <code class="rounded-sm border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600">
-                  {{ formatShortcutDisplay(shortcutDraftConfig[action.id]) }}
-                </code>
-              </div>
-              <div class="mt-2 grid grid-cols-[1fr_auto] gap-2">
-                <select
-                  v-model="shortcutDraftConfig[action.id].key"
-                  class="h-9 rounded border border-slate-300 bg-white px-2 text-xs text-slate-700 focus:border-[#647269] focus:outline-none focus:ring-2 focus:ring-[#647269]/20"
+              <p class="px-1 text-xs font-semibold tracking-wide text-slate-500">
+                {{ section.label }}
+              </p>
+              <p class="px-1 pt-0.5 text-[11px] text-slate-500">
+                {{ section.description }}
+              </p>
+              <div class="mt-2 space-y-2">
+                <div
+                  v-for="action in section.actions"
+                  :key="`shortcut-action-${action.id}`"
+                  class="rounded border bg-slate-50 px-3 py-2"
+                  :class="isShortcutActionConflicted(action.id) ? 'border-red-200 bg-red-50/60' : 'border-slate-200'"
                 >
-                  <option v-for="key in SHORTCUT_KEY_OPTIONS" :key="`shortcut-key-${action.id}-${key}`" :value="key">
-                    {{ key }}
-                  </option>
-                </select>
-                <label class="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 text-xs text-slate-600">
-                  <input
-                    v-model="shortcutDraftConfig[action.id].shift"
-                    type="checkbox"
-                    class="h-3.5 w-3.5 rounded border-slate-300 text-[#647269] focus:ring-[#647269]"
-                  />
-                  Shift
-                </label>
+                  <div class="flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="truncate">{{ action.label }}</p>
+                      <p class="mt-0.5 text-[11px] text-slate-500">{{ action.hint }}</p>
+                    </div>
+                    <code class="rounded-sm border border-slate-300 bg-white px-2 py-0.5 text-xs text-slate-600">
+                      {{ formatShortcutDisplay(shortcutDraftConfig[action.id]) }}
+                    </code>
+                  </div>
+                  <div class="mt-2 grid grid-cols-[1fr_auto] gap-2">
+                    <select
+                      v-model="shortcutDraftConfig[action.id].key"
+                      class="h-9 rounded border border-slate-300 bg-white px-2 text-xs text-slate-700 focus:border-[#647269] focus:outline-none focus:ring-2 focus:ring-[#647269]/20"
+                    >
+                      <option v-for="key in SHORTCUT_KEY_OPTIONS" :key="`shortcut-key-${action.id}-${key}`" :value="key">
+                        {{ key }}
+                      </option>
+                    </select>
+                    <label class="inline-flex items-center gap-1 rounded border border-slate-300 bg-white px-2 text-xs text-slate-600">
+                      <input
+                        v-model="shortcutDraftConfig[action.id].shift"
+                        type="checkbox"
+                        class="h-3.5 w-3.5 rounded border-slate-300 text-[#647269] focus:ring-[#647269]"
+                      />
+                      Shift
+                    </label>
+                  </div>
+                </div>
               </div>
-            </div>
+            </section>
           </div>
 
           <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
@@ -3029,6 +3043,7 @@ import { normalizeTemplateTags } from '../stores/planTemplate'
 
 type EditorShortcutAction = 'save' | 'export' | 'publish' | 'openHelp' | 'insertTable' | 'deleteTable'
 type EditorShortcutKey = 'S' | 'E' | 'P' | 'K' | 'D' | 'R' | 'H' | 'T' | 'G'
+type EditorShortcutScope = 'global' | 'editor'
 
 interface EditorShortcutConfig {
   key: EditorShortcutKey
@@ -3044,13 +3059,19 @@ interface EditorShortcutActionMeta {
   id: EditorShortcutAction
   label: string
   hint: string
-  scope: 'global' | 'editor'
+  scope: EditorShortcutScope
   requiresEditing?: boolean
 }
 
 interface EditorShortcutConflictGroup {
   signature: string
   actions: EditorShortcutAction[]
+}
+
+interface EditorShortcutScopeSection {
+  id: EditorShortcutScope
+  label: string
+  description: string
 }
 
 const SHORTCUT_ACTIONS: readonly EditorShortcutActionMeta[] = [
@@ -3060,6 +3081,11 @@ const SHORTCUT_ACTIONS: readonly EditorShortcutActionMeta[] = [
   { id: 'openHelp', label: '打开快捷键帮助', hint: '默认：Ctrl / Cmd + Shift + K', scope: 'global' },
   { id: 'insertTable', label: '插入表格（编辑器）', hint: '默认：Ctrl / Cmd + Shift + T', scope: 'editor' },
   { id: 'deleteTable', label: '删除表格（编辑器）', hint: '默认：Ctrl / Cmd + Shift + G', scope: 'editor' },
+] as const
+
+const SHORTCUT_SCOPE_SECTIONS: readonly EditorShortcutScopeSection[] = [
+  { id: 'global', label: '全局快捷键', description: '在编辑页任意位置生效，用于保存、导出、发布等操作。' },
+  { id: 'editor', label: '编辑器内快捷键', description: '仅在富文本输入区域内触发，用于快速编辑内容。' },
 ] as const
 
 const SHORTCUT_KEY_OPTIONS: readonly EditorShortcutKey[] = ['S', 'E', 'P', 'K', 'D', 'R', 'H', 'T', 'G'] as const
@@ -3234,6 +3260,13 @@ const shortcutConflictGroups = computed<EditorShortcutConflictGroup[]>(() => {
     .filter(([, actions]) => actions.length > 1)
     .map(([signature, actions]) => ({ signature, actions }))
 })
+
+const shortcutActionSections = computed(() =>
+  SHORTCUT_SCOPE_SECTIONS.map((section) => ({
+    ...section,
+    actions: SHORTCUT_ACTIONS.filter((action) => action.scope === section.id),
+  }))
+)
 
 const hasShortcutConflicts = computed(() => shortcutConflictGroups.value.length > 0)
 const shortcutConflictActionSet = computed(

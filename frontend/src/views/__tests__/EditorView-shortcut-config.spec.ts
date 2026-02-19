@@ -9,6 +9,10 @@ describe('EditorView shortcut config dialog', () => {
   it('renders configurable shortcut actions and key options', () => {
     expect(editorViewSource).toContain('SHORTCUT_ACTIONS')
     expect(editorViewSource).toContain('SHORTCUT_KEY_OPTIONS')
+    expect(editorViewSource).toContain('SHORTCUT_SCOPE_SECTIONS')
+    expect(editorViewSource).toContain("scope: 'global'")
+    expect(editorViewSource).toContain("scope: 'editor'")
+    expect(editorViewSource).toContain('filter((action) => action.scope === section.id)')
     expect(editorViewSource).toContain("id: 'insertTable'")
     expect(editorViewSource).toContain("id: 'deleteTable'")
     expect(editorViewSource).toContain(':shortcut-config="tiptapShortcutConfig"')
