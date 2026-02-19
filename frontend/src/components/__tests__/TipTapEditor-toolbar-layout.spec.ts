@@ -77,7 +77,7 @@ describe('TipTapEditor teaching layout toolbar', () => {
     await waitFor(() => {
       expect(getByTitle('收起表格工具')).toBeTruthy()
       expect(getByTitle('收起教学块工具')).toBeTruthy()
-      expect(getByTitle('插入表格')).toBeTruthy()
+      expect(getByTitle(/插入表格/)).toBeTruthy()
       expect(getByTitle('插入时间轴')).toBeTruthy()
     })
 
@@ -111,21 +111,21 @@ describe('TipTapEditor teaching layout toolbar', () => {
     window.localStorage.removeItem(TOOLBAR_VISIBILITY_STORAGE_KEY)
     const { getByTitle, queryByTitle } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
 
-    expect(queryByTitle('插入表格')).toBeNull()
+    expect(queryByTitle(/插入表格/)).toBeNull()
     await fireEvent.click(getByTitle('展开表格工具'))
-    expect(getByTitle('插入表格')).toBeTruthy()
+    expect(getByTitle(/插入表格/)).toBeTruthy()
   })
 
   it('toggles all advanced tool groups with one click', async () => {
     window.localStorage.removeItem(TOOLBAR_VISIBILITY_STORAGE_KEY)
     const { getByTitle, queryByTitle } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
 
-    expect(queryByTitle('插入表格')).toBeNull()
+    expect(queryByTitle(/插入表格/)).toBeNull()
     expect(queryByTitle('插入时间轴')).toBeNull()
 
     await fireEvent.click(getByTitle('展开全部工具组'))
 
-    expect(getByTitle('插入表格')).toBeTruthy()
+    expect(getByTitle(/插入表格/)).toBeTruthy()
     expect(getByTitle('插入时间轴')).toBeTruthy()
     expect(getByTitle('收起全部工具组')).toBeTruthy()
   })
@@ -222,7 +222,7 @@ describe('TipTapEditor teaching layout toolbar', () => {
     const { getByTitle, getByText, container } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
 
     await fireEvent.click(getByTitle('展开表格工具'))
-    await fireEvent.click(getByTitle('插入表格'))
+    await fireEvent.click(getByTitle(/插入表格/))
 
     await waitFor(() => {
       expect(getByText('已插入3×3表格，可继续调整行列。')).toBeTruthy()
@@ -234,7 +234,7 @@ describe('TipTapEditor teaching layout toolbar', () => {
     const { getByTitle, getByText, container } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
 
     await fireEvent.click(getByTitle('展开表格工具'))
-    await fireEvent.click(getByTitle('插入表格'))
+    await fireEvent.click(getByTitle(/插入表格/))
     const firstCell = container.querySelector('th,td') as HTMLElement
     await fireEvent.click(firstCell)
     await waitFor(() => {
@@ -276,6 +276,29 @@ describe('TipTapEditor teaching layout toolbar', () => {
     })
   })
 
+  it('renders shortcut hints in table button tooltips', async () => {
+    const { getByTitle, container } = render(TipTapEditor, {
+      props: {
+        modelValue: '<p></p>',
+        shortcutConfig: {
+          insertTable: { key: 'R', shift: false },
+          deleteTable: { key: 'H', shift: true },
+        },
+      },
+    })
+
+    await fireEvent.click(getByTitle('展开表格工具'))
+    expect(getByTitle('插入表格（Ctrl / Cmd + R）')).toBeTruthy()
+
+    await fireEvent.click(getByTitle('插入表格（Ctrl / Cmd + R）'))
+    const firstCell = container.querySelector('th,td') as HTMLElement
+    await fireEvent.click(firstCell)
+
+    await waitFor(() => {
+      expect(getByTitle('删除表格（Ctrl / Cmd + Shift + H）')).toBeTruthy()
+    })
+  })
+
   it('supports configurable table shortcut to insert table', async () => {
     const { container, getByText } = render(TipTapEditor, {
       props: {
@@ -312,7 +335,7 @@ describe('TipTapEditor teaching layout toolbar', () => {
     })
 
     await fireEvent.click(getByTitle('展开表格工具'))
-    await fireEvent.click(getByTitle('插入表格'))
+    await fireEvent.click(getByTitle(/插入表格/))
     await waitFor(() => {
       expect(container.querySelector('table')).toBeTruthy()
       expect(container.querySelector('.ProseMirror')).toBeTruthy()

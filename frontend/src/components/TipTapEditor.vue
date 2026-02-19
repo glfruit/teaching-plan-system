@@ -207,7 +207,7 @@
           :disabled="!editor"
           :class="{ 'is-active': editor?.isActive('table') }"
           class="editor-toolbar-btn"
-          title="插入表格"
+          :title="insertTableButtonTitle"
         >
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
@@ -223,7 +223,7 @@
           @click="deleteTable"
           :disabled="!editor"
           class="editor-toolbar-btn text-red-500 hover:bg-red-50"
-          title="删除表格"
+          :title="deleteTableButtonTitle"
         >
           <svg class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
@@ -602,6 +602,20 @@ const resolvedShortcutConfig = computed(() => normalizeShortcutConfig(props.shor
 
 const matchesShortcut = (event: KeyboardEvent, binding: TipTapShortcutBinding): boolean =>
   event.key.toUpperCase() === binding.key && event.shiftKey === binding.shift
+
+const formatShortcutDisplay = (binding: TipTapShortcutBinding): string =>
+  `Ctrl / Cmd + ${binding.shift ? 'Shift + ' : ''}${binding.key}`
+
+const buildShortcutTooltip = (label: string, binding: TipTapShortcutBinding): string =>
+  `${label}（${formatShortcutDisplay(binding)}）`
+
+const insertTableButtonTitle = computed(() =>
+  buildShortcutTooltip('插入表格', resolvedShortcutConfig.value.insertTable)
+)
+
+const deleteTableButtonTitle = computed(() =>
+  buildShortcutTooltip('删除表格', resolvedShortcutConfig.value.deleteTable)
+)
 
 const stripHtmlToText = (html: string): string =>
   html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
