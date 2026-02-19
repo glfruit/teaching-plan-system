@@ -1,7 +1,22 @@
 <template>
   <div class="tiptap-warm-shell border border-[#e9dbc3] rounded overflow-hidden bg-[#fffaf2] shadow-[0_10px_28px_-20px_rgba(124,78,36,0.7)]">
-    <div v-if="operationMessage" class="px-3 py-2 text-sm text-amber-700 bg-amber-50 border-b border-amber-200">
-      {{ operationMessage }}
+    <div
+      v-if="operationMessage"
+      data-testid="editor-operation-message"
+      class="flex items-center justify-between gap-3 border-b px-3 py-2 text-sm"
+      :class="operationMessageLevel === 'error'
+        ? 'border-red-200 bg-red-50 text-red-700'
+        : 'border-emerald-200 bg-emerald-50 text-emerald-700'"
+    >
+      <span>{{ operationMessage }}</span>
+      <button
+        type="button"
+        class="inline-flex h-6 w-6 items-center justify-center rounded-sm border border-current/30 hover:bg-white/60"
+        title="关闭提示"
+        @click="clearOperationFeedback"
+      >
+        ×
+      </button>
     </div>
     <!-- Image Dialog -->
     <div v-if="showImageDialog" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" @click.self="showImageDialog = false">
@@ -547,6 +562,7 @@ const slashQuery = ref('')
 const slashSelectedIndex = ref(0)
 const isSlashMenuOpen = ref(false)
 const operationMessage = ref('')
+const operationMessageLevel = ref<'success' | 'error'>('success')
 let operationMessageTimer: ReturnType<typeof setTimeout> | null = null
 const showTableTools = ref(initialToolbarVisibility.table)
 const showTeachingTools = ref(initialToolbarVisibility.teaching)
@@ -837,13 +853,21 @@ const moveCurrentBlockDown = () => {
 }
 
 const setOperationFeedback = (ok: boolean, successMessage: string, failureMessage: string) => {
+  operationMessageLevel.value = ok ? 'success' : 'error'
   operationMessage.value = ok ? successMessage : failureMessage
   if (operationMessageTimer) {
     clearTimeout(operationMessageTimer)
   }
   operationMessageTimer = setTimeout(() => {
-    operationMessage.value = ''
-    operationMessageTimer = null
+    clearOperationFeedback()
   }, 2400)
+}
+
+const clearOperationFeedback = () => {
+  operationMessage.value = ''
+  if (operationMessageTimer) {
+    clearTimeout(operationMessageTimer)
+    operationMessageTimer = null
+  }
 }
 </script>

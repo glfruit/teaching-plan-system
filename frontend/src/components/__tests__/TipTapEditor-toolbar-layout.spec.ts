@@ -44,6 +44,26 @@ describe('TipTapEditor teaching layout toolbar', () => {
       }),
       configurable: true,
     })
+    if (typeof Range !== 'undefined') {
+      Object.defineProperty(Range.prototype, 'getClientRects', {
+        value: () => [],
+        configurable: true,
+      })
+      Object.defineProperty(Range.prototype, 'getBoundingClientRect', {
+        value: () => ({
+          x: 0,
+          y: 0,
+          width: 0,
+          height: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          left: 0,
+          toJSON: () => ({}),
+        }),
+        configurable: true,
+      })
+    }
   })
 
   it('restores toolbar visibility from local storage', async () => {
@@ -175,24 +195,26 @@ describe('TipTapEditor teaching layout toolbar', () => {
   })
 
   it('shows success feedback after inserting timeline block', async () => {
-    const { getByTitle, getByText } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
+    const { getByTitle, getByText, container } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
 
     await fireEvent.click(getByTitle('展开教学块工具'))
     await fireEvent.click(getByTitle('插入时间轴'))
 
     await waitFor(() => {
       expect(getByText('已插入时间轴块，可按 Ctrl/Cmd+Z 撤销。')).toBeTruthy()
+      expect(container.querySelector('[data-testid="editor-operation-message"]')?.className).toContain('text-emerald-700')
     })
   })
 
   it('shows failure feedback when deleting without selecting a teaching block', async () => {
-    const { getByTitle, getByText } = render(TipTapEditor, { props: { modelValue: '<p>普通段落</p>' } })
+    const { getByTitle, getByText, container } = render(TipTapEditor, { props: { modelValue: '<p>普通段落</p>' } })
 
     await fireEvent.click(getByTitle('展开教学块工具'))
     await fireEvent.click(getByTitle('删除当前块'))
 
     await waitFor(() => {
       expect(getByText('未找到可删除的教学块，请先选中目标块。')).toBeTruthy()
+      expect(container.querySelector('[data-testid="editor-operation-message"]')?.className).toContain('text-red-700')
     })
   })
 })
