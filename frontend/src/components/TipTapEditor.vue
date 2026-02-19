@@ -412,6 +412,17 @@
 
       <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
 
+      <button
+        @click="toggleAllAdvancedToolGroups"
+        :disabled="!editor"
+        class="editor-toolbar-btn text-xs font-medium"
+        :title="allAdvancedToolGroupsExpanded ? '收起全部工具组' : '展开全部工具组'"
+      >
+        {{ allAdvancedToolGroupsExpanded ? '收起全部' : '展开全部' }}
+      </button>
+
+      <div class="w-px h-6 bg-[#d6c2a1] mx-1" />
+
       <!-- Clear -->
       <button
         @click="editor?.chain().focus().clearNodes().unsetAllMarks().run()"
@@ -564,6 +575,10 @@ watch([showTableTools, showTeachingTools], ([table, teaching]) => {
   writeToolbarVisibility({ table, teaching })
 })
 
+const allAdvancedToolGroupsExpanded = computed(
+  () => showTableTools.value && showTeachingTools.value
+)
+
 const editor = useEditor({
   extensions: [
     StarterKit,
@@ -688,6 +703,12 @@ const addImage = () => {
 const insertTable = () => {
   showTableTools.value = true
   editor.value?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()
+}
+
+const toggleAllAdvancedToolGroups = () => {
+  const next = !allAdvancedToolGroupsExpanded.value
+  showTableTools.value = next
+  showTeachingTools.value = next
 }
 
 // Delete table

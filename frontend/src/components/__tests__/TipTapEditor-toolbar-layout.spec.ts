@@ -77,6 +77,20 @@ describe('TipTapEditor teaching layout toolbar', () => {
     expect(getByTitle('插入表格')).toBeTruthy()
   })
 
+  it('toggles all advanced tool groups with one click', async () => {
+    window.localStorage.removeItem(TOOLBAR_VISIBILITY_STORAGE_KEY)
+    const { getByTitle, queryByTitle } = render(TipTapEditor, { props: { modelValue: '<p></p>' } })
+
+    expect(queryByTitle('插入表格')).toBeNull()
+    expect(queryByTitle('插入时间轴')).toBeNull()
+
+    await fireEvent.click(getByTitle('展开全部工具组'))
+
+    expect(getByTitle('插入表格')).toBeTruthy()
+    expect(getByTitle('插入时间轴')).toBeTruthy()
+    expect(getByTitle('收起全部工具组')).toBeTruthy()
+  })
+
   it('does not register duplicate extensions', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
     render(TipTapEditor, { props: { modelValue: '<p></p>' } })
