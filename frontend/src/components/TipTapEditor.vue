@@ -547,6 +547,7 @@ const slashQuery = ref('')
 const slashSelectedIndex = ref(0)
 const isSlashMenuOpen = ref(false)
 const operationMessage = ref('')
+let operationMessageTimer: ReturnType<typeof setTimeout> | null = null
 const showTableTools = ref(initialToolbarVisibility.table)
 const showTeachingTools = ref(initialToolbarVisibility.teaching)
 
@@ -764,21 +765,33 @@ const splitCell = () => {
 const insertTimelineBlock = () => {
   if (editor.value) {
     const ok = insertLessonTimeline(editor.value)
-    operationMessage.value = ok ? '' : '当前位置不可插入该块，请先调整光标位置后重试。'
+    setOperationFeedback(
+      ok,
+      '已插入时间轴块，可按 Ctrl/Cmd+Z 撤销。',
+      '当前位置不可插入时间轴块，请先调整光标位置后重试。'
+    )
   }
 }
 
 const insertStepCardBlock = () => {
   if (editor.value) {
     const ok = insertActivityStepCard(editor.value)
-    operationMessage.value = ok ? '' : '当前位置不可插入该块，请先调整光标位置后重试。'
+    setOperationFeedback(
+      ok,
+      '已插入步骤卡块，可按 Ctrl/Cmd+Z 撤销。',
+      '当前位置不可插入步骤卡块，请先调整光标位置后重试。'
+    )
   }
 }
 
 const insertGridBlock = () => {
   if (editor.value) {
     const ok = insertGoalActivityAssessmentGrid(editor.value)
-    operationMessage.value = ok ? '' : '当前位置不可插入该块，请先调整光标位置后重试。'
+    setOperationFeedback(
+      ok,
+      '已插入三栏块，可按 Ctrl/Cmd+Z 撤销。',
+      '当前位置不可插入三栏块，请先调整光标位置后重试。'
+    )
   }
 }
 
@@ -797,25 +810,40 @@ const onSlashSelect = (item: TeachingSlashItem) => {
 
 const copyCurrentBlock = () => {
   if (editor.value) {
-    copyCurrentTeachingNode(editor.value)
+    const ok = copyCurrentTeachingNode(editor.value)
+    setOperationFeedback(ok, '已复制当前教学块，可按 Ctrl/Cmd+Z 撤销。', '未找到可复制的教学块，请先选中目标块。')
   }
 }
 
 const deleteCurrentBlock = () => {
   if (editor.value) {
-    deleteCurrentTeachingNode(editor.value)
+    const ok = deleteCurrentTeachingNode(editor.value)
+    setOperationFeedback(ok, '已删除当前教学块，可按 Ctrl/Cmd+Z 撤销。', '未找到可删除的教学块，请先选中目标块。')
   }
 }
 
 const moveCurrentBlockUp = () => {
   if (editor.value) {
-    moveCurrentTeachingNodeUp(editor.value)
+    const ok = moveCurrentTeachingNodeUp(editor.value)
+    setOperationFeedback(ok, '已上移当前教学块，可按 Ctrl/Cmd+Z 撤销。', '无法上移：请先选中教学块，且该块不在首位。')
   }
 }
 
 const moveCurrentBlockDown = () => {
   if (editor.value) {
-    moveCurrentTeachingNodeDown(editor.value)
+    const ok = moveCurrentTeachingNodeDown(editor.value)
+    setOperationFeedback(ok, '已下移当前教学块，可按 Ctrl/Cmd+Z 撤销。', '无法下移：请先选中教学块，且该块不在末位。')
   }
+}
+
+const setOperationFeedback = (ok: boolean, successMessage: string, failureMessage: string) => {
+  operationMessage.value = ok ? successMessage : failureMessage
+  if (operationMessageTimer) {
+    clearTimeout(operationMessageTimer)
+  }
+  operationMessageTimer = setTimeout(() => {
+    operationMessage.value = ''
+    operationMessageTimer = null
+  }, 2400)
 }
 </script>
