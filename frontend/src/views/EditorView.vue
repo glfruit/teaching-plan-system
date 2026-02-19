@@ -610,6 +610,7 @@
               <TipTapEditor
                 v-model="templateEditForm.objectives"
                 v-model:modelJson="templateEditForm.contentJson.objectives"
+                :shortcut-config="tiptapShortcutConfig"
               />
             </div>
             <div>
@@ -617,6 +618,7 @@
               <TipTapEditor
                 v-model="templateEditForm.keyPoints"
                 v-model:modelJson="templateEditForm.contentJson.keyPoints"
+                :shortcut-config="tiptapShortcutConfig"
               />
             </div>
             <div>
@@ -624,6 +626,7 @@
               <TipTapEditor
                 v-model="templateEditForm.process"
                 v-model:modelJson="templateEditForm.contentJson.process"
+                :shortcut-config="tiptapShortcutConfig"
               />
             </div>
             <div>
@@ -631,6 +634,7 @@
               <TipTapEditor
                 v-model="templateEditForm.blackboard"
                 v-model:modelJson="templateEditForm.contentJson.blackboard"
+                :shortcut-config="tiptapShortcutConfig"
               />
             </div>
             <div>
@@ -638,6 +642,7 @@
               <TipTapEditor
                 v-model="templateEditForm.reflection"
                 v-model:modelJson="templateEditForm.contentJson.reflection"
+                :shortcut-config="tiptapShortcutConfig"
               />
             </div>
             <div class="flex items-center justify-end gap-2">
@@ -789,7 +794,11 @@
           教学目标
         </h2>
         
-        <TipTapEditor v-model="form.objectives" v-model:modelJson="form.contentJson.objectives" />
+        <TipTapEditor
+          v-model="form.objectives"
+          v-model:modelJson="form.contentJson.objectives"
+          :shortcut-config="tiptapShortcutConfig"
+        />
       </section>
 
       <!-- Key Points -->
@@ -801,7 +810,11 @@
           重点难点
         </h2>
         
-        <TipTapEditor v-model="form.keyPoints" v-model:modelJson="form.contentJson.keyPoints" />
+        <TipTapEditor
+          v-model="form.keyPoints"
+          v-model:modelJson="form.contentJson.keyPoints"
+          :shortcut-config="tiptapShortcutConfig"
+        />
       </section>
 
       <!-- Teaching Process -->
@@ -813,7 +826,11 @@
           教学过程
         </h2>
         
-        <TipTapEditor v-model="form.process" v-model:modelJson="form.contentJson.process" />
+        <TipTapEditor
+          v-model="form.process"
+          v-model:modelJson="form.contentJson.process"
+          :shortcut-config="tiptapShortcutConfig"
+        />
       </section>
 
       <!-- Blackboard Design -->
@@ -825,7 +842,11 @@
           板书设计
         </h2>
         
-        <TipTapEditor v-model="form.blackboard" v-model:modelJson="form.contentJson.blackboard" />
+        <TipTapEditor
+          v-model="form.blackboard"
+          v-model:modelJson="form.contentJson.blackboard"
+          :shortcut-config="tiptapShortcutConfig"
+        />
       </section>
 
       <!-- Teaching Reflection -->
@@ -837,7 +858,11 @@
           教学反思
         </h2>
         
-        <TipTapEditor v-model="form.reflection" v-model:modelJson="form.contentJson.reflection" />
+        <TipTapEditor
+          v-model="form.reflection"
+          v-model:modelJson="form.contentJson.reflection"
+          :shortcut-config="tiptapShortcutConfig"
+        />
       </section>
       </div>
       </div>
@@ -3002,18 +3027,24 @@ import TipTapEditor from '../components/TipTapEditor.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import { normalizeTemplateTags } from '../stores/planTemplate'
 
-type EditorShortcutAction = 'save' | 'export' | 'publish' | 'openHelp'
-type EditorShortcutKey = 'S' | 'E' | 'P' | 'K' | 'D' | 'R' | 'H'
+type EditorShortcutAction = 'save' | 'export' | 'publish' | 'openHelp' | 'insertTable' | 'deleteTable'
+type EditorShortcutKey = 'S' | 'E' | 'P' | 'K' | 'D' | 'R' | 'H' | 'T' | 'G'
 
 interface EditorShortcutConfig {
   key: EditorShortcutKey
   shift: boolean
 }
 
+type TipTapShortcutConfig = {
+  insertTable: EditorShortcutConfig
+  deleteTable: EditorShortcutConfig
+}
+
 interface EditorShortcutActionMeta {
   id: EditorShortcutAction
   label: string
   hint: string
+  scope: 'global' | 'editor'
   requiresEditing?: boolean
 }
 
@@ -3023,19 +3054,23 @@ interface EditorShortcutConflictGroup {
 }
 
 const SHORTCUT_ACTIONS: readonly EditorShortcutActionMeta[] = [
-  { id: 'save', label: '保存草稿', hint: '默认：Ctrl / Cmd + S' },
-  { id: 'export', label: '导出 Word（编辑页）', hint: '默认：Ctrl / Cmd + Shift + E', requiresEditing: true },
-  { id: 'publish', label: '发布教案（草稿状态）', hint: '默认：Ctrl / Cmd + Shift + P', requiresEditing: true },
-  { id: 'openHelp', label: '打开快捷键帮助', hint: '默认：Ctrl / Cmd + Shift + K' },
+  { id: 'save', label: '保存草稿', hint: '默认：Ctrl / Cmd + S', scope: 'global' },
+  { id: 'export', label: '导出 Word（编辑页）', hint: '默认：Ctrl / Cmd + Shift + E', scope: 'global', requiresEditing: true },
+  { id: 'publish', label: '发布教案（草稿状态）', hint: '默认：Ctrl / Cmd + Shift + P', scope: 'global', requiresEditing: true },
+  { id: 'openHelp', label: '打开快捷键帮助', hint: '默认：Ctrl / Cmd + Shift + K', scope: 'global' },
+  { id: 'insertTable', label: '插入表格（编辑器）', hint: '默认：Ctrl / Cmd + Shift + T', scope: 'editor' },
+  { id: 'deleteTable', label: '删除表格（编辑器）', hint: '默认：Ctrl / Cmd + Shift + G', scope: 'editor' },
 ] as const
 
-const SHORTCUT_KEY_OPTIONS: readonly EditorShortcutKey[] = ['S', 'E', 'P', 'K', 'D', 'R', 'H'] as const
+const SHORTCUT_KEY_OPTIONS: readonly EditorShortcutKey[] = ['S', 'E', 'P', 'K', 'D', 'R', 'H', 'T', 'G'] as const
 
 const DEFAULT_EDITOR_SHORTCUT_CONFIG: Record<EditorShortcutAction, EditorShortcutConfig> = {
   save: { key: 'S', shift: false },
   export: { key: 'E', shift: true },
   publish: { key: 'P', shift: true },
   openHelp: { key: 'K', shift: true },
+  insertTable: { key: 'T', shift: true },
+  deleteTable: { key: 'G', shift: true },
 }
 
 const EDITOR_SHORTCUT_STORAGE_KEY = 'editor-shortcut-config-v1'
@@ -3102,7 +3137,14 @@ const cloneShortcutConfig = (
   export: { ...config.export },
   publish: { ...config.publish },
   openHelp: { ...config.openHelp },
+  insertTable: { ...config.insertTable },
+  deleteTable: { ...config.deleteTable },
 })
+
+const tiptapShortcutConfig = computed<TipTapShortcutConfig>(() => ({
+  insertTable: { ...shortcutConfig.value.insertTable },
+  deleteTable: { ...shortcutConfig.value.deleteTable },
+}))
 
 const toShortcutSignature = (config: EditorShortcutConfig): string =>
   `${config.shift ? 'Shift+' : ''}${config.key}`
@@ -3131,7 +3173,7 @@ const normalizeShortcutConfig = (value: unknown): Record<EditorShortcutAction, E
     return null
   }
   const record = value as Record<string, unknown>
-  const actions: EditorShortcutAction[] = ['save', 'export', 'publish', 'openHelp']
+  const actions: EditorShortcutAction[] = ['save', 'export', 'publish', 'openHelp', 'insertTable', 'deleteTable']
   const next = cloneShortcutConfig(DEFAULT_EDITOR_SHORTCUT_CONFIG)
 
   for (const action of actions) {
@@ -3931,6 +3973,9 @@ const handleSaveShortcutConfig = () => {
 }
 
 const isShortcutActionEnabled = (action: EditorShortcutAction): boolean => {
+  if (action === 'insertTable' || action === 'deleteTable') {
+    return false
+  }
   if (action === 'export') {
     return isEditing.value
   }
@@ -3956,7 +4001,9 @@ const runShortcutAction = async (action: EditorShortcutAction) => {
     await handleExport()
     return
   }
-  await handlePublish()
+  if (action === 'publish') {
+    await handlePublish()
+  }
 }
 
 const handleEditorKeyboardShortcuts = async (event: KeyboardEvent) => {

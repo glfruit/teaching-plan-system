@@ -248,6 +248,58 @@ describe('TipTapEditor teaching layout toolbar', () => {
     })
   })
 
+  it('shows success feedback after inserting image from dialog', async () => {
+    const { getByTitle, getByPlaceholderText, getByText, container } = render(TipTapEditor, {
+      props: { modelValue: '<p></p>' },
+    })
+
+    await fireEvent.click(getByTitle('插入图片'))
+    await fireEvent.update(getByPlaceholderText('https://example.com/image.jpg'), 'https://example.com/demo.jpg')
+    await fireEvent.click(getByText('插入'))
+
+    await waitFor(() => {
+      expect(getByText('已插入图片。')).toBeTruthy()
+      expect(container.querySelector('[data-testid="editor-operation-message"]')?.className).toContain('text-emerald-700')
+    })
+  })
+
+  it('shows success feedback after clearing formatting', async () => {
+    const { getByTitle, getByText, container } = render(TipTapEditor, {
+      props: { modelValue: '<p><strong>格式文本</strong></p>' },
+    })
+
+    await fireEvent.click(getByTitle('清除格式'))
+
+    await waitFor(() => {
+      expect(getByText('已清除当前格式。')).toBeTruthy()
+      expect(container.querySelector('[data-testid="editor-operation-message"]')?.className).toContain('text-emerald-700')
+    })
+  })
+
+  it('supports configurable table shortcut to insert table', async () => {
+    const { container, getByText } = render(TipTapEditor, {
+      props: {
+        modelValue: '<p></p>',
+        shortcutConfig: {
+          insertTable: { key: 'T', shift: true },
+          deleteTable: { key: 'G', shift: true },
+        },
+      },
+    })
+
+    await waitFor(() => {
+      expect(container.querySelector('.ProseMirror')).toBeTruthy()
+    })
+    const editable = container.querySelector('.ProseMirror') as HTMLElement
+    await fireEvent.focus(editable)
+    await fireEvent.keyDown(editable, { key: 'T', ctrlKey: true, shiftKey: true })
+
+    await waitFor(() => {
+      expect(container.querySelector('table')).toBeTruthy()
+      expect(getByText('已插入3×3表格，可继续调整行列。')).toBeTruthy()
+    })
+  })
+
   it('clears feedback timeout when unmounting component', async () => {
     vi.useFakeTimers()
     const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')

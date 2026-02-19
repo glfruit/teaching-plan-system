@@ -440,7 +440,7 @@
 
       <!-- Clear -->
       <button
-        @click="editor?.chain().focus().clearNodes().unsetAllMarks().run()"
+        @click="clearFormatting"
         :disabled="!editor"
         class="editor-toolbar-btn text-red-500 hover:bg-red-50"
         title="清除格式"
@@ -497,6 +497,7 @@ import {
 const props = defineProps<{
   modelValue: string
   modelJson?: JSONContent
+  shortcutConfig?: Partial<TipTapShortcutConfig>
 }>()
 
 const emit = defineEmits<{
@@ -509,11 +510,40 @@ interface ToolbarVisibilityState {
   teaching: boolean
 }
 
+interface TipTapShortcutBinding {
+  key: string
+  shift: boolean
+}
+
+interface TipTapShortcutConfig {
+  insertTable: TipTapShortcutBinding
+  deleteTable: TipTapShortcutBinding
+}
+
 const TOOLBAR_VISIBILITY_STORAGE_KEY = 'tiptap-toolbar-visibility-v1'
 const DEFAULT_TOOLBAR_VISIBILITY: ToolbarVisibilityState = {
   table: false,
   teaching: false,
 }
+const DEFAULT_SHORTCUT_CONFIG: TipTapShortcutConfig = {
+  insertTable: { key: 'T', shift: true },
+  deleteTable: { key: 'G', shift: true },
+}
+
+const normalizeShortcutBinding = (
+  fallback: TipTapShortcutBinding,
+  binding?: Partial<TipTapShortcutBinding>
+): TipTapShortcutBinding => ({
+  key: typeof binding?.key === 'string' && binding.key.trim() ? binding.key.toUpperCase() : fallback.key,
+  shift: typeof binding?.shift === 'boolean' ? binding.shift : fallback.shift,
+})
+
+const normalizeShortcutConfig = (
+  config?: Partial<TipTapShortcutConfig>
+): TipTapShortcutConfig => ({
+  insertTable: normalizeShortcutBinding(DEFAULT_SHORTCUT_CONFIG.insertTable, config?.insertTable),
+  deleteTable: normalizeShortcutBinding(DEFAULT_SHORTCUT_CONFIG.deleteTable, config?.deleteTable),
+})
 
 const readToolbarVisibility = (): ToolbarVisibilityState => {
   if (typeof window === 'undefined') {
@@ -568,6 +598,10 @@ const showTableTools = ref(initialToolbarVisibility.table)
 const showTeachingTools = ref(initialToolbarVisibility.teaching)
 
 const slashMenuItems = computed(() => filterTeachingSlashItems(slashQuery.value))
+const resolvedShortcutConfig = computed(() => normalizeShortcutConfig(props.shortcutConfig))
+
+const matchesShortcut = (event: KeyboardEvent, binding: TipTapShortcutBinding): boolean =>
+  event.key.toUpperCase() === binding.key && event.shiftKey === binding.shift
 
 const stripHtmlToText = (html: string): string =>
   html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
@@ -620,6 +654,19 @@ const editor = useEditor({
   },
   editorProps: {
     handleKeyDown: (_, event) => {
+      if (!event.repeat && !event.altKey && (event.metaKey || event.ctrlKey)) {
+        if (matchesShortcut(event, resolvedShortcutConfig.value.insertTable)) {
+          event.preventDefault()
+          insertTable()
+          return true
+        }
+        if (matchesShortcut(event, resolvedShortcutConfig.value.deleteTable)) {
+          event.preventDefault()
+          deleteTable()
+          return true
+        }
+      }
+
       if (event.key === '/') {
         isSlashMenuOpen.value = true
         slashQuery.value = ''
@@ -709,11 +756,29 @@ watch(() => props.modelValue, (newValue) => {
 
 // Add image from URL
 const addImage = () => {
-  if (imageUrl.value) {
-    editor.value?.chain().focus().setImage({ src: imageUrl.value }).run()
+  const nextUrl = imageUrl.value.trim()
+  if (!nextUrl) {
+    setOperationFeedback(false, '已插入图片。', '请输入有效的图片 URL。')
+    return
+  }
+
+  const ok = runEditorOperation(
+    (editorInstance) => editorInstance.chain().focus().setImage({ src: nextUrl }).run(),
+    '已插入图片。',
+    '插入图片失败，请检查 URL 或光标位置后重试。'
+  )
+  if (ok) {
     imageUrl.value = ''
     showImageDialog.value = false
   }
+}
+
+const clearFormatting = () => {
+  runEditorOperation(
+    (editorInstance) => editorInstance.chain().focus().clearNodes().unsetAllMarks().run(),
+    '已清除当前格式。',
+    '清除格式失败，请先将光标置于可编辑内容内。'
+  )
 }
 
 // Insert table
@@ -920,13 +985,22 @@ const runTableOperation = (
   successMessage: string,
   failureMessage: string
 ) => {
+  runEditorOperation(command, successMessage, failureMessage)
+}
+
+const runEditorOperation = (
+  command: (editorInstance: NonNullable<typeof editor.value>) => boolean,
+  successMessage: string,
+  failureMessage: string
+): boolean => {
   if (!editor.value) {
     setOperationFeedback(false, successMessage, failureMessage)
-    return
+    return false
   }
 
   const ok = command(editor.value)
   setOperationFeedback(ok, successMessage, failureMessage)
+  return ok
 }
 
 onBeforeUnmount(() => {

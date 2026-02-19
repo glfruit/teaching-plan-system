@@ -9,6 +9,9 @@ describe('EditorView shortcut config dialog', () => {
   it('renders configurable shortcut actions and key options', () => {
     expect(editorViewSource).toContain('SHORTCUT_ACTIONS')
     expect(editorViewSource).toContain('SHORTCUT_KEY_OPTIONS')
+    expect(editorViewSource).toContain("id: 'insertTable'")
+    expect(editorViewSource).toContain("id: 'deleteTable'")
+    expect(editorViewSource).toContain(':shortcut-config="tiptapShortcutConfig"')
     expect(editorViewSource).toContain('v-model="shortcutDraftConfig[action.id].key"')
     expect(editorViewSource).toContain('v-model="shortcutDraftConfig[action.id].shift"')
     expect(editorViewSource).toContain('formatShortcutDisplay(shortcutDraftConfig[action.id])')
