@@ -466,7 +466,7 @@
     <TeachingSlashMenu v-if="isSlashMenuOpen" :items="slashMenuItems" @select="onSlashSelect" />
 
     <!-- Editor Content -->
-    <div class="tiptap-warm-content p-4 bg-[#fffdf9]">
+    <div class="tiptap-warm-content p-4 bg-[#fffdf9]" @drop="handleContentDrop">
       <EditorContent :editor="editor" class="prose max-w-none min-h-[200px]" />
     </div>
 
@@ -891,6 +891,24 @@ const addLocalImage = (event: Event) => {
         target.value = ''
       }
     },
+  })
+}
+
+const handleContentDrop = (event: DragEvent) => {
+  const files = event.dataTransfer?.files
+  if (!files?.length) {
+    return
+  }
+
+  const imageFile = Array.from(files).find((file) => isImageFile(file))
+  if (!imageFile) {
+    return
+  }
+
+  event.preventDefault()
+  insertLocalImageFile(imageFile, {
+    successMessage: '已拖拽插入本地图片。',
+    failureMessage: '拖拽插入图片失败，请调整光标位置后重试。',
   })
 }
 

@@ -44,6 +44,14 @@ describe('TipTapEditor teaching layout toolbar', () => {
       }),
       configurable: true,
     })
+    Object.defineProperty(Document.prototype, 'elementFromPoint', {
+      value: () => document.body,
+      configurable: true,
+    })
+    Object.defineProperty(document, 'elementFromPoint', {
+      value: () => document.body,
+      configurable: true,
+    })
     if (typeof Range !== 'undefined') {
       Object.defineProperty(Range.prototype, 'getClientRects', {
         value: () => [],
@@ -338,6 +346,53 @@ describe('TipTapEditor teaching layout toolbar', () => {
 
       await waitFor(() => {
         expect(getByText('已粘贴本地图片。')).toBeTruthy()
+        expect(container.querySelector('img')).toBeTruthy()
+      })
+    } finally {
+      vi.unstubAllGlobals()
+      if (!originalFileReader) {
+        delete (globalThis as { FileReader?: unknown }).FileReader
+      }
+    }
+  })
+
+  it('shows success feedback after dropping local image file', async () => {
+    const originalFileReader = globalThis.FileReader
+    class MockFileReader {
+      result: string | ArrayBuffer | null = null
+      onload: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null
+      onerror: ((this: FileReader, ev: ProgressEvent<FileReader>) => any) | null = null
+
+      readAsDataURL() {
+        this.result = 'data:image/png;base64,ZmFrZQ=='
+        this.onload?.call(this as unknown as FileReader, new ProgressEvent('load'))
+      }
+    }
+    vi.stubGlobal('FileReader', MockFileReader as unknown as typeof FileReader)
+
+    try {
+      const { getByText, container } = render(TipTapEditor, {
+        props: { modelValue: '<p></p>' },
+      })
+
+      await waitFor(() => {
+        expect(container.querySelector('[role="textbox"]')).toBeTruthy()
+      })
+      const editorRoot = container.querySelector('[role="textbox"]') as HTMLElement
+      const file = new File(['fake-image'], 'drop.png', { type: 'image/png' })
+      const dropEvent = new Event('drop', { bubbles: true, cancelable: true }) as DragEvent
+      Object.defineProperty(dropEvent, 'dataTransfer', {
+        value: {
+          files: [file],
+          items: [],
+          types: ['Files'],
+          getData: () => '',
+        },
+      })
+      editorRoot.dispatchEvent(dropEvent)
+
+      await waitFor(() => {
+        expect(getByText('已拖拽插入本地图片。')).toBeTruthy()
         expect(container.querySelector('img')).toBeTruthy()
       })
     } finally {
