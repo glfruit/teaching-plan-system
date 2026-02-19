@@ -323,6 +323,26 @@ describe('TipTapEditor teaching layout toolbar', () => {
     })
   })
 
+  it('shows failure feedback when uploading oversized image file', async () => {
+    const { getByTitle, getByLabelText, getByText, container } = render(TipTapEditor, {
+      props: { modelValue: '<p></p>' },
+    })
+
+    await fireEvent.click(getByTitle('插入图片'))
+    const fileInput = getByLabelText('上传本地图片') as HTMLInputElement
+    const oversizedFile = new File([new Uint8Array(5 * 1024 * 1024 + 1)], 'large.png', { type: 'image/png' })
+    Object.defineProperty(fileInput, 'files', {
+      value: [oversizedFile],
+      configurable: true,
+    })
+    fileInput.dispatchEvent(new Event('change'))
+
+    await waitFor(() => {
+      expect(getByText('图片体积不能超过 5MB，请压缩后重试。')).toBeTruthy()
+      expect(container.querySelector('[data-testid="editor-operation-message"]')?.className).toContain('text-red-700')
+    })
+  })
+
   it('shows success feedback after clearing formatting', async () => {
     const { getByTitle, getByText, container } = render(TipTapEditor, {
       props: { modelValue: '<p><strong>格式文本</strong></p>' },

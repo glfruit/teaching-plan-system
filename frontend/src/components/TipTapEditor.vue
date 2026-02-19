@@ -541,6 +541,7 @@ const DEFAULT_SHORTCUT_CONFIG: TipTapShortcutConfig = {
   insertTable: { key: 'T', shift: true },
   deleteTable: { key: 'G', shift: true },
 }
+const MAX_LOCAL_IMAGE_SIZE_BYTES = 5 * 1024 * 1024
 
 const normalizeShortcutBinding = (
   fallback: TipTapShortcutBinding,
@@ -819,6 +820,14 @@ const addLocalImage = (event: Event) => {
 
   if (!isImageFile(file)) {
     setOperationFeedback(false, '已插入本地图片。', '请选择图片文件（PNG/JPG/WebP 等）。')
+    if (target) {
+      target.value = ''
+    }
+    return
+  }
+
+  if (file.size > MAX_LOCAL_IMAGE_SIZE_BYTES) {
+    setOperationFeedback(false, '已插入本地图片。', '图片体积不能超过 5MB，请压缩后重试。')
     if (target) {
       target.value = ''
     }
