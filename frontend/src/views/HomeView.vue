@@ -51,6 +51,21 @@
             <div>
               <h2 class="text-xl font-semibold font-serif text-slate-900">教案列表</h2>
               <p class="text-sm text-slate-500 mt-1">共 {{ planStore.pagination.total }} 个教案</p>
+              <div class="mt-2 flex items-center gap-2 text-xs">
+                <span class="text-slate-500">导出服务</span>
+                <span
+                  class="inline-flex items-center rounded px-2 py-0.5"
+                  :class="exportServiceStatusClass"
+                >
+                  {{ exportServiceStatusText }}
+                </span>
+                <button
+                  class="text-slate-500 hover:text-slate-700 transition-colors"
+                  @click="checkExportServiceHealth"
+                >
+                  重试
+                </button>
+              </div>
             </div>
 
             <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full sm:w-auto">
@@ -374,6 +389,7 @@ const planStore = usePlanStore()
 const searchQuery = ref('')
 const exportFormat = ref<ExportFormat>('word')
 const selectedPlanIds = ref<string[]>([])
+const exportServiceStatus = ref<'checking' | 'connected' | 'unavailable'>('checking')
 
 type ExportFormat = 'word' | 'excel' | 'pdf'
 const EXPORT_FORMAT_CONFIG: Record<ExportFormat, { extension: 'docx' | 'xlsx' | 'pdf' }> = {
@@ -433,6 +449,26 @@ const selectedFormatLabel = computed(() => {
   const format = pendingExport.value?.format || exportFormat.value
   return EXPORT_FORMAT_LABEL[format]
 })
+const exportServiceStatusText = computed(() => {
+  switch (exportServiceStatus.value) {
+    case 'connected':
+      return '已连接'
+    case 'unavailable':
+      return '不可用'
+    default:
+      return '检测中'
+  }
+})
+const exportServiceStatusClass = computed(() => {
+  switch (exportServiceStatus.value) {
+    case 'connected':
+      return 'bg-emerald-100 text-emerald-700'
+    case 'unavailable':
+      return 'bg-red-100 text-red-700'
+    default:
+      return 'bg-slate-100 text-slate-600'
+  }
+})
 
 const draftCount = computed(() => planStore.plans.filter((p) => p.status === 'DRAFT').length)
 const publishedCount = computed(() => planStore.plans.filter((p) => p.status === 'PUBLISHED').length)
@@ -486,6 +522,7 @@ const statCards = computed(() => [
 
 onMounted(() => {
   loadPlans()
+  checkExportServiceHealth()
 })
 
 const loadPlans = async (page = 1) => {
@@ -601,6 +638,28 @@ const batchDeleteSelected = async () => {
   }
 
   await runBatchAction('DELETE', selectedPlanIds.value, '批量删除完成', '批量删除失败')
+}
+
+const checkExportServiceHealth = async () => {
+  exportServiceStatus.value = 'checking'
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch('/api/export/health', {
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    })
+
+    if (!response.ok) {
+      exportServiceStatus.value = 'unavailable'
+      return
+    }
+
+    const data = await response.json()
+    exportServiceStatus.value = data?.success ? 'connected' : 'unavailable'
+  } catch {
+    exportServiceStatus.value = 'unavailable'
+  }
 }
 
 const duplicatePlan = async (id: string) => {

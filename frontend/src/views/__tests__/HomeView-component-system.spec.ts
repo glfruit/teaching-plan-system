@@ -42,4 +42,10 @@ describe('HomeView component system usage', () => {
     expect(homeViewSource).toContain('批量删除')
     expect(homeViewSource).toContain('toggleSelectAllVisible')
   })
+
+  it('shows export service health indicator', () => {
+    expect(homeViewSource).toContain('导出服务')
+    expect(homeViewSource).toContain('checkExportServiceHealth')
+    expect(homeViewSource).toContain('exportServiceStatus')
+  })
 })
