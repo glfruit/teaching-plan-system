@@ -69,6 +69,52 @@
             </div>
           </div>
 
+          <div
+            v-if="planStore.hasPlans"
+            class="px-6 py-3 border-b border-slate-200 bg-slate-50/80 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3"
+          >
+            <label class="inline-flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                class="h-4 w-4 rounded border-slate-300 text-[#647269] focus:ring-[#647269]/20"
+                :checked="allVisibleSelected"
+                @change="toggleSelectAllVisible(($event.target as HTMLInputElement).checked)"
+              />
+              <span>已选 {{ selectedPlanIds.length }} 项</span>
+            </label>
+
+            <div class="flex flex-wrap items-center gap-2">
+              <button
+                class="min-h-[44px] px-3 rounded border border-emerald-200 bg-white text-sm text-emerald-700 hover:bg-emerald-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="selectedDraftIds.length === 0"
+                @click="batchPublishSelected"
+              >
+                批量发布
+              </button>
+              <button
+                class="min-h-[44px] px-3 rounded border border-amber-200 bg-white text-sm text-amber-700 hover:bg-amber-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="selectedPublishedIds.length === 0"
+                @click="batchArchiveSelected"
+              >
+                批量归档
+              </button>
+              <button
+                class="min-h-[44px] px-3 rounded border border-red-200 bg-white text-sm text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="selectedPlanIds.length === 0"
+                @click="batchDeleteSelected"
+              >
+                批量删除
+              </button>
+              <button
+                class="min-h-[44px] px-3 rounded border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                :disabled="selectedPlanIds.length === 0"
+                @click="clearSelection"
+              >
+                清空选择
+              </button>
+            </div>
+          </div>
+
           <div v-if="!planStore.hasPlans" class="py-16 text-center px-6">
             <div class="inline-flex h-16 w-16 items-center justify-center rounded bg-slate-100 text-[#647269] mb-5">
               <svg class="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -97,6 +143,12 @@
               <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                 <div class="min-w-0">
                   <div class="flex items-center gap-3 mb-2">
+                    <input
+                      type="checkbox"
+                      class="h-4 w-4 rounded border-slate-300 text-[#647269] focus:ring-[#647269]/20"
+                      :checked="isSelected(plan.id!)"
+                      @change="toggleSelect(plan.id!, ($event.target as HTMLInputElement).checked)"
+                    />
                     <h3
                       class="text-base font-semibold text-slate-900 cursor-pointer hover:text-slate-600 transition-colors truncate"
                       @click="editPlan(plan.id!)"
@@ -321,6 +373,7 @@ const planStore = usePlanStore()
 
 const searchQuery = ref('')
 const exportFormat = ref<ExportFormat>('word')
+const selectedPlanIds = ref<string[]>([])
 
 type ExportFormat = 'word' | 'excel' | 'pdf'
 const EXPORT_FORMAT_CONFIG: Record<ExportFormat, { extension: 'docx' | 'xlsx' | 'pdf' }> = {
@@ -384,6 +437,21 @@ const selectedFormatLabel = computed(() => {
 const draftCount = computed(() => planStore.plans.filter((p) => p.status === 'DRAFT').length)
 const publishedCount = computed(() => planStore.plans.filter((p) => p.status === 'PUBLISHED').length)
 const archivedCount = computed(() => planStore.plans.filter((p) => p.status === 'ARCHIVED').length)
+const allVisiblePlanIds = computed(() => planStore.plans.map((plan) => plan.id).filter(Boolean) as string[])
+const allVisibleSelected = computed(
+  () =>
+    allVisiblePlanIds.value.length > 0 &&
+    allVisiblePlanIds.value.every((id) => selectedPlanIds.value.includes(id))
+)
+const selectedPlans = computed(() =>
+  planStore.plans.filter((plan) => plan.id && selectedPlanIds.value.includes(plan.id))
+)
+const selectedDraftIds = computed(() =>
+  selectedPlans.value.filter((plan) => plan.status === 'DRAFT').map((plan) => plan.id as string)
+)
+const selectedPublishedIds = computed(() =>
+  selectedPlans.value.filter((plan) => plan.status === 'PUBLISHED').map((plan) => plan.id as string)
+)
 
 const statCards = computed(() => [
   {
@@ -427,6 +495,7 @@ const loadPlans = async (page = 1) => {
       limit: 10,
       search: searchQuery.value || undefined,
     })
+    selectedPlanIds.value = []
   } catch (error) {
     console.error('加载教案失败:', error)
   }
@@ -455,6 +524,96 @@ const deletePlan = async (id: string) => {
   } catch (error) {
     alert('删除失败: ' + error)
   }
+}
+
+const isSelected = (id: string) => selectedPlanIds.value.includes(id)
+
+const toggleSelect = (id: string, checked: boolean) => {
+  if (checked) {
+    if (!selectedPlanIds.value.includes(id)) {
+      selectedPlanIds.value.push(id)
+    }
+    return
+  }
+
+  selectedPlanIds.value = selectedPlanIds.value.filter((selectedId) => selectedId !== id)
+}
+
+const toggleSelectAllVisible = (checked: boolean) => {
+  if (checked) {
+    selectedPlanIds.value = [...allVisiblePlanIds.value]
+    return
+  }
+  selectedPlanIds.value = []
+}
+
+const clearSelection = () => {
+  selectedPlanIds.value = []
+}
+
+const runBatchAction = async (
+  ids: string[],
+  runner: (id: string) => Promise<unknown>,
+  successMessage: string,
+  failurePrefix: string
+) => {
+  let successCount = 0
+  let failureCount = 0
+
+  for (const id of ids) {
+    try {
+      await runner(id)
+      successCount += 1
+    } catch {
+      failureCount += 1
+    }
+  }
+
+  await loadPlans(planStore.pagination.page || 1)
+  clearSelection()
+
+  if (failureCount > 0) {
+    alert(`${failurePrefix}：成功 ${successCount} 条，失败 ${failureCount} 条`)
+    return
+  }
+
+  alert(`${successMessage}：共 ${successCount} 条`)
+}
+
+const batchPublishSelected = async () => {
+  if (selectedDraftIds.value.length === 0) {
+    return
+  }
+
+  if (!confirm(`确定发布选中的 ${selectedDraftIds.value.length} 条草稿教案吗？`)) {
+    return
+  }
+
+  await runBatchAction(selectedDraftIds.value, (id) => planStore.publishPlan(id), '批量发布完成', '批量发布存在失败')
+}
+
+const batchArchiveSelected = async () => {
+  if (selectedPublishedIds.value.length === 0) {
+    return
+  }
+
+  if (!confirm(`确定归档选中的 ${selectedPublishedIds.value.length} 条已发布教案吗？`)) {
+    return
+  }
+
+  await runBatchAction(selectedPublishedIds.value, (id) => planStore.archivePlan(id), '批量归档完成', '批量归档存在失败')
+}
+
+const batchDeleteSelected = async () => {
+  if (selectedPlanIds.value.length === 0) {
+    return
+  }
+
+  if (!confirm(`确定删除选中的 ${selectedPlanIds.value.length} 条教案吗？该操作不可撤销。`)) {
+    return
+  }
+
+  await runBatchAction(selectedPlanIds.value, (id) => planStore.deletePlan(id), '批量删除完成', '批量删除存在失败')
 }
 
 const duplicatePlan = async (id: string) => {

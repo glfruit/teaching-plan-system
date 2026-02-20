@@ -34,4 +34,12 @@ describe('HomeView component system usage', () => {
     expect(homeViewSource).toContain('复制')
     expect(homeViewSource).toContain('duplicatePlan')
   })
+
+  it('supports batch operations on selected plans', () => {
+    expect(homeViewSource).toContain('selectedPlanIds')
+    expect(homeViewSource).toContain('批量发布')
+    expect(homeViewSource).toContain('批量归档')
+    expect(homeViewSource).toContain('批量删除')
+    expect(homeViewSource).toContain('toggleSelectAllVisible')
+  })
 })
