@@ -140,6 +140,13 @@
                     导出
                   </button>
                   <button
+                    @click="duplicatePlan(plan.id!)"
+                    class="min-h-[44px] px-3 rounded border border-sky-200 bg-white text-sm text-sky-700 hover:bg-sky-50 transition-colors"
+                    title="复制"
+                  >
+                    复制
+                  </button>
+                  <button
                     v-if="plan.status === 'DRAFT'"
                     @click="publishPlan(plan.id!)"
                     class="min-h-[44px] px-3 rounded border border-emerald-200 bg-white text-sm text-emerald-700 hover:bg-emerald-50 transition-colors"
@@ -447,6 +454,15 @@ const deletePlan = async (id: string) => {
     await loadPlans()
   } catch (error) {
     alert('删除失败: ' + error)
+  }
+}
+
+const duplicatePlan = async (id: string) => {
+  try {
+    await planStore.duplicatePlan(id)
+    await loadPlans(planStore.pagination.page || 1)
+  } catch (error) {
+    alert('复制失败: ' + error)
   }
 }
 

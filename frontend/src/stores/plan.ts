@@ -390,6 +390,22 @@ export const usePlanStore = defineStore('plan', () => {
   }
 
   /**
+   * 复制教案
+   */
+  const duplicatePlan = async (id: string) => {
+    try {
+      const response = await api.post(`/teaching-plans/${id}/duplicate`)
+
+      if (response.data.success) {
+        return response.data.data
+      }
+    } catch (err: any) {
+      error.value = err.response?.data?.message || '复制教案失败'
+      throw error.value
+    }
+  }
+
+  /**
    * 重置当前教案
    */
   const resetCurrentPlan = () => {
@@ -417,6 +433,7 @@ export const usePlanStore = defineStore('plan', () => {
     deletePlan,
     publishPlan,
     archivePlan,
+    duplicatePlan,
     resetCurrentPlan,
   }
 })

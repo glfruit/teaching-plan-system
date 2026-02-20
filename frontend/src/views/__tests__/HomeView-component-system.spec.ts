@@ -29,4 +29,9 @@ describe('HomeView component system usage', () => {
     expect(homeViewSource).toContain('publishPlan')
     expect(homeViewSource).toContain('archivePlan')
   })
+
+  it('supports duplicating plan from list actions', () => {
+    expect(homeViewSource).toContain('复制')
+    expect(homeViewSource).toContain('duplicatePlan')
+  })
 })

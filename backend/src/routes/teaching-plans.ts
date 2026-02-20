@@ -376,4 +376,66 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
         id: t.String(),
       }),
     }
+  )
+  
+  /**
+   * 复制教案（生成草稿副本）
+   */
+  .post(
+    '/:id/duplicate',
+    async ({ params, user, set }) => {
+      const existing = await prisma.teachingPlan.findUnique({
+        where: { id: params.id },
+      });
+      
+      if (!existing) {
+        set.status = 404;
+        throw new Error('Teaching plan not found');
+      }
+      
+      if (existing.teacherId !== user!.userId) {
+        set.status = 403;
+        throw new Error('Forbidden: You can only duplicate your own teaching plans');
+      }
+
+      const duplicated = await prisma.teachingPlan.create({
+        data: {
+          title: `${existing.title}（副本）`,
+          courseName: existing.courseName,
+          className: existing.className,
+          duration: existing.duration,
+          objectives: existing.objectives,
+          keyPoints: existing.keyPoints,
+          process: existing.process,
+          blackboard: existing.blackboard,
+          reflection: existing.reflection,
+          methods: existing.methods,
+          resources: existing.resources,
+          htmlContent: existing.htmlContent,
+          contentJson: existing.contentJson,
+          status: 'DRAFT',
+          teacherId: existing.teacherId,
+        },
+        include: {
+          teacher: {
+            select: {
+              id: true,
+              username: true,
+              department: true,
+            },
+          },
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Teaching plan duplicated successfully',
+        data: duplicated,
+      };
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+    }
   );

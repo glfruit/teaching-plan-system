@@ -329,6 +329,28 @@ describeWithDatabase('Teaching Plan API', () => {
   });
 
   /**
+   * 测试复制教案
+   */
+  describe('POST /teaching-plans/:id/duplicate', () => {
+    it('should duplicate teaching plan as draft copy', async () => {
+      const response = await app.handle(
+        new Request(`http://localhost/teaching-plans/${createdPlanId}/duplicate`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        })
+      );
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.id).not.toBe(createdPlanId);
+      expect(data.data.title).toContain('副本');
+      expect(data.data.status).toBe('DRAFT');
+      expect(data.data.teacherId).toBe(testUserId);
+    });
+  });
+
+  /**
    * 测试删除教案
    */
   describe('DELETE /teaching-plans/:id', () => {
