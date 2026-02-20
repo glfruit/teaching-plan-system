@@ -351,6 +351,78 @@ describeWithDatabase('Teaching Plan API', () => {
   });
 
   /**
+   * 测试批量操作教案
+   */
+  describe('POST /teaching-plans/batch', () => {
+    it('should batch publish draft plans', async () => {
+      const createOne = await app.handle(
+        new Request('http://localhost/teaching-plans', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            title: '批量草稿一',
+            courseName: '批量课程',
+            className: '批量班级',
+            duration: 45,
+            objectives: '目标一',
+            keyPoints: '重点一',
+            process: '过程一',
+            htmlContent: '<p>批量一</p>'
+          })
+        })
+      );
+      const createOneData = await createOne.json();
+      const idOne = createOneData.data.id as string;
+
+      const createTwo = await app.handle(
+        new Request('http://localhost/teaching-plans', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            title: '批量草稿二',
+            courseName: '批量课程',
+            className: '批量班级',
+            duration: 50,
+            objectives: '目标二',
+            keyPoints: '重点二',
+            process: '过程二',
+            htmlContent: '<p>批量二</p>'
+          })
+        })
+      );
+      const createTwoData = await createTwo.json();
+      const idTwo = createTwoData.data.id as string;
+
+      const response = await app.handle(
+        new Request('http://localhost/teaching-plans/batch', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            action: 'PUBLISH',
+            ids: [idOne, idTwo]
+          })
+        })
+      );
+
+      expect(response.status).toBe(200);
+      const data = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.requested).toBe(2);
+      expect(data.data.matched).toBe(2);
+      expect(data.data.affected).toBe(2);
+    });
+  });
+
+  /**
    * 测试删除教案
    */
   describe('DELETE /teaching-plans/:id', () => {

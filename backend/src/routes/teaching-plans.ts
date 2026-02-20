@@ -8,6 +8,7 @@ const TeachingPlanStatus = t.Union([
   t.Literal('PUBLISHED'),
   t.Literal('ARCHIVED'),
 ]);
+const BatchAction = t.Union([t.Literal('PUBLISH'), t.Literal('ARCHIVE'), t.Literal('DELETE')]);
 
 /**
  * 教案路由
@@ -188,6 +189,73 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
         htmlContent: t.String(),
         contentJson: t.Optional(t.Any()),
         status: t.Optional(TeachingPlanStatus),
+      }),
+    }
+  )
+
+  /**
+   * 批量操作教案
+   */
+  .post(
+    '/batch',
+    async ({ body, user, set }) => {
+      const uniqueIds = [...new Set(body.ids)];
+      const plans = await prisma.teachingPlan.findMany({
+        where: {
+          id: { in: uniqueIds },
+          teacherId: user!.userId,
+        },
+        select: { id: true },
+      });
+
+      const matchedIds = plans.map((plan) => plan.id);
+      if (matchedIds.length === 0) {
+        set.status = 404;
+        throw new Error('No accessible teaching plans found');
+      }
+
+      let affected = 0;
+      if (body.action === 'PUBLISH') {
+        const result = await prisma.teachingPlan.updateMany({
+          where: { id: { in: matchedIds } },
+          data: {
+            status: 'PUBLISHED',
+            updatedAt: new Date(),
+          },
+        });
+        affected = result.count;
+      } else if (body.action === 'ARCHIVE') {
+        const result = await prisma.teachingPlan.updateMany({
+          where: { id: { in: matchedIds } },
+          data: {
+            status: 'ARCHIVED',
+            updatedAt: new Date(),
+          },
+        });
+        affected = result.count;
+      } else {
+        const result = await prisma.teachingPlan.deleteMany({
+          where: { id: { in: matchedIds } },
+        });
+        affected = result.count;
+      }
+
+      return {
+        success: true,
+        message: 'Batch operation completed',
+        data: {
+          action: body.action,
+          requested: uniqueIds.length,
+          matched: matchedIds.length,
+          affected,
+          skipped: Math.max(uniqueIds.length - matchedIds.length, 0),
+        },
+      };
+    },
+    {
+      body: t.Object({
+        action: BatchAction,
+        ids: t.Array(t.String(), { minItems: 1, maxItems: 100 }),
       }),
     }
   )

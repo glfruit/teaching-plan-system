@@ -552,32 +552,19 @@ const clearSelection = () => {
 }
 
 const runBatchAction = async (
+  action: 'PUBLISH' | 'ARCHIVE' | 'DELETE',
   ids: string[],
-  runner: (id: string) => Promise<unknown>,
   successMessage: string,
   failurePrefix: string
 ) => {
-  let successCount = 0
-  let failureCount = 0
-
-  for (const id of ids) {
-    try {
-      await runner(id)
-      successCount += 1
-    } catch {
-      failureCount += 1
-    }
+  try {
+    const result = await planStore.batchPlanAction(action, ids)
+    await loadPlans(planStore.pagination.page || 1)
+    clearSelection()
+    alert(`${successMessage}：成功 ${result.affected} 条，跳过 ${result.skipped} 条`)
+  } catch (error) {
+    alert(`${failurePrefix}：${error}`)
   }
-
-  await loadPlans(planStore.pagination.page || 1)
-  clearSelection()
-
-  if (failureCount > 0) {
-    alert(`${failurePrefix}：成功 ${successCount} 条，失败 ${failureCount} 条`)
-    return
-  }
-
-  alert(`${successMessage}：共 ${successCount} 条`)
 }
 
 const batchPublishSelected = async () => {
@@ -589,7 +576,7 @@ const batchPublishSelected = async () => {
     return
   }
 
-  await runBatchAction(selectedDraftIds.value, (id) => planStore.publishPlan(id), '批量发布完成', '批量发布存在失败')
+  await runBatchAction('PUBLISH', selectedDraftIds.value, '批量发布完成', '批量发布失败')
 }
 
 const batchArchiveSelected = async () => {
@@ -601,7 +588,7 @@ const batchArchiveSelected = async () => {
     return
   }
 
-  await runBatchAction(selectedPublishedIds.value, (id) => planStore.archivePlan(id), '批量归档完成', '批量归档存在失败')
+  await runBatchAction('ARCHIVE', selectedPublishedIds.value, '批量归档完成', '批量归档失败')
 }
 
 const batchDeleteSelected = async () => {
@@ -613,7 +600,7 @@ const batchDeleteSelected = async () => {
     return
   }
 
-  await runBatchAction(selectedPlanIds.value, (id) => planStore.deletePlan(id), '批量删除完成', '批量删除存在失败')
+  await runBatchAction('DELETE', selectedPlanIds.value, '批量删除完成', '批量删除失败')
 }
 
 const duplicatePlan = async (id: string) => {

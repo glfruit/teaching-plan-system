@@ -63,6 +63,8 @@ export interface TeachingPlan {
   }
 }
 
+export type PlanBatchAction = 'PUBLISH' | 'ARCHIVE' | 'DELETE'
+
 const RICH_TEXT_FIELDS = ['objectives', 'keyPoints', 'process', 'blackboard', 'reflection'] as const
 const KNOWN_EDITOR_NODE_TYPES = new Set([
   'doc',
@@ -406,6 +408,22 @@ export const usePlanStore = defineStore('plan', () => {
   }
 
   /**
+   * 批量操作教案
+   */
+  const batchPlanAction = async (action: PlanBatchAction, ids: string[]) => {
+    try {
+      const response = await api.post('/teaching-plans/batch', {
+        action,
+        ids,
+      })
+      return response.data.data
+    } catch (err: any) {
+      error.value = err.response?.data?.message || '批量操作失败'
+      throw error.value
+    }
+  }
+
+  /**
    * 重置当前教案
    */
   const resetCurrentPlan = () => {
@@ -434,6 +452,7 @@ export const usePlanStore = defineStore('plan', () => {
     publishPlan,
     archivePlan,
     duplicatePlan,
+    batchPlanAction,
     resetCurrentPlan,
   }
 })
