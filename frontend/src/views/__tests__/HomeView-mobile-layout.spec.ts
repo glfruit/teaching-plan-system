@@ -18,4 +18,9 @@ describe('HomeView mobile layout', () => {
     expect(homeViewSource).toContain('分析看板')
     expect(homeViewSource).toContain('退出登录')
   })
+
+  it('keeps export preview dialog mobile-safe', () => {
+    expect(homeViewSource).toContain('w-[calc(100%-2rem)]')
+    expect(homeViewSource).toContain('max-h-[85vh]')
+  })
 })

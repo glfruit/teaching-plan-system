@@ -16,4 +16,10 @@ describe('HomeView component system usage', () => {
   it('keeps touch targets at least 44px in mobile actions', () => {
     expect(homeViewSource).toContain('min-h-[44px]')
   })
+
+  it('contains export preview dialog structure', () => {
+    expect(homeViewSource).toContain('导出前预检')
+    expect(homeViewSource).toContain('继续导出')
+    expect(homeViewSource).toContain('isExportPreviewVisible')
+  })
 })

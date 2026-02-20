@@ -38,6 +38,53 @@ const buildSectionRows = (plan: {
   { key: 'resources', label: 'Teaching Resources', content: normalizeText(plan.resources) },
 ];
 
+const buildPreviewPayload = (plan: {
+  id: string;
+  title: string;
+  courseName: string;
+  className: string;
+  duration: number;
+  status: string;
+  teacher: { username: string; department: string | null } | null;
+  updatedAt: Date;
+  objectives: string;
+  keyPoints: string;
+  process: string;
+  blackboard: string | null;
+  reflection: string | null;
+  methods: string | null;
+  resources: string | null;
+}) => {
+  const sections = buildSectionRows(plan).map(section => ({
+    ...section,
+    length: section.content.length,
+    isEmpty: section.content.length === 0,
+    preview: section.content.slice(0, 120),
+  }));
+  const completedSections = sections.filter(section => !section.isEmpty).length;
+
+  return {
+    plan: {
+      id: plan.id,
+      title: plan.title,
+      courseName: plan.courseName,
+      className: plan.className,
+      duration: plan.duration,
+      status: plan.status,
+      teacherName: plan.teacher?.username || '',
+      updatedAt: plan.updatedAt,
+    },
+    sections,
+    readiness: {
+      completedSections,
+      totalSections: sections.length,
+      completionRate: sections.length === 0 ? 0 : Math.round((completedSections / sections.length) * 100),
+      missingSections: sections.filter(section => section.isEmpty).map(section => section.label),
+    },
+    availableFormats: ['word', 'excel', 'pdf'],
+  };
+};
+
 const getPlanWithPermission = async (planId: string, userId: string, set: { status?: number | string }) => {
   const plan = await prisma.teachingPlan.findUnique({
     where: { id: planId },
@@ -81,36 +128,11 @@ export const exportRoutes = new Elysia({ prefix: '/export' })
     '/preview/:id',
     async ({ params, user, set }) => {
       const plan = await getPlanWithPermission(params.id, user!.userId, set);
-      const sections = buildSectionRows(plan).map(section => ({
-        ...section,
-        length: section.content.length,
-        isEmpty: section.content.length === 0,
-        preview: section.content.slice(0, 120),
-      }));
-      const completedCount = sections.filter(section => !section.isEmpty).length;
+      const payload = buildPreviewPayload(plan);
 
       return {
         success: true,
-        data: {
-          plan: {
-            id: plan.id,
-            title: plan.title,
-            courseName: plan.courseName,
-            className: plan.className,
-            duration: plan.duration,
-            status: plan.status,
-            teacherName: plan.teacher?.username || '',
-            updatedAt: plan.updatedAt,
-          },
-          sections,
-          readiness: {
-            completedSections: completedCount,
-            totalSections: sections.length,
-            completionRate: sections.length === 0 ? 0 : Math.round((completedCount / sections.length) * 100),
-            missingSections: sections.filter(section => section.isEmpty).map(section => section.label),
-          },
-          availableFormats: ['word', 'excel', 'pdf'],
-        },
+        data: payload,
       };
     },
     {
@@ -188,33 +210,90 @@ export const exportRoutes = new Elysia({ prefix: '/export' })
     '/excel/:id',
     async ({ params, user, set }) => {
       const plan = await getPlanWithPermission(params.id, user!.userId, set);
+      const payload = buildPreviewPayload(plan);
       const workbook = new ExcelJS.Workbook();
-      const sheet = workbook.addWorksheet('Teaching Plan');
-
-      sheet.columns = [
-        { header: 'Field', key: 'field', width: 26 },
-        { header: 'Value', key: 'value', width: 90 },
+      workbook.creator = 'teaching-plan-system';
+      workbook.created = new Date();
+      const summarySheet = workbook.addWorksheet('Plan Summary');
+      summarySheet.columns = [
+        { header: 'Section', key: 'section', width: 28 },
+        { header: 'Content', key: 'content', width: 78 },
+        { header: 'Chars', key: 'chars', width: 12 },
       ];
-      sheet.getRow(1).font = { bold: true };
 
-      sheet.addRow({ field: 'Title', value: plan.title });
-      sheet.addRow({ field: 'Course Name', value: plan.courseName });
-      sheet.addRow({ field: 'Class Name', value: plan.className });
-      sheet.addRow({ field: 'Duration (min)', value: plan.duration });
-      sheet.addRow({ field: 'Status', value: plan.status });
-      sheet.addRow({ field: 'Teacher', value: plan.teacher?.username || '' });
-      sheet.addRow({ field: 'Department', value: plan.teacher?.department || '' });
-      sheet.addRow({ field: 'Last Updated', value: plan.updatedAt.toISOString() });
-      sheet.addRow({ field: '', value: '' });
+      summarySheet.mergeCells('A1:C1');
+      const titleCell = summarySheet.getCell('A1');
+      titleCell.value = 'Teaching Plan Export Report';
+      titleCell.font = { bold: true, size: 16 };
+      titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+      summarySheet.getRow(1).height = 28;
 
-      buildSectionRows(plan).forEach(section => {
-        sheet.addRow({
-          field: section.label,
-          value: section.content || '(empty)',
+      summarySheet.addRow(['Metadata', 'Value', '']);
+      const metadataHeaderRow = summarySheet.getRow(2);
+      metadataHeaderRow.font = { bold: true };
+      metadataHeaderRow.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFE8EEF5' },
+      };
+
+      [
+        ['Title', payload.plan.title],
+        ['Course Name', payload.plan.courseName],
+        ['Class Name', payload.plan.className],
+        ['Duration (min)', String(payload.plan.duration)],
+        ['Status', payload.plan.status],
+        ['Teacher', payload.plan.teacherName || ''],
+        ['Updated At', new Date(payload.plan.updatedAt).toISOString()],
+      ].forEach(([label, value]) => {
+        summarySheet.addRow([label, value, '']);
+      });
+
+      summarySheet.addRow([]);
+      const sectionHeader = summarySheet.addRow(['Section', 'Content Preview', 'Chars']);
+      sectionHeader.font = { bold: true };
+      sectionHeader.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FFDCE5ED' },
+      };
+
+      payload.sections.forEach((section) => {
+        summarySheet.addRow({
+          section: section.label,
+          content: section.content || '(empty)',
+          chars: section.length,
         });
       });
 
-      sheet.eachRow((row) => {
+      summarySheet.eachRow((row, rowNumber) => {
+        row.alignment = { vertical: 'top', wrapText: true };
+        row.eachCell((cell) => {
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFD7DDE4' } },
+            left: { style: 'thin', color: { argb: 'FFD7DDE4' } },
+            bottom: { style: 'thin', color: { argb: 'FFD7DDE4' } },
+            right: { style: 'thin', color: { argb: 'FFD7DDE4' } },
+          };
+        });
+        if (rowNumber >= 3) {
+          row.height = 22;
+        }
+      });
+
+      const readinessSheet = workbook.addWorksheet('Readiness');
+      readinessSheet.columns = [
+        { header: 'Metric', key: 'metric', width: 28 },
+        { header: 'Value', key: 'value', width: 80 },
+      ];
+      readinessSheet.getRow(1).font = { bold: true };
+      readinessSheet.addRow({ metric: 'Completion Rate', value: `${payload.readiness.completionRate}%` });
+      readinessSheet.addRow({ metric: 'Completed Sections', value: `${payload.readiness.completedSections}/${payload.readiness.totalSections}` });
+      readinessSheet.addRow({
+        metric: 'Missing Sections',
+        value: payload.readiness.missingSections.length > 0 ? payload.readiness.missingSections.join(', ') : 'None',
+      });
+      readinessSheet.eachRow((row) => {
         row.alignment = { vertical: 'top', wrapText: true };
       });
 
@@ -239,7 +318,7 @@ export const exportRoutes = new Elysia({ prefix: '/export' })
     '/pdf/:id',
     async ({ params, user, set }) => {
       const plan = await getPlanWithPermission(params.id, user!.userId, set);
-      const sections = buildSectionRows(plan);
+      const payload = buildPreviewPayload(plan);
       const chunks: Buffer[] = [];
 
       const buffer = await new Promise<Buffer>((resolve, reject) => {
@@ -249,19 +328,50 @@ export const exportRoutes = new Elysia({ prefix: '/export' })
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         doc.on('error', reject);
 
-        doc.fontSize(18).text('Teaching Plan', { align: 'center' });
-        doc.moveDown();
-        doc.fontSize(13).text(`Title: ${plan.title}`);
-        doc.text(`Course: ${plan.courseName}`);
-        doc.text(`Class: ${plan.className}`);
-        doc.text(`Duration: ${plan.duration} min`);
-        doc.text(`Teacher: ${plan.teacher?.username || ''}`);
+        doc.fontSize(20).text('Teaching Plan Export Report', { align: 'center' });
+        doc.moveDown(0.5);
+        doc.fontSize(10).text(`Generated At: ${new Date().toISOString()}`, { align: 'right' });
         doc.moveDown();
 
-        sections.forEach(section => {
-          doc.fontSize(12).text(section.label, { underline: true });
-          doc.fontSize(10).text(section.content || '(empty)');
-          doc.moveDown(0.8);
+        const metadataRows: Array<[string, string]> = [
+          ['Title', payload.plan.title],
+          ['Course', payload.plan.courseName],
+          ['Class', payload.plan.className],
+          ['Duration', `${payload.plan.duration} min`],
+          ['Teacher', payload.plan.teacherName || ''],
+          ['Status', payload.plan.status],
+        ];
+
+        metadataRows.forEach(([label, value]) => {
+          doc.fontSize(11).font('Helvetica-Bold').text(`${label}: `, { continued: true });
+          doc.font('Helvetica').text(value || '-');
+        });
+
+        doc.moveDown();
+        doc.font('Helvetica-Bold').fontSize(13).text('Readiness Summary');
+        doc.font('Helvetica').fontSize(10).text(`Completion: ${payload.readiness.completionRate}%`);
+        doc.text(`Completed Sections: ${payload.readiness.completedSections}/${payload.readiness.totalSections}`);
+        doc.text(
+          `Missing Sections: ${
+            payload.readiness.missingSections.length > 0
+              ? payload.readiness.missingSections.join(', ')
+              : 'None'
+          }`
+        );
+        doc.moveDown();
+
+        doc.font('Helvetica-Bold').fontSize(13).text('Content Sections');
+        doc.moveDown(0.4);
+
+        payload.sections.forEach((section, index) => {
+          if (doc.y > 730) {
+            doc.addPage();
+          }
+          doc.font('Helvetica-Bold').fontSize(11).text(`${index + 1}. ${section.label}`);
+          doc.font('Helvetica').fontSize(10).text(section.content || '(empty)');
+          doc.fillColor('#6B7280').text(`Characters: ${section.length}`);
+          doc.fillColor('#111827');
+          doc.moveDown(0.7);
         });
 
         doc.end();

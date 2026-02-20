@@ -133,7 +133,7 @@
                     <option value="pdf">PDF</option>
                   </select>
                   <button
-                    @click="exportPlan(plan.id!, plan.title, exportFormat)"
+                    @click="openExportPreview(plan.id!, plan.title, exportFormat)"
                     class="min-h-[44px] px-3 rounded border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-100 transition-colors"
                     title="导出"
                   >
@@ -175,6 +175,107 @@
         </BaseCard>
       </template>
     </main>
+
+    <Teleport to="body">
+      <div
+        v-if="isExportPreviewVisible"
+        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+      >
+        <button
+          class="absolute inset-0 bg-slate-900/40"
+          @click="closeExportPreview"
+          aria-label="关闭导出前预检弹窗"
+        ></button>
+
+        <div class="relative w-[calc(100%-2rem)] sm:max-w-2xl max-h-[85vh] overflow-y-auto rounded border border-slate-200 bg-white shadow-[var(--shadow-lg)]">
+          <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-slate-200">
+            <div class="flex items-center gap-2">
+              <span class="inline-flex h-8 w-8 items-center justify-center rounded bg-slate-100 text-[#647269]">
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </span>
+              <div>
+                <h3 class="text-base font-semibold text-slate-900">导出前预检</h3>
+                <p class="text-sm text-slate-500">确认内容完整度后再导出</p>
+              </div>
+            </div>
+            <BaseBadge variant="default">
+              {{ selectedFormatLabel }}
+            </BaseBadge>
+          </div>
+
+          <div class="px-5 py-4 space-y-4">
+            <div v-if="isExportPreviewLoading" class="flex items-center gap-2 text-sm text-slate-500">
+              <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+              <span>正在检查教案完整度...</span>
+            </div>
+
+            <div v-else-if="exportPreviewError" class="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {{ exportPreviewError }}
+            </div>
+
+            <template v-else-if="exportPreviewData">
+              <div class="rounded border border-slate-200 bg-slate-50 px-4 py-3">
+                <p class="text-sm text-slate-700">
+                  <span class="font-medium text-slate-900">完成度 {{ exportPreviewData.readiness.completionRate }}%</span>
+                  · 已完成 {{ exportPreviewData.readiness.completedSections }} / {{ exportPreviewData.readiness.totalSections }} 个模块
+                </p>
+                <p class="text-xs text-slate-500 mt-1">教案：{{ exportPreviewData.plan.title }}</p>
+                <p
+                  v-if="exportPreviewData.readiness.missingSections.length > 0"
+                  class="text-xs text-amber-700 mt-2"
+                >
+                  待补充：{{ exportPreviewData.readiness.missingSections.join('、') }}
+                </p>
+              </div>
+
+              <ul class="space-y-2">
+                <li
+                  v-for="section in exportPreviewData.sections"
+                  :key="section.key"
+                  class="rounded border border-slate-200 px-3 py-2"
+                >
+                  <div class="flex items-center justify-between gap-3">
+                    <p class="text-sm font-medium text-slate-800">{{ section.label }}</p>
+                    <span
+                      class="inline-flex items-center rounded px-2 py-0.5 text-xs"
+                      :class="section.isEmpty ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'"
+                    >
+                      {{ section.isEmpty ? '未填' : '已填' }}
+                    </span>
+                  </div>
+                  <p class="text-xs text-slate-500 mt-1 line-clamp-2">
+                    {{ section.preview || '暂无内容' }}
+                  </p>
+                </li>
+              </ul>
+            </template>
+          </div>
+
+          <div class="px-5 py-4 border-t border-slate-200 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-end gap-2">
+            <BaseButton
+              variant="secondary"
+              class="w-full sm:w-auto"
+              @click="closeExportPreview"
+            >
+              取消
+            </BaseButton>
+            <BaseButton
+              class="w-full sm:w-auto"
+              :loading="isExporting"
+              :disabled="isExportPreviewLoading || !!exportPreviewError || !exportPreviewData"
+              @click="confirmExport"
+            >
+              继续导出
+            </BaseButton>
+          </div>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -204,6 +305,58 @@ const EXPORT_FORMAT_CONFIG: Record<ExportFormat, { extension: 'docx' | 'xlsx' | 
   excel: { extension: 'xlsx' },
   pdf: { extension: 'pdf' },
 }
+const EXPORT_FORMAT_LABEL: Record<ExportFormat, string> = {
+  word: 'Word 导出',
+  excel: 'Excel 导出',
+  pdf: 'PDF 导出',
+}
+
+interface ExportPreviewSection {
+  key: string
+  label: string
+  preview: string
+  isEmpty: boolean
+  length: number
+}
+
+interface ExportPreviewData {
+  plan: {
+    id: string
+    title: string
+    courseName: string
+    className: string
+    duration: number
+    status: string
+    teacherName: string
+    updatedAt: string
+  }
+  sections: ExportPreviewSection[]
+  readiness: {
+    completedSections: number
+    totalSections: number
+    completionRate: number
+    missingSections: string[]
+  }
+  availableFormats: ExportFormat[]
+}
+
+type PendingExport = {
+  id: string
+  title: string
+  format: ExportFormat
+} | null
+
+const isExportPreviewVisible = ref(false)
+const isExportPreviewLoading = ref(false)
+const exportPreviewError = ref('')
+const exportPreviewData = ref<ExportPreviewData | null>(null)
+const pendingExport = ref<PendingExport>(null)
+const isExporting = ref(false)
+
+const selectedFormatLabel = computed(() => {
+  const format = pendingExport.value?.format || exportFormat.value
+  return EXPORT_FORMAT_LABEL[format]
+})
 
 const draftCount = computed(() => planStore.plans.filter((p) => p.status === 'DRAFT').length)
 const publishedCount = computed(() => planStore.plans.filter((p) => p.status === 'PUBLISHED').length)
@@ -281,7 +434,7 @@ const deletePlan = async (id: string) => {
   }
 }
 
-const exportPlan = async (id: string, title: string, format: ExportFormat) => {
+const triggerExportDownload = async (id: string, title: string, format: ExportFormat) => {
   try {
     const config = EXPORT_FORMAT_CONFIG[format]
     const token = localStorage.getItem('token')
@@ -306,8 +459,68 @@ const exportPlan = async (id: string, title: string, format: ExportFormat) => {
     link.click()
     document.body.removeChild(link)
     window.URL.revokeObjectURL(url)
+    return true
   } catch (error) {
     alert('导出失败: ' + error)
+    return false
+  }
+}
+
+const openExportPreview = async (id: string, title: string, format: ExportFormat) => {
+  isExportPreviewVisible.value = true
+  isExportPreviewLoading.value = true
+  exportPreviewError.value = ''
+  exportPreviewData.value = null
+  pendingExport.value = { id, title, format }
+
+  try {
+    const token = localStorage.getItem('token')
+    const response = await fetch(`/api/export/preview/${id}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(errorText || '导出预检失败')
+    }
+
+    const result = await response.json()
+    if (!result.success) {
+      throw new Error(result.message || '导出预检失败')
+    }
+
+    exportPreviewData.value = result.data as ExportPreviewData
+  } catch (error) {
+    exportPreviewError.value = error instanceof Error ? error.message : '导出预检失败'
+  } finally {
+    isExportPreviewLoading.value = false
+  }
+}
+
+const closeExportPreview = () => {
+  isExportPreviewVisible.value = false
+  isExportPreviewLoading.value = false
+  exportPreviewError.value = ''
+  exportPreviewData.value = null
+  pendingExport.value = null
+  isExporting.value = false
+}
+
+const confirmExport = async () => {
+  if (!pendingExport.value || isExporting.value) {
+    return
+  }
+
+  isExporting.value = true
+  const { id, title, format } = pendingExport.value
+  const success = await triggerExportDownload(id, title, format)
+  isExporting.value = false
+
+  if (success) {
+    closeExportPreview()
   }
 }
 
