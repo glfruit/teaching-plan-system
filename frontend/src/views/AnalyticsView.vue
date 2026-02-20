@@ -142,6 +142,7 @@ import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useAuthStore } from '../stores/auth'
 import { getAnalytics, exportAnalytics, type AnalyticsExportFormat } from '../api/analytics'
+import { buildAnalyticsSummary, normalizeTrendPoints } from './analytics-view-model'
 import NavBar from '../components/layout/NavBar.vue'
 import PageHeader from '../components/layout/PageHeader.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
@@ -222,30 +223,14 @@ const refreshData = async () => {
   isLoading.value = true
   try {
     const data = await getAnalytics()
-    const trend = Array.isArray(data.trend) ? data.trend : []
+    const trend = normalizeTrendPoints(data.trend)
 
     trendData.value = {
-      dates: trend.map((t: any) => t.date || ''),
-      counts: trend.map((t: any) => t.count || 0),
+      dates: trend.map((t) => t.date || ''),
+      counts: trend.map((t) => t.count || 0),
     }
 
-    summary.value = {
-      totalPlans: data.workload?.length || 0,
-      totalPublished: data.execution?.filter((e: any) => e.status === 'completed').length || 0,
-      totalDrafts: data.execution?.filter((e: any) => e.status === 'draft').length || 0,
-      publishedRate: data.execution?.length
-        ? Math.round((data.execution.filter((e: any) => e.status === 'completed').length / data.execution.length) * 100)
-        : 0,
-      avgDuration: 45,
-      publishRate: data.execution?.length
-        ? Math.round((data.execution.filter((e: any) => e.status === 'completed').length / data.execution.length) * 100)
-        : 0,
-      periodStats: {
-        newPlans: data.trend?.[data.trend.length - 1]?.count || 0,
-        published: data.execution?.filter((e: any) => e.status === 'completed').length || 0,
-        updated: data.execution?.filter((e: any) => e.status === 'draft').length || 0,
-      },
-    }
+    summary.value = buildAnalyticsSummary(data)
   } catch (error) {
     console.error('加载分析数据失败:', error)
   } finally {
