@@ -115,7 +115,7 @@
                   </p>
                 </div>
 
-                <div class="flex items-center gap-2">
+                <div class="flex items-center flex-wrap gap-2">
                   <button
                     @click="editPlan(plan.id!)"
                     class="min-h-[44px] px-3 rounded border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-100 transition-colors"
@@ -123,8 +123,17 @@
                   >
                     编辑
                   </button>
+                  <select
+                    v-model="exportFormat"
+                    class="min-h-[44px] px-3 rounded border border-slate-200 bg-white text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-[#647269]/20"
+                    title="导出格式"
+                  >
+                    <option value="word">Word</option>
+                    <option value="excel">Excel</option>
+                    <option value="pdf">PDF</option>
+                  </select>
                   <button
-                    @click="exportPlan(plan.id!, plan.title)"
+                    @click="exportPlan(plan.id!, plan.title, exportFormat)"
                     class="min-h-[44px] px-3 rounded border border-slate-200 bg-white text-sm text-slate-600 hover:bg-slate-100 transition-colors"
                     title="导出"
                   >
@@ -187,6 +196,14 @@ const authStore = useAuthStore()
 const planStore = usePlanStore()
 
 const searchQuery = ref('')
+const exportFormat = ref<ExportFormat>('word')
+
+type ExportFormat = 'word' | 'excel' | 'pdf'
+const EXPORT_FORMAT_CONFIG: Record<ExportFormat, { extension: 'docx' | 'xlsx' | 'pdf' }> = {
+  word: { extension: 'docx' },
+  excel: { extension: 'xlsx' },
+  pdf: { extension: 'pdf' },
+}
 
 const draftCount = computed(() => planStore.plans.filter((p) => p.status === 'DRAFT').length)
 const publishedCount = computed(() => planStore.plans.filter((p) => p.status === 'PUBLISHED').length)
@@ -264,10 +281,11 @@ const deletePlan = async (id: string) => {
   }
 }
 
-const exportPlan = async (id: string, title: string) => {
+const exportPlan = async (id: string, title: string, format: ExportFormat) => {
   try {
+    const config = EXPORT_FORMAT_CONFIG[format]
     const token = localStorage.getItem('token')
-    const response = await fetch(`/api/export/word/${id}`, {
+    const response = await fetch(`/api/export/${format}/${id}`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -275,14 +293,15 @@ const exportPlan = async (id: string, title: string) => {
     })
 
     if (!response.ok) {
-      throw new Error('导出失败')
+      const errorText = await response.text()
+      throw new Error(errorText || '导出失败')
     }
 
     const blob = await response.blob()
     const url = window.URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `${title}.docx`
+    link.download = `${title}.${config.extension}`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
