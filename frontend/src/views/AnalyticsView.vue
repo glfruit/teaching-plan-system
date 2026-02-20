@@ -23,15 +23,35 @@
         <BaseCard padding="lg" class="mb-6">
           <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <h2 class="text-lg font-semibold font-serif text-slate-800">教案创建趋势</h2>
-            <select
-              v-model="daysFilter"
-              @change="refreshData"
-              class="w-full sm:w-auto min-h-[44px] px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#647269]/20"
-            >
-              <option :value="7">近7天</option>
-              <option :value="30">近30天</option>
-              <option :value="90">近90天</option>
-            </select>
+            <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
+              <select
+                v-model="daysFilter"
+                @change="refreshData"
+                class="w-full sm:w-auto min-h-[44px] px-3 py-1.5 bg-slate-50 border border-slate-200 rounded text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#647269]/20"
+              >
+                <option :value="7">近7天</option>
+                <option :value="30">近30天</option>
+                <option :value="90">近90天</option>
+              </select>
+              <select
+                v-model="exportFormat"
+                data-testid="analytics-export-format"
+                class="w-full sm:w-auto min-h-[44px] px-3 py-1.5 bg-white border border-slate-200 rounded text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#647269]/20"
+              >
+                <option value="excel">Excel</option>
+                <option value="pdf">PDF</option>
+                <option value="csv">CSV</option>
+                <option value="json">JSON</option>
+              </select>
+              <BaseButton
+                data-testid="analytics-export-button"
+                class="w-full sm:w-auto min-h-[44px]"
+                :loading="isExporting"
+                @click="handleExport"
+              >
+                导出数据
+              </BaseButton>
+            </div>
           </div>
 
           <div class="h-52 sm:h-64">
@@ -121,10 +141,11 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useAuthStore } from '../stores/auth'
-import { getAnalytics } from '../api/analytics'
+import { getAnalytics, exportAnalytics, type AnalyticsExportFormat } from '../api/analytics'
 import NavBar from '../components/layout/NavBar.vue'
 import PageHeader from '../components/layout/PageHeader.vue'
 import BaseCard from '../components/ui/BaseCard.vue'
+import BaseButton from '../components/ui/BaseButton.vue'
 import StatCard from '../components/ui/StatCard.vue'
 
 use([LineChart, GridComponent, TooltipComponent, CanvasRenderer])
@@ -136,8 +157,17 @@ const chartRef = ref<HTMLElement | null>(null)
 let chart: ECharts | null = null
 
 const daysFilter = ref(7)
+const exportFormat = ref<AnalyticsExportFormat>('excel')
 const isLoading = ref(false)
+const isExporting = ref(false)
 const summary = ref<any>(null)
+const EXPORT_FILE_EXTENSIONS: Record<AnalyticsExportFormat, 'json' | 'csv' | 'xlsx' | 'pdf' | 'docx'> = {
+  json: 'json',
+  csv: 'csv',
+  excel: 'xlsx',
+  pdf: 'pdf',
+  word: 'docx',
+}
 
 const trendData = ref({
   dates: [] as string[],
@@ -298,5 +328,28 @@ const initChart = () => {
 const handleLogout = () => {
   authStore.logout()
   router.push('/login')
+}
+
+const handleExport = async () => {
+  if (isExporting.value) {
+    return
+  }
+
+  isExporting.value = true
+  try {
+    const blob = await exportAnalytics(exportFormat.value)
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `analytics-report.${EXPORT_FILE_EXTENSIONS[exportFormat.value]}`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    alert('导出失败: ' + error)
+  } finally {
+    isExporting.value = false
+  }
 }
 </script>

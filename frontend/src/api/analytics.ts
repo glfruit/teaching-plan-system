@@ -1,4 +1,5 @@
 const API_BASE_URL = '/api';
+export type AnalyticsExportFormat = 'json' | 'csv' | 'excel' | 'pdf' | 'word'
 
 export const getWorkload = async () => {
   const res = await fetch(`${API_BASE_URL}/analytics/workload`);
@@ -39,3 +40,22 @@ export const getAnalytics = async () => {
     trend: trend.data || []
   };
 };
+
+export const exportAnalytics = async (format: AnalyticsExportFormat): Promise<Blob> => {
+  const token = localStorage.getItem('token')
+  const response = await fetch(`${API_BASE_URL}/analytics/export`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify({ format }),
+  })
+
+  if (!response.ok) {
+    const errorText = await response.text()
+    throw new Error(errorText || '导出失败')
+  }
+
+  return response.blob()
+}

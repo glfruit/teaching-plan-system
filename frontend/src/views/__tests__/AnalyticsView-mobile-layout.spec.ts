@@ -11,4 +11,9 @@ describe('AnalyticsView mobile layout', () => {
     expect(analyticsViewSource).toContain('flex-col sm:flex-row')
     expect(analyticsViewSource).toContain('grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4')
   })
+
+  it('keeps export controls touch-friendly on mobile', () => {
+    expect(analyticsViewSource).toContain('min-h-[44px]')
+    expect(analyticsViewSource).toContain('w-full sm:w-auto')
+  })
 })
