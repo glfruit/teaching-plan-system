@@ -140,6 +140,22 @@
                     导出
                   </button>
                   <button
+                    v-if="plan.status === 'DRAFT'"
+                    @click="publishPlan(plan.id!)"
+                    class="min-h-[44px] px-3 rounded border border-emerald-200 bg-white text-sm text-emerald-700 hover:bg-emerald-50 transition-colors"
+                    title="发布"
+                  >
+                    发布
+                  </button>
+                  <button
+                    v-if="plan.status === 'PUBLISHED'"
+                    @click="archivePlan(plan.id!)"
+                    class="min-h-[44px] px-3 rounded border border-amber-200 bg-white text-sm text-amber-700 hover:bg-amber-50 transition-colors"
+                    title="归档"
+                  >
+                    归档
+                  </button>
+                  <button
                     @click="deletePlan(plan.id!)"
                     class="min-h-[44px] px-3 rounded border border-red-200 bg-white text-sm text-red-600 hover:bg-red-50 transition-colors"
                     title="删除"
@@ -431,6 +447,32 @@ const deletePlan = async (id: string) => {
     await loadPlans()
   } catch (error) {
     alert('删除失败: ' + error)
+  }
+}
+
+const publishPlan = async (id: string) => {
+  if (!confirm('确定要发布该教案吗？发布后将进入已发布状态。')) {
+    return
+  }
+
+  try {
+    await planStore.publishPlan(id)
+    await loadPlans(planStore.pagination.page || 1)
+  } catch (error) {
+    alert('发布失败: ' + error)
+  }
+}
+
+const archivePlan = async (id: string) => {
+  if (!confirm('确定要归档该教案吗？归档后将不再显示为活跃教案。')) {
+    return
+  }
+
+  try {
+    await planStore.archivePlan(id)
+    await loadPlans(planStore.pagination.page || 1)
+  } catch (error) {
+    alert('归档失败: ' + error)
   }
 }
 

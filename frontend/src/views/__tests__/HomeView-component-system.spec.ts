@@ -22,4 +22,11 @@ describe('HomeView component system usage', () => {
     expect(homeViewSource).toContain('继续导出')
     expect(homeViewSource).toContain('isExportPreviewVisible')
   })
+
+  it('provides quick status actions for publish and archive', () => {
+    expect(homeViewSource).toContain('发布')
+    expect(homeViewSource).toContain('归档')
+    expect(homeViewSource).toContain('publishPlan')
+    expect(homeViewSource).toContain('archivePlan')
+  })
 })
