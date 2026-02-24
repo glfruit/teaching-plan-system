@@ -2,6 +2,7 @@
   <div class="min-h-screen bg-slate-50">
     <NavBar
       :username="authStore.user?.username || ''"
+      :is-admin="authStore.isAdmin"
       @new="router.push('/editor')"
       @logout="handleLogout"
     />
@@ -26,7 +27,17 @@
 
         <section class="md:hidden mobile-quick-actions grid grid-cols-1 gap-2 mb-8">
           <BaseButton full-width @click="router.push('/editor')" class="min-h-[44px]">新建教案</BaseButton>
+          <BaseButton full-width variant="secondary" @click="router.push('/workbench')" class="min-h-[44px]">教学链路</BaseButton>
           <BaseButton full-width variant="secondary" @click="router.push('/analytics')" class="min-h-[44px]">分析看板</BaseButton>
+          <BaseButton
+            v-if="authStore.isAdmin"
+            full-width
+            variant="secondary"
+            @click="router.push('/admin')"
+            class="min-h-[44px]"
+          >
+            管理中心
+          </BaseButton>
           <BaseButton full-width variant="danger" @click="handleLogout" class="min-h-[44px]">退出登录</BaseButton>
         </section>
 
@@ -189,6 +200,14 @@
                     title="编辑"
                   >
                     编辑
+                  </button>
+                  <button
+                    v-if="hasWorkbenchContext(plan)"
+                    @click="openPlanWorkbench(plan.id!, plan.courseOfferingId, plan.deliveryPlanId, plan.deliveryWeekNo)"
+                    class="min-h-[44px] px-3 rounded border border-indigo-200 bg-white text-sm text-indigo-700 hover:bg-indigo-50 transition-colors"
+                    title="教学链路"
+                  >
+                    教学链路
                   </button>
                   <select
                     v-model="exportFormat"
@@ -548,6 +567,45 @@ const changePage = (page: number) => {
 
 const editPlan = (id: string) => {
   router.push(`/editor/${id}`)
+}
+
+const hasWorkbenchContext = (plan: {
+  courseOfferingId?: string | null
+  deliveryPlanId?: string | null
+  deliveryWeekNo?: number | null
+}) => Boolean(plan.courseOfferingId || plan.deliveryPlanId || plan.deliveryWeekNo)
+
+const openPlanWorkbench = (
+  planId: string,
+  courseOfferingId?: string | null,
+  deliveryPlanId?: string | null,
+  deliveryWeekNo?: number | null
+) => {
+  const query: Record<string, string> = {
+    source: 'home-plan-context',
+    lessonId: planId,
+  }
+
+  if (deliveryPlanId) {
+    query.tab = 'lessons'
+    query.deliveryPlanId = deliveryPlanId
+  } else if (courseOfferingId) {
+    query.tab = 'delivery'
+  } else {
+    query.tab = 'books'
+  }
+
+  if (courseOfferingId) {
+    query.courseOfferingId = courseOfferingId
+  }
+  if (deliveryWeekNo && Number.isFinite(deliveryWeekNo) && deliveryWeekNo > 0) {
+    query.weekNo = String(deliveryWeekNo)
+  }
+
+  router.push({
+    path: '/workbench',
+    query,
+  })
 }
 
 const deletePlan = async (id: string) => {

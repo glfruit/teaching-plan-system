@@ -30,6 +30,21 @@
             >
               分析
             </router-link>
+            <router-link
+              to="/workbench"
+              class="min-h-[44px] px-4 rounded text-sm font-medium inline-flex items-center transition-colors"
+              :class="route.path.startsWith('/workbench') ? 'bg-slate-100 text-slate-800' : 'text-slate-600 hover:bg-slate-100'"
+            >
+              教学链路
+            </router-link>
+            <router-link
+              v-if="isAdmin"
+              to="/admin"
+              class="min-h-[44px] px-4 rounded text-sm font-medium inline-flex items-center transition-colors"
+              :class="route.path.startsWith('/admin') ? 'bg-slate-100 text-slate-800' : 'text-slate-600 hover:bg-slate-100'"
+            >
+              管理
+            </router-link>
           </nav>
         </div>
 
@@ -133,6 +148,23 @@
         >
           分析
         </router-link>
+        <router-link
+          to="/workbench"
+          class="min-h-[44px] rounded border text-sm font-medium inline-flex items-center justify-center"
+          :class="route.path.startsWith('/workbench') ? 'border-slate-300 bg-slate-100 text-slate-800' : 'border-slate-200 text-slate-600 bg-white'"
+          @click="showMobileDrawer = false"
+        >
+          教学链路
+        </router-link>
+        <router-link
+          v-if="isAdmin"
+          to="/admin"
+          class="min-h-[44px] rounded border text-sm font-medium inline-flex items-center justify-center"
+          :class="route.path.startsWith('/admin') ? 'border-slate-300 bg-slate-100 text-slate-800' : 'border-slate-200 text-slate-600 bg-white'"
+          @click="showMobileDrawer = false"
+        >
+          管理
+        </router-link>
       </nav>
 
       <button
@@ -166,6 +198,7 @@ import { useRoute } from 'vue-router'
 
 const props = defineProps<{
   username: string
+  isAdmin?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -177,6 +210,7 @@ const route = useRoute()
 const showMobileDrawer = ref(false)
 
 const userInitial = computed(() => (props.username?.trim()?.charAt(0) || '教').toUpperCase())
+const isAdmin = computed(() => props.isAdmin === true)
 
 watch(
   () => route.path,

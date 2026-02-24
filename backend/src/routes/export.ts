@@ -7,6 +7,12 @@ import { authMiddleware, requireAuth } from '../middleware/auth';
 const EXPORT_SERVICE_URL = process.env.EXPORT_SERVICE_URL || 'http://localhost:8000';
 const DOCX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 const XLSX_CONTENT_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+type ExportSourceType = 'teaching-plan' | 'teaching-plan-lesson' | 'teaching-plan-book';
+const ExportSourceTypeSchema = t.Union([
+  t.Literal('teaching-plan'),
+  t.Literal('teaching-plan-lesson'),
+  t.Literal('teaching-plan-book'),
+]);
 
 const normalizeText = (value?: string | null): string => {
   if (!value) {
@@ -111,6 +117,153 @@ const getPlanWithPermission = async (planId: string, userId: string, set: { stat
   return plan;
 };
 
+const getLessonWithPermission = async (lessonId: string, userId: string, set: { status?: number | string }) => {
+  const lesson = await prisma.teachingPlanLesson.findUnique({
+    where: { id: lessonId },
+    include: {
+      book: {
+        include: {
+          teacher: {
+            select: {
+              id: true,
+              username: true,
+              department: true,
+            },
+          },
+          courseOffering: {
+            include: {
+              course: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!lesson) {
+    set.status = 404;
+    throw new Error('Teaching plan lesson not found');
+  }
+
+  if (lesson.book.teacherId !== userId) {
+    set.status = 403;
+    throw new Error('Forbidden: You can only export your own teaching plan lessons');
+  }
+
+  return lesson;
+};
+
+const getBookWithPermission = async (bookId: string, userId: string, set: { status?: number | string }) => {
+  const book = await prisma.teachingPlanBook.findUnique({
+    where: { id: bookId },
+    include: {
+      teacher: {
+        select: {
+          id: true,
+          username: true,
+          department: true,
+        },
+      },
+      courseOffering: {
+        include: {
+          course: true,
+        },
+      },
+      lessons: {
+        orderBy: { lessonNo: 'asc' },
+      },
+    },
+  });
+
+  if (!book) {
+    set.status = 404;
+    throw new Error('Teaching plan book not found');
+  }
+
+  if (book.teacherId !== userId) {
+    set.status = 403;
+    throw new Error('Forbidden: You can only export your own teaching plan books');
+  }
+
+  return book;
+};
+
+const resolveSourceType = (value: unknown): ExportSourceType =>
+  value === 'teaching-plan-lesson'
+    ? 'teaching-plan-lesson'
+    : value === 'teaching-plan-book'
+      ? 'teaching-plan-book'
+      : 'teaching-plan';
+
+const getExportSourceWithPermission = async (
+  sourceId: string,
+  sourceType: ExportSourceType,
+  userId: string,
+  set: { status?: number | string }
+) => {
+  if (sourceType === 'teaching-plan-lesson') {
+    const lesson = await getLessonWithPermission(sourceId, userId, set);
+    return {
+      id: lesson.id,
+      title: lesson.title,
+      courseName: lesson.book.courseOffering.course.name,
+      className: lesson.className || lesson.book.targetClass || lesson.book.courseOffering.className || '',
+      duration: lesson.duration,
+      status: lesson.status,
+      objectives: lesson.objectives,
+      keyPoints: lesson.keyPoints || '',
+      process: lesson.outline,
+      blackboard: '',
+      reflection: lesson.reflection || '',
+      methods: lesson.methods || '',
+      resources: lesson.teachingAids || '',
+      teacher: lesson.book.teacher
+        ? {
+            username: lesson.book.teacher.username,
+            department: lesson.book.teacher.department,
+          }
+        : null,
+      updatedAt: lesson.updatedAt,
+    };
+  }
+
+  if (sourceType === 'teaching-plan-book') {
+    const book = await getBookWithPermission(sourceId, userId, set);
+    const totalLessonDuration = book.lessons.reduce((sum, lesson) => sum + lesson.duration, 0);
+    const methods = Array.from(new Set(book.lessons.map((lesson) => lesson.methods?.trim()).filter(Boolean))).join('；');
+    const resources = Array.from(new Set(book.lessons.map((lesson) => lesson.teachingAids?.trim()).filter(Boolean))).join('；');
+    const lessonOutlines = book.lessons
+      .map((lesson) => `No.${lesson.lessonNo} ${lesson.title}\n${normalizeText(lesson.outline)}`)
+      .join('\n\n');
+    const firstLesson = book.lessons[0];
+
+    return {
+      id: book.id,
+      title: book.title,
+      courseName: book.courseOffering.course.name,
+      className: book.targetClass || book.courseOffering.className,
+      duration: book.totalHours || totalLessonDuration || firstLesson?.duration || 45,
+      status: book.status,
+      objectives: firstLesson?.objectives || '',
+      keyPoints: firstLesson?.keyPoints || '',
+      process: lessonOutlines || '',
+      blackboard: '',
+      reflection: firstLesson?.reflection || '',
+      methods,
+      resources,
+      teacher: book.teacher
+        ? {
+            username: book.teacher.username,
+            department: book.teacher.department,
+          }
+        : null,
+      updatedAt: book.updatedAt,
+    };
+  }
+
+  return getPlanWithPermission(sourceId, userId, set);
+};
+
 const toDownloadName = (title: string, ext: string): string => `${encodeURIComponent(title)}.${ext}`;
 
 /**
@@ -126,8 +279,13 @@ export const exportRoutes = new Elysia({ prefix: '/export' })
    */
   .post(
     '/preview/:id',
-    async ({ params, user, set }) => {
-      const plan = await getPlanWithPermission(params.id, user!.userId, set);
+    async ({ params, query, user, set }) => {
+      const plan = await getExportSourceWithPermission(
+        params.id,
+        resolveSourceType(query?.sourceType),
+        user!.userId,
+        set
+      );
       const payload = buildPreviewPayload(plan);
 
       return {
@@ -139,6 +297,9 @@ export const exportRoutes = new Elysia({ prefix: '/export' })
       params: t.Object({
         id: t.String(),
       }),
+      query: t.Object({
+        sourceType: t.Optional(ExportSourceTypeSchema),
+      }),
     }
   )
   
@@ -147,8 +308,13 @@ export const exportRoutes = new Elysia({ prefix: '/export' })
    */
   .post(
     '/word/:id',
-    async ({ params, user, set }) => {
-      const plan = await getPlanWithPermission(params.id, user!.userId, set);
+    async ({ params, query, user, set }) => {
+      const plan = await getExportSourceWithPermission(
+        params.id,
+        resolveSourceType(query?.sourceType),
+        user!.userId,
+        set
+      );
       
       // 准备导出数据
       const exportData = {
@@ -200,6 +366,9 @@ export const exportRoutes = new Elysia({ prefix: '/export' })
       params: t.Object({
         id: t.String(),
       }),
+      query: t.Object({
+        sourceType: t.Optional(ExportSourceTypeSchema),
+      }),
     }
   )
 
@@ -208,8 +377,13 @@ export const exportRoutes = new Elysia({ prefix: '/export' })
    */
   .post(
     '/excel/:id',
-    async ({ params, user, set }) => {
-      const plan = await getPlanWithPermission(params.id, user!.userId, set);
+    async ({ params, query, user, set }) => {
+      const plan = await getExportSourceWithPermission(
+        params.id,
+        resolveSourceType(query?.sourceType),
+        user!.userId,
+        set
+      );
       const payload = buildPreviewPayload(plan);
       const workbook = new ExcelJS.Workbook();
       workbook.creator = 'teaching-plan-system';
@@ -308,6 +482,9 @@ export const exportRoutes = new Elysia({ prefix: '/export' })
       params: t.Object({
         id: t.String(),
       }),
+      query: t.Object({
+        sourceType: t.Optional(ExportSourceTypeSchema),
+      }),
     }
   )
 
@@ -316,8 +493,13 @@ export const exportRoutes = new Elysia({ prefix: '/export' })
    */
   .post(
     '/pdf/:id',
-    async ({ params, user, set }) => {
-      const plan = await getPlanWithPermission(params.id, user!.userId, set);
+    async ({ params, query, user, set }) => {
+      const plan = await getExportSourceWithPermission(
+        params.id,
+        resolveSourceType(query?.sourceType),
+        user!.userId,
+        set
+      );
       const payload = buildPreviewPayload(plan);
       const chunks: Buffer[] = [];
 
@@ -384,6 +566,9 @@ export const exportRoutes = new Elysia({ prefix: '/export' })
     {
       params: t.Object({
         id: t.String(),
+      }),
+      query: t.Object({
+        sourceType: t.Optional(ExportSourceTypeSchema),
       }),
     }
   )

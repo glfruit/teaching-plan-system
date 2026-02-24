@@ -42,7 +42,7 @@ describeWithDatabase('Auth API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.user.username).toBe('testuser');
       expect(data.data.user.email).toBe('test@example.com');
@@ -185,7 +185,7 @@ describeWithDatabase('Auth API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.user.username).toBe('testlogin');
       expect(data.data.accessToken).toBeDefined();

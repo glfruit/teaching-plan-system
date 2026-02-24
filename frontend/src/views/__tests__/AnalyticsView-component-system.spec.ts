@@ -22,4 +22,13 @@ describe('AnalyticsView component system usage', () => {
     expect(analyticsViewSource).toContain('analytics-export-format')
     expect(analyticsViewSource).toContain('analytics-export-button')
   })
+
+  it('provides teaching-chain consistency section with dimension filters', () => {
+    expect(analyticsViewSource).toContain('教学链路一致性')
+    expect(analyticsViewSource).toContain('chainFilterSemesterId')
+    expect(analyticsViewSource).toContain('chainFilterCourseId')
+    expect(analyticsViewSource).toContain('chainFilterWeekNo')
+    expect(analyticsViewSource).toContain('refreshTeachingChainByFilter')
+    expect(analyticsViewSource).toContain('一致性得分')
+  })
 })

@@ -66,7 +66,7 @@ describeWithDatabase('Plan Template API', () => {
         }),
       })
     );
-    const ownerData = await ownerRegister.json();
+    const ownerData: any = await ownerRegister.json();
     authToken = ownerData.data.accessToken;
     testUserId = ownerData.data.user.id;
 
@@ -82,7 +82,7 @@ describeWithDatabase('Plan Template API', () => {
         }),
       })
     );
-    const otherData = await otherRegister.json();
+    const otherData: any = await otherRegister.json();
     otherToken = otherData.data.accessToken;
     otherUserId = otherData.data.user.id;
   });
@@ -114,7 +114,7 @@ describeWithDatabase('Plan Template API', () => {
     );
 
     expect(response.status).toBe(200);
-    const data = await response.json();
+    const data: any = await response.json();
     expect(data.success).toBe(true);
     expect(data.data.teacherId).toBe(testUserId);
     expect(data.data.title).toBe(templatePayload.title);
@@ -146,7 +146,7 @@ describeWithDatabase('Plan Template API', () => {
     );
 
     expect(response.status).toBe(200);
-    const data = await response.json();
+    const data: any = await response.json();
     expect(data.success).toBe(true);
     expect(Array.isArray(data.data.items)).toBe(true);
     expect(data.data.items.every((item: any) => item.teacherId === testUserId)).toBe(true);
@@ -164,7 +164,7 @@ describeWithDatabase('Plan Template API', () => {
       })
     );
     expect(updateResponse.status).toBe(200);
-    const updated = await updateResponse.json();
+    const updated: any = await updateResponse.json();
     expect(updated.data.tags).toEqual(['复习', '导入']);
 
     const filtered = await app.handle(
@@ -175,7 +175,7 @@ describeWithDatabase('Plan Template API', () => {
       })
     );
     expect(filtered.status).toBe(200);
-    const filteredData = await filtered.json();
+    const filteredData: any = await filtered.json();
     expect(filteredData.data.items.length).toBeGreaterThan(0);
     expect(filteredData.data.items.every((item: any) => item.tags?.includes('复习'))).toBe(true);
   });
@@ -217,7 +217,7 @@ describeWithDatabase('Plan Template API', () => {
       })
     );
     expect(response.status).toBe(200);
-    const data = await response.json();
+    const data: any = await response.json();
     expect(data.success).toBe(true);
 
     const getAfterDelete = await app.handle(

@@ -2,6 +2,7 @@
   <div class="min-h-screen bg-slate-50">
     <NavBar
       :username="authStore.user?.username || ''"
+      :is-admin="authStore.isAdmin"
       @new="router.push('/editor')"
       @logout="handleLogout"
     />
@@ -78,6 +79,91 @@
           </StatCard>
         </section>
 
+        <BaseCard padding="lg" class="mb-6">
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+            <h2 class="text-lg font-semibold font-serif text-slate-800">教学链路一致性</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 w-full md:w-auto">
+              <select
+                v-model="chainFilterSemesterId"
+                class="min-h-[40px] px-3 py-1.5 bg-white border border-slate-200 rounded text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#647269]/20"
+                @change="refreshTeachingChainByFilter"
+              >
+                <option value="">全部学期</option>
+                <option v-for="item in teachingChainBySemester" :key="item.semesterId" :value="item.semesterId">
+                  {{ item.semesterName }}
+                </option>
+              </select>
+              <select
+                v-model="chainFilterCourseId"
+                class="min-h-[40px] px-3 py-1.5 bg-white border border-slate-200 rounded text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#647269]/20"
+                @change="refreshTeachingChainByFilter"
+              >
+                <option value="">全部课程</option>
+                <option v-for="item in teachingChainByCourse" :key="item.courseId" :value="item.courseId">
+                  {{ item.courseCode }} · {{ item.courseName }}
+                </option>
+              </select>
+              <select
+                v-model="chainFilterWeekNo"
+                class="min-h-[40px] px-3 py-1.5 bg-white border border-slate-200 rounded text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#647269]/20"
+                @change="refreshTeachingChainByFilter"
+              >
+                <option value="">全部周次</option>
+                <option v-for="item in teachingChainByWeek" :key="item.weekNo" :value="String(item.weekNo)">
+                  第 {{ item.weekNo }} 周
+                </option>
+              </select>
+            </div>
+          </div>
+
+          <div v-if="teachingChainSummary" class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
+            <div class="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+              <p class="text-xs text-slate-500">一致性得分</p>
+              <p class="text-lg font-semibold text-slate-900">{{ teachingChainSummary.consistencyScore }}</p>
+            </div>
+            <div class="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+              <p class="text-xs text-slate-500">Delivery 映证覆盖</p>
+              <p class="text-lg font-semibold text-slate-900">{{ teachingChainSummary.deliveryTraceCoverage }}%</p>
+            </div>
+            <div class="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+              <p class="text-xs text-slate-500">课件映证覆盖</p>
+              <p class="text-lg font-semibold text-slate-900">{{ teachingChainSummary.coursewareTraceCoverage }}%</p>
+            </div>
+            <div class="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+              <p class="text-xs text-slate-500">单次课总数</p>
+              <p class="text-lg font-semibold text-slate-900">{{ teachingChainSummary.totalLessons }}</p>
+            </div>
+            <div class="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+              <p class="text-xs text-slate-500">已发布单次课</p>
+              <p class="text-lg font-semibold text-slate-900">{{ teachingChainSummary.publishedLessons }}</p>
+            </div>
+          </div>
+
+          <div v-if="teachingChainByWeek.length > 0" class="overflow-x-auto">
+            <table class="min-w-full text-sm">
+              <thead class="bg-slate-100 text-slate-600">
+                <tr>
+                  <th class="text-left px-3 py-2">周次</th>
+                  <th class="text-left px-3 py-2">单次课数</th>
+                  <th class="text-left px-3 py-2">已发布</th>
+                  <th class="text-left px-3 py-2">平均时长</th>
+                  <th class="text-left px-3 py-2">一致性得分</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="item in teachingChainByWeek" :key="`week-${item.weekNo}`" class="border-t border-slate-200">
+                  <td class="px-3 py-2 text-slate-700">第 {{ item.weekNo }} 周</td>
+                  <td class="px-3 py-2 text-slate-700">{{ item.totalLessons }}</td>
+                  <td class="px-3 py-2 text-slate-700">{{ item.publishedLessons }}</td>
+                  <td class="px-3 py-2 text-slate-700">{{ item.averageDuration }} 分钟</td>
+                  <td class="px-3 py-2 text-slate-700">{{ item.consistencyScore }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div v-else class="text-center text-slate-400 py-6 text-sm">当前筛选范围暂无链路数据</div>
+        </BaseCard>
+
         <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <BaseCard padding="lg">
             <h2 class="text-lg font-semibold font-serif text-slate-800 mb-4">状态分布</h2>
@@ -141,7 +227,13 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { useAuthStore } from '../stores/auth'
-import { getAnalytics, exportAnalytics, type AnalyticsExportFormat } from '../api/analytics'
+import {
+  getAnalytics,
+  exportAnalytics,
+  getTeachingChainAnalytics,
+  type AnalyticsExportFormat,
+  type TeachingChainAnalytics,
+} from '../api/analytics'
 import { buildAnalyticsSummary, normalizeTrendPoints } from './analytics-view-model'
 import NavBar from '../components/layout/NavBar.vue'
 import PageHeader from '../components/layout/PageHeader.vue'
@@ -162,6 +254,10 @@ const exportFormat = ref<AnalyticsExportFormat>('excel')
 const isLoading = ref(false)
 const isExporting = ref(false)
 const summary = ref<any>(null)
+const teachingChain = ref<TeachingChainAnalytics | null>(null)
+const chainFilterSemesterId = ref('')
+const chainFilterCourseId = ref('')
+const chainFilterWeekNo = ref('')
 const EXPORT_FILE_EXTENSIONS: Record<AnalyticsExportFormat, 'json' | 'csv' | 'xlsx' | 'pdf' | 'docx'> = {
   json: 'json',
   csv: 'csv',
@@ -176,6 +272,10 @@ const trendData = ref({
 })
 
 const hasTrendData = computed(() => trendData.value.dates.length > 0)
+const teachingChainSummary = computed(() => teachingChain.value?.summary || null)
+const teachingChainBySemester = computed(() => teachingChain.value?.bySemester || [])
+const teachingChainByCourse = computed(() => teachingChain.value?.byCourse || [])
+const teachingChainByWeek = computed(() => teachingChain.value?.byWeek || [])
 
 const statCards = computed(() => [
   {
@@ -231,6 +331,7 @@ const refreshData = async () => {
     }
 
     summary.value = buildAnalyticsSummary(data)
+    teachingChain.value = data.teachingChain || null
   } catch (error) {
     console.error('加载分析数据失败:', error)
   } finally {
@@ -246,6 +347,18 @@ const refreshData = async () => {
   if (chart) {
     chart.dispose()
     chart = null
+  }
+}
+
+const refreshTeachingChainByFilter = async () => {
+  try {
+    teachingChain.value = await getTeachingChainAnalytics({
+      semesterId: chainFilterSemesterId.value || undefined,
+      courseId: chainFilterCourseId.value || undefined,
+      weekNo: chainFilterWeekNo.value ? Number(chainFilterWeekNo.value) : undefined,
+    })
+  } catch (error) {
+    console.error('加载链路分析失败:', error)
   }
 }
 

@@ -16,11 +16,13 @@ describe('EditorView desktop two-column layout', () => {
     expect(editorViewSource).toContain('aria-label="模板工作台"')
     expect(editorViewSource).toContain('editor-template-panel')
     expect(editorViewSource).toContain('lg:sticky lg:top-24')
+    expect(editorViewSource).toContain('当前编写分区')
+    expect(editorViewSource).toContain('activeEditorSection')
   })
 
   it('centers the main editor form when template sidebar is collapsed', () => {
-    expect(editorViewSource).toContain("showTemplatePanel ? '' : 'w-full max-w-4xl'")
-    expect(editorViewSource).toContain("showTemplatePanel ? '' : 'mx-auto w-full max-w-4xl'")
+    expect(editorViewSource).toContain("shouldRenderTemplatePanel ? '' : 'w-full max-w-4xl'")
+    expect(editorViewSource).toContain("shouldRenderTemplatePanel ? '' : 'mx-auto w-full max-w-4xl'")
   })
 
   it('keeps header title and draft status within navbar bounds', () => {

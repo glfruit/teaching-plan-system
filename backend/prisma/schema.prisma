@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -23,65 +17,484 @@ enum TeachingPlanStatus {
   ARCHIVED
 }
 
+enum SemesterStatus {
+  PLANNING
+  ACTIVE
+  CLOSED
+}
+
+enum CourseStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum CourseOfferingStatus {
+  PLANNING
+  ACTIVE
+  CLOSED
+}
+
+enum AcademicDocumentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum TemplateScope {
+  ORG
+  PERSONAL
+}
+
+enum TemplateStatus {
+  DRAFT
+  PUBLISHED
+  DEPRECATED
+}
+
+enum TemplateDocType {
+  COURSE_STANDARD
+  DELIVERY_PLAN
+  TEACHING_PLAN_BOOK
+  TEACHING_PLAN_LESSON
+}
+
+enum TraceLinkType {
+  STANDARD_TO_DELIVERY
+  DELIVERY_TO_LESSON
+  LESSON_TO_COURSEWARE
+}
+
+enum LegacyMappingStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+}
+
 model User {
-  id             String   @id @default(uuid())
-  username       String   @unique
-  email          String   @unique
-  password       String
-  role           UserRole @default(TEACHER)
-  department     String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  teachingPlans  TeachingPlan[]
-  planTemplates  PlanTemplate[]
+  id                        String               @id @default(uuid())
+  username                  String               @unique
+  email                     String               @unique
+  password                  String
+  role                      UserRole             @default(TEACHER)
+  department                String?
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
+  teachingPlans             TeachingPlan[]
+  planTemplates             PlanTemplate[]
+  ownedCourses              Course[]             @relation("CourseOwner")
+  courseOfferings           CourseOffering[]     @relation("OfferingTeacher")
+  courseStandards           CourseStandard[]     @relation("StandardOwner")
+  deliveryPlans             DeliveryPlan[]       @relation("DeliveryPlanOwner")
+  teachingPlanBooks         TeachingPlanBook[]   @relation("BookTeacher")
+  uploadedCoursewares       CoursewareAsset[]    @relation("CoursewareUploader")
+  createdSemesters          Semester[]           @relation("SemesterCreator")
+  templateDefinitions       TemplateDefinition[] @relation("TemplateOwner")
+  publishedTemplateVersions TemplateVersion[]    @relation("TemplateVersionPublisher")
+  traceLinks                TraceLink[]          @relation("TraceLinkCreator")
+  legacyMappingReviews      LegacyMappingQueue[] @relation("LegacyMappingReviewer")
 
   @@map("users")
 }
 
+model Semester {
+  id                 String               @id @default(uuid())
+  name               String
+  startDate          DateTime
+  endDate            DateTime
+  status             SemesterStatus       @default(PLANNING)
+  createdById        String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  creator            User?                @relation("SemesterCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  courseOfferings    CourseOffering[]
+  courseStandards    CourseStandard[]
+  teachingPlanBooks  TeachingPlanBook[]
+  legacyMappingQueue LegacyMappingQueue[] @relation("LegacyMappingSemester")
+
+  @@unique([name, startDate, endDate])
+  @@map("semesters")
+}
+
+model Course {
+  id             String           @id @default(uuid())
+  code           String
+  name           String
+  department     String?
+  credits        Float?
+  hours          Int?
+  ownerTeacherId String?
+  status         CourseStatus     @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  ownerTeacher   User?            @relation("CourseOwner", fields: [ownerTeacherId], references: [id], onDelete: SetNull)
+  offerings      CourseOffering[]
+  standards      CourseStandard[]
+
+  @@unique([code])
+  @@map("courses")
+}
+
+model CourseOffering {
+  id                 String               @id @default(uuid())
+  courseId           String
+  semesterId         String
+  className          String
+  teacherId          String
+  weeklyHours        Int?
+  totalWeeks         Int?
+  status             CourseOfferingStatus @default(PLANNING)
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  course             Course               @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  semester           Semester             @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  teacher            User                 @relation("OfferingTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  deliveryPlans      DeliveryPlan[]
+  teachingPlanBooks  TeachingPlanBook[]
+  legacyTeachingPlan TeachingPlan[]
+  coursewareAssets   CoursewareAsset[]
+  legacyMappingQueue LegacyMappingQueue[] @relation("LegacyMappingCourseOffering")
+
+  @@unique([courseId, semesterId, className, teacherId])
+  @@map("course_offerings")
+}
+
+model CourseStandard {
+  id                    String                 @id @default(uuid())
+  title                 String
+  courseId              String
+  semesterId            String?
+  templateVersionId     String?
+  contentJson           Json?
+  htmlContent           String                 @db.Text
+  status                AcademicDocumentStatus @default(DRAFT)
+  publishedSnapshotJson Json?
+  ownerId               String
+  publishedAt           DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  course                Course                 @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  semester              Semester?              @relation(fields: [semesterId], references: [id], onDelete: SetNull)
+  owner                 User                   @relation("StandardOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  templateVersion       TemplateVersion?       @relation("CourseStandardTemplateVersion", fields: [templateVersionId], references: [id], onDelete: SetNull)
+  modules               CourseStandardModule[]
+  deliveryPlans         DeliveryPlan[]
+
+  @@map("course_standards")
+}
+
+model CourseStandardModule {
+  id          String                @id @default(uuid())
+  standardId  String
+  name        String
+  description String?
+  sortOrder   Int                   @default(0)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  standard    CourseStandard        @relation(fields: [standardId], references: [id], onDelete: Cascade)
+  topics      CourseStandardTopic[]
+
+  @@map("course_standard_modules")
+}
+
+model CourseStandardTopic {
+  id                  String               @id @default(uuid())
+  moduleId            String
+  topicCode           String?
+  title               String
+  recommendedHours    Int?
+  ideologicalElements String[]             @default([])
+  integrationMethods  String[]             @default([])
+  objectiveMapping    String[]             @default([])
+  applicableMajors    String[]             @default([])
+  sortOrder           Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  module              CourseStandardModule @relation(fields: [moduleId], references: [id], onDelete: Cascade)
+
+  @@map("course_standard_topics")
+}
+
+model DeliveryPlan {
+  id                    String                 @id @default(uuid())
+  title                 String
+  courseOfferingId      String
+  courseStandardId      String?
+  templateVersionId     String?
+  contentJson           Json?
+  status                AcademicDocumentStatus @default(DRAFT)
+  publishedSnapshotJson Json?
+  ownerId               String
+  publishedAt           DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  courseOffering        CourseOffering         @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  courseStandard        CourseStandard?        @relation(fields: [courseStandardId], references: [id], onDelete: SetNull)
+  owner                 User                   @relation("DeliveryPlanOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  templateVersion       TemplateVersion?       @relation("DeliveryPlanTemplateVersion", fields: [templateVersionId], references: [id], onDelete: SetNull)
+  weeks                 DeliveryPlanWeek[]
+  teachingPlanLessons   TeachingPlanLesson[]
+  legacyTeachingPlan    TeachingPlan[]
+
+  @@map("delivery_plans")
+}
+
+model DeliveryPlanWeek {
+  id                     String               @id @default(uuid())
+  deliveryPlanId         String
+  weekNo                 Int
+  hours                  Int
+  grouping               String?
+  teachingMode           String?
+  unitOrTask             String
+  ideologicalElements    String?
+  integrationMethod      String?
+  theoreticalPoints      String?
+  practiceProject        String?
+  practiceInstructor     String?
+  remarks                String?
+  linkedStandardTopicIds String[]             @default([])
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  deliveryPlan           DeliveryPlan         @relation(fields: [deliveryPlanId], references: [id], onDelete: Cascade)
+  teachingPlanLessons    TeachingPlanLesson[] @relation("LessonDeliveryWeek")
+  coursewareAssets       CoursewareAsset[]    @relation("CoursewareDeliveryWeek")
+
+  @@unique([deliveryPlanId, weekNo])
+  @@map("delivery_plan_weeks")
+}
+
+model TeachingPlanBook {
+  id                    String                 @id @default(uuid())
+  title                 String
+  courseOfferingId      String
+  semesterId            String
+  teacherId             String
+  templateVersionId     String?
+  teacherName           String?
+  teacherTitle          String?
+  teacherUnit           String?
+  periodStart           DateTime?
+  periodEnd             DateTime?
+  totalHours            Int?
+  theoryHours           Int?
+  practicalHours        Int?
+  weeklyHours           Int?
+  assessmentMethod      String?
+  targetUnit            String?
+  targetClass           String?
+  researchReview        String?
+  deptReview            String?
+  status                AcademicDocumentStatus @default(DRAFT)
+  publishedSnapshotJson Json?
+  publishedAt           DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  courseOffering        CourseOffering         @relation(fields: [courseOfferingId], references: [id], onDelete: Cascade)
+  semester              Semester               @relation(fields: [semesterId], references: [id], onDelete: Cascade)
+  teacher               User                   @relation("BookTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  templateVersion       TemplateVersion?       @relation("TeachingPlanBookTemplateVersion", fields: [templateVersionId], references: [id], onDelete: SetNull)
+  lessons               TeachingPlanLesson[]
+  legacyPlans           TeachingPlan[]         @relation("LegacyPlanBook")
+
+  @@map("teaching_plan_books")
+}
+
+model TeachingPlanLesson {
+  id                      String                 @id @default(uuid())
+  bookId                  String
+  lessonNo                Int
+  title                   String
+  lessonType              String?
+  className               String?
+  weekNo                  Int?
+  weekday                 String?
+  period                  String?
+  lessonDate              DateTime?
+  duration                Int                    @default(45)
+  objectives              String                 @db.Text
+  ideologicalElements     String?
+  integrationMethod       String?
+  keyPoints               String?
+  difficulty              String?
+  methods                 String?
+  teachingAids            String?
+  outline                 String                 @db.Text
+  reflection              String?
+  contentJson             Json?
+  status                  AcademicDocumentStatus @default(DRAFT)
+  publishedSnapshotJson   Json?
+  publishedAt             DateTime?
+  deliveryPlanId          String?
+  deliveryPlanWeekId      String?
+  templateVersionId       String?
+  courseStandardTopicRefs String[]               @default([])
+  createdAt               DateTime               @default(now())
+  updatedAt               DateTime               @updatedAt
+  book                    TeachingPlanBook       @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  deliveryPlan            DeliveryPlan?          @relation(fields: [deliveryPlanId], references: [id], onDelete: SetNull)
+  deliveryPlanWeek        DeliveryPlanWeek?      @relation("LessonDeliveryWeek", fields: [deliveryPlanWeekId], references: [id], onDelete: SetNull)
+  templateVersion         TemplateVersion?       @relation("TeachingPlanLessonTemplateVersion", fields: [templateVersionId], references: [id], onDelete: SetNull)
+  coursewareAssets        CoursewareAsset[]      @relation("CoursewareLesson")
+
+  @@unique([bookId, lessonNo])
+  @@map("teaching_plan_lessons")
+}
+
+model CoursewareAsset {
+  id                   String              @id @default(uuid())
+  title                String
+  fileName             String
+  fileUrl              String
+  mimeType             String?
+  sizeBytes            Int?
+  courseOfferingId     String?
+  deliveryPlanWeekId   String?
+  teachingPlanLessonId String?
+  chapterRef           String?
+  tags                 String[]            @default([])
+  ideologicalElements  String[]            @default([])
+  uploadedById         String
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  courseOffering       CourseOffering?     @relation(fields: [courseOfferingId], references: [id], onDelete: SetNull)
+  deliveryPlanWeek     DeliveryPlanWeek?   @relation("CoursewareDeliveryWeek", fields: [deliveryPlanWeekId], references: [id], onDelete: SetNull)
+  teachingPlanLesson   TeachingPlanLesson? @relation("CoursewareLesson", fields: [teachingPlanLessonId], references: [id], onDelete: SetNull)
+  uploadedBy           User                @relation("CoursewareUploader", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@map("courseware_assets")
+}
+
+model TemplateDefinition {
+  id          String            @id @default(uuid())
+  docType     TemplateDocType
+  name        String
+  scope       TemplateScope
+  ownerId     String?
+  description String?
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  owner       User?             @relation("TemplateOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  versions    TemplateVersion[]
+
+  @@unique([docType, name, scope, ownerId])
+  @@map("template_definitions")
+}
+
+model TemplateVersion {
+  id                  String               @id @default(uuid())
+  templateId          String
+  version             Int
+  schemaJson          Json
+  defaultContentJson  Json?
+  status              TemplateStatus       @default(DRAFT)
+  publishedById       String?
+  publishedAt         DateTime?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  template            TemplateDefinition   @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  publishedBy         User?                @relation("TemplateVersionPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  courseStandards     CourseStandard[]     @relation("CourseStandardTemplateVersion")
+  deliveryPlans       DeliveryPlan[]       @relation("DeliveryPlanTemplateVersion")
+  teachingPlanBooks   TeachingPlanBook[]   @relation("TeachingPlanBookTemplateVersion")
+  teachingPlanLessons TeachingPlanLesson[] @relation("TeachingPlanLessonTemplateVersion")
+
+  @@unique([templateId, version])
+  @@map("template_versions")
+}
+
+model TraceLink {
+  id          String        @id @default(uuid())
+  type        TraceLinkType
+  sourceType  String
+  sourceId    String
+  targetType  String
+  targetId    String
+  evidence    Json?
+  severity    String?
+  createdById String
+  createdAt   DateTime      @default(now())
+  createdBy   User          @relation("TraceLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([sourceType, sourceId])
+  @@index([targetType, targetId])
+  @@map("trace_links")
+}
+
+model LegacyMappingQueue {
+  id                        String              @id @default(uuid())
+  legacyTeachingPlanId      String              @unique
+  suggestedCourseOfferingId String?
+  suggestedSemesterId       String?
+  confidence                Float               @default(0)
+  status                    LegacyMappingStatus @default(PENDING)
+  reviewedById              String?
+  note                      String?
+  createdAt                 DateTime            @default(now())
+  updatedAt                 DateTime            @updatedAt
+  legacyTeachingPlan        TeachingPlan        @relation(fields: [legacyTeachingPlanId], references: [id], onDelete: Cascade)
+  suggestedCourseOffering   CourseOffering?     @relation("LegacyMappingCourseOffering", fields: [suggestedCourseOfferingId], references: [id], onDelete: SetNull)
+  suggestedSemester         Semester?           @relation("LegacyMappingSemester", fields: [suggestedSemesterId], references: [id], onDelete: SetNull)
+  reviewedBy                User?               @relation("LegacyMappingReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@map("legacy_mapping_queue")
+}
+
 model TeachingPlan {
-  id            String             @id @default(uuid())
-  title         String
-  courseName    String
-  className     String
-  duration      Int                @default(45)
-  objectives    String             @db.Text
-  keyPoints     String             @db.Text
-  process       String             @db.Text
-  blackboard    String?            @db.Text
-  reflection    String?            @db.Text
-  methods       String?            @db.Text
-  resources     String?            @db.Text
-  htmlContent   String             @db.Text
-  contentJson   Json?
-  status        TeachingPlanStatus @default(DRAFT)
-  teacherId     String
-  teacher       User               @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  createdAt     DateTime           @default(now())
-  updatedAt     DateTime           @updatedAt
+  id                  String              @id @default(uuid())
+  title               String
+  courseName          String
+  className           String
+  duration            Int                 @default(45)
+  objectives          String              @db.Text
+  keyPoints           String              @db.Text
+  process             String              @db.Text
+  blackboard          String?             @db.Text
+  reflection          String?             @db.Text
+  methods             String?             @db.Text
+  resources           String?             @db.Text
+  htmlContent         String              @db.Text
+  contentJson         Json?
+  status              TeachingPlanStatus  @default(DRAFT)
+  teacherId           String
+  courseOfferingId    String?
+  deliveryPlanId      String?
+  deliveryWeekNo      Int?
+  planBookId          String?
+  courseStandardRefs  String[]            @default([])
+  ideologicalElements String?
+  integrationMethod   String?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+  teacher             User                @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  courseOffering      CourseOffering?     @relation(fields: [courseOfferingId], references: [id], onDelete: SetNull)
+  deliveryPlan        DeliveryPlan?       @relation(fields: [deliveryPlanId], references: [id], onDelete: SetNull)
+  planBook            TeachingPlanBook?   @relation("LegacyPlanBook", fields: [planBookId], references: [id], onDelete: SetNull)
+  legacyMappingQueue  LegacyMappingQueue?
 
   @@map("teaching_plans")
 }
 
 model PlanTemplate {
-  id            String   @id @default(uuid())
-  title         String
-  courseName    String
-  className     String
-  duration      Int      @default(45)
-  objectives    String   @db.Text
-  keyPoints     String   @db.Text
-  process       String   @db.Text
-  blackboard    String?  @db.Text
-  reflection    String?  @db.Text
-  methods       String?  @db.Text
-  resources     String?  @db.Text
-  htmlContent   String   @db.Text
-  contentJson   Json?
-  tags          String[] @default([])
-  teacherId     String
-  teacher       User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          String   @id @default(uuid())
+  title       String
+  courseName  String
+  className   String
+  duration    Int      @default(45)
+  objectives  String   @db.Text
+  keyPoints   String   @db.Text
+  process     String   @db.Text
+  blackboard  String?  @db.Text
+  reflection  String?  @db.Text
+  methods     String?  @db.Text
+  resources   String?  @db.Text
+  htmlContent String   @db.Text
+  contentJson Json?
+  tags        String[] @default([])
+  teacherId   String
+  teacher     User     @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@map("plan_templates")
 }

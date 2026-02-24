@@ -20,6 +20,10 @@ describeWithDatabase('Teaching Plan API', () => {
   let authToken: string;
   let testUserId: string;
   let createdPlanId: string;
+  let compatibilitySemesterId: string;
+  let compatibilityCourseId: string;
+  let compatibilityOfferingId: string;
+  let compatibilityPlanId: string;
   
   // 测试前准备：创建测试用户并获取 Token
   beforeAll(async () => {
@@ -50,13 +54,63 @@ describeWithDatabase('Teaching Plan API', () => {
       })
     );
     
-    const registerData = await registerResponse.json();
+    const registerData: any = await registerResponse.json();
     authToken = registerData.data.accessToken;
     testUserId = registerData.data.user.id;
+
+    const suffix = Date.now().toString();
+    const semester = await prisma.semester.create({
+      data: {
+        name: `兼容测试学期-${suffix}`,
+        startDate: new Date('2026-09-01T00:00:00.000Z'),
+        endDate: new Date('2027-01-20T00:00:00.000Z'),
+        status: 'ACTIVE',
+        createdById: testUserId,
+      },
+    });
+    compatibilitySemesterId = semester.id;
+
+    const course = await prisma.course.create({
+      data: {
+        code: `COMPAT-${suffix}`,
+        name: '兼容链路课程',
+        department: '计算机系',
+        ownerTeacherId: testUserId,
+        status: 'ACTIVE',
+      },
+    });
+    compatibilityCourseId = course.id;
+
+    const offering = await prisma.courseOffering.create({
+      data: {
+        courseId: compatibilityCourseId,
+        semesterId: compatibilitySemesterId,
+        className: '兼容班级2401',
+        teacherId: testUserId,
+        weeklyHours: 4,
+        status: 'ACTIVE',
+      },
+    });
+    compatibilityOfferingId = offering.id;
   });
   
   // 测试后清理
   afterAll(async () => {
+    if (compatibilityOfferingId) {
+      await prisma.courseOffering.deleteMany({
+        where: { id: compatibilityOfferingId }
+      });
+    }
+    if (compatibilityCourseId) {
+      await prisma.course.deleteMany({
+        where: { id: compatibilityCourseId }
+      });
+    }
+    if (compatibilitySemesterId) {
+      await prisma.semester.deleteMany({
+        where: { id: compatibilitySemesterId }
+      });
+    }
     await prisma.teachingPlan.deleteMany({
       where: { teacherId: testUserId }
     });
@@ -100,7 +154,7 @@ describeWithDatabase('Teaching Plan API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.title).toBe('Vue 3 基础教程');
       expect(data.data.courseName).toBe('前端开发');
@@ -109,6 +163,58 @@ describeWithDatabase('Teaching Plan API', () => {
       expect(data.data.contentJson?.process?.type).toBe('doc');
       
       createdPlanId = data.data.id;
+    });
+
+    it('should create academic mirror when course offering is provided', async () => {
+      const response = await app.handle(
+        new Request('http://localhost/teaching-plans', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${authToken}`
+          },
+          body: JSON.stringify({
+            title: '兼容链路教案',
+            courseName: '兼容链路课程',
+            className: '兼容班级2401',
+            duration: 80,
+            objectives: '兼容目标',
+            keyPoints: '兼容重点',
+            process: '兼容过程',
+            methods: '示例法',
+            htmlContent: '<p>兼容教案</p>',
+            courseOfferingId: compatibilityOfferingId,
+            deliveryWeekNo: 3,
+            ideologicalElements: '工匠精神',
+            integrationMethod: '案例讨论',
+          })
+        })
+      );
+
+      expect(response.status).toBe(200);
+      const data: any = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.planBookId).toBeTruthy();
+      compatibilityPlanId = data.data.id;
+
+      const mirroredBook = await prisma.teachingPlanBook.findUnique({
+        where: { id: data.data.planBookId },
+      });
+      expect(mirroredBook?.courseOfferingId).toBe(compatibilityOfferingId);
+      expect(mirroredBook?.semesterId).toBe(compatibilitySemesterId);
+      expect(mirroredBook?.status).toBe('DRAFT');
+
+      const mirroredLesson = await prisma.teachingPlanLesson.findUnique({
+        where: {
+          bookId_lessonNo: {
+            bookId: data.data.planBookId,
+            lessonNo: 1,
+          },
+        },
+      });
+      expect(mirroredLesson?.title).toBe('兼容链路教案');
+      expect(mirroredLesson?.weekNo).toBe(3);
+      expect(mirroredLesson?.status).toBe('DRAFT');
     });
 
     it('should reject unauthenticated requests', async () => {
@@ -164,7 +270,7 @@ describeWithDatabase('Teaching Plan API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(Array.isArray(data.data.items)).toBe(true);
       expect(data.data.items.length).toBeGreaterThanOrEqual(1);
@@ -180,7 +286,7 @@ describeWithDatabase('Teaching Plan API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.data.items.every((item: any) => item.status === 'DRAFT')).toBe(true);
     });
 
@@ -192,7 +298,7 @@ describeWithDatabase('Teaching Plan API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.data.items.length).toBeGreaterThanOrEqual(1);
     });
   });
@@ -209,7 +315,7 @@ describeWithDatabase('Teaching Plan API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.id).toBe(createdPlanId);
       expect(data.data.title).toBe('Vue 3 基础教程');
@@ -249,7 +355,7 @@ describeWithDatabase('Teaching Plan API', () => {
           })
         })
       );
-      const otherData = await otherLogin.json();
+      const otherData: any = await otherLogin.json();
       const otherToken = otherData.data.accessToken;
       
       // 尝试访问第一个用户的教案
@@ -283,7 +389,7 @@ describeWithDatabase('Teaching Plan API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.title).toBe('Vue 3 高级教程（已更新）');
       expect(data.data.duration).toBe(120);
@@ -303,9 +409,39 @@ describeWithDatabase('Teaching Plan API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.status).toBe('PUBLISHED');
+    });
+
+    it('should sync mirrored academic documents status when publishing', async () => {
+      const response = await app.handle(
+        new Request(`http://localhost/teaching-plans/${compatibilityPlanId}/publish`, {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        })
+      );
+
+      expect(response.status).toBe(200);
+      const data: any = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.status).toBe('PUBLISHED');
+      expect(data.data.planBookId).toBeTruthy();
+
+      const mirroredBook = await prisma.teachingPlanBook.findUnique({
+        where: { id: data.data.planBookId },
+      });
+      const mirroredLesson = await prisma.teachingPlanLesson.findUnique({
+        where: {
+          bookId_lessonNo: {
+            bookId: data.data.planBookId,
+            lessonNo: 1,
+          },
+        },
+      });
+
+      expect(mirroredBook?.status).toBe('PUBLISHED');
+      expect(mirroredLesson?.status).toBe('PUBLISHED');
     });
   });
 
@@ -322,7 +458,7 @@ describeWithDatabase('Teaching Plan API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.status).toBe('ARCHIVED');
     });
@@ -341,12 +477,45 @@ describeWithDatabase('Teaching Plan API', () => {
       );
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.id).not.toBe(createdPlanId);
       expect(data.data.title).toContain('副本');
       expect(data.data.status).toBe('DRAFT');
       expect(data.data.teacherId).toBe(testUserId);
+    });
+
+    it('should duplicate compatibility-linked plan and create mirrored academic documents', async () => {
+      const response = await app.handle(
+        new Request(`http://localhost/teaching-plans/${compatibilityPlanId}/duplicate`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        })
+      );
+
+      expect(response.status).toBe(200);
+      const data: any = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.id).not.toBe(compatibilityPlanId);
+      expect(data.data.courseOfferingId).toBe(compatibilityOfferingId);
+      expect(data.data.planBookId).toBeTruthy();
+
+      const mirroredBook = await prisma.teachingPlanBook.findUnique({
+        where: { id: data.data.planBookId },
+      });
+      expect(mirroredBook?.courseOfferingId).toBe(compatibilityOfferingId);
+      expect(mirroredBook?.status).toBe('DRAFT');
+
+      const mirroredLesson = await prisma.teachingPlanLesson.findUnique({
+        where: {
+          bookId_lessonNo: {
+            bookId: data.data.planBookId,
+            lessonNo: 1,
+          },
+        },
+      });
+      expect(mirroredLesson?.status).toBe('DRAFT');
+      expect(mirroredLesson?.title).toContain('副本');
     });
   });
 
@@ -374,7 +543,7 @@ describeWithDatabase('Teaching Plan API', () => {
           })
         })
       );
-      const createOneData = await createOne.json();
+      const createOneData: any = await createOne.json();
       const idOne = createOneData.data.id as string;
 
       const createTwo = await app.handle(
@@ -396,7 +565,7 @@ describeWithDatabase('Teaching Plan API', () => {
           })
         })
       );
-      const createTwoData = await createTwo.json();
+      const createTwoData: any = await createTwo.json();
       const idTwo = createTwoData.data.id as string;
 
       const response = await app.handle(
@@ -414,7 +583,7 @@ describeWithDatabase('Teaching Plan API', () => {
       );
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.requested).toBe(2);
       expect(data.data.matched).toBe(2);
@@ -435,7 +604,7 @@ describeWithDatabase('Teaching Plan API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.message).toContain('deleted');
       

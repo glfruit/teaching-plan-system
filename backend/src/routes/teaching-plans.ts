@@ -1,4 +1,5 @@
 import { Elysia, t } from 'elysia';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authMiddleware, requireAuth } from '../middleware/auth';
 
@@ -9,6 +10,203 @@ const TeachingPlanStatus = t.Union([
   t.Literal('ARCHIVED'),
 ]);
 const BatchAction = t.Union([t.Literal('PUBLISH'), t.Literal('ARCHIVE'), t.Literal('DELETE')]);
+
+const syncLegacyPlanToAcademicMirror = async (tx: Prisma.TransactionClient, legacyPlanId: string) => {
+  const plan = await tx.teachingPlan.findUnique({
+    where: { id: legacyPlanId },
+    select: {
+      id: true,
+      title: true,
+      courseName: true,
+      className: true,
+      duration: true,
+      objectives: true,
+      keyPoints: true,
+      process: true,
+      reflection: true,
+      methods: true,
+      contentJson: true,
+      status: true,
+      teacherId: true,
+      courseOfferingId: true,
+      deliveryPlanId: true,
+      deliveryWeekNo: true,
+      planBookId: true,
+      courseStandardRefs: true,
+      ideologicalElements: true,
+      integrationMethod: true,
+      teacher: {
+        select: { username: true },
+      },
+    },
+  });
+
+  if (!plan) {
+    return;
+  }
+
+  let targetBook = plan.planBookId
+    ? await tx.teachingPlanBook.findUnique({
+        where: { id: plan.planBookId },
+        select: {
+          id: true,
+          courseOfferingId: true,
+          semesterId: true,
+        },
+      })
+    : null;
+
+  let resolvedCourseOfferingId = plan.courseOfferingId || targetBook?.courseOfferingId || null;
+  let resolvedSemesterId = targetBook?.semesterId || null;
+  let resolvedWeeklyHours: number | null = null;
+
+  if (resolvedCourseOfferingId) {
+    const offering = await tx.courseOffering.findUnique({
+      where: { id: resolvedCourseOfferingId },
+      select: {
+        id: true,
+        semesterId: true,
+        weeklyHours: true,
+      },
+    });
+
+    if (offering) {
+      resolvedCourseOfferingId = offering.id;
+      resolvedSemesterId = offering.semesterId;
+      resolvedWeeklyHours = offering.weeklyHours ?? null;
+    } else if (!targetBook) {
+      resolvedCourseOfferingId = null;
+      resolvedSemesterId = null;
+    }
+  }
+
+  if (!targetBook && resolvedCourseOfferingId && resolvedSemesterId) {
+    targetBook = await tx.teachingPlanBook.create({
+      data: {
+        title: `${plan.courseName}教案册（兼容）`,
+        courseOfferingId: resolvedCourseOfferingId,
+        semesterId: resolvedSemesterId,
+        teacherId: plan.teacherId,
+        teacherName: plan.teacher.username,
+        targetClass: plan.className,
+        totalHours: plan.duration,
+        weeklyHours: resolvedWeeklyHours ?? undefined,
+        status: plan.status,
+      },
+      select: {
+        id: true,
+        courseOfferingId: true,
+        semesterId: true,
+      },
+    });
+
+    await tx.teachingPlan.update({
+      where: { id: plan.id },
+      data: {
+        planBookId: targetBook.id,
+        updatedAt: new Date(),
+      },
+    });
+  } else if (
+    targetBook &&
+    resolvedCourseOfferingId &&
+    resolvedSemesterId &&
+    (targetBook.courseOfferingId !== resolvedCourseOfferingId || targetBook.semesterId !== resolvedSemesterId)
+  ) {
+    targetBook = await tx.teachingPlanBook.update({
+      where: { id: targetBook.id },
+      data: {
+        courseOfferingId: resolvedCourseOfferingId,
+        semesterId: resolvedSemesterId,
+        updatedAt: new Date(),
+      },
+      select: {
+        id: true,
+        courseOfferingId: true,
+        semesterId: true,
+      },
+    });
+  }
+
+  if (!targetBook) {
+    return;
+  }
+
+  await tx.teachingPlanBook.update({
+    where: { id: targetBook.id },
+    data: {
+      title: `${plan.courseName}教案册（兼容）`,
+      teacherName: plan.teacher.username,
+      targetClass: plan.className,
+      totalHours: plan.duration,
+      weeklyHours: resolvedWeeklyHours ?? undefined,
+      status: plan.status,
+      updatedAt: new Date(),
+    },
+  });
+
+  let deliveryPlanWeekId: string | undefined;
+  if (plan.deliveryPlanId && plan.deliveryWeekNo) {
+    const matchedWeek = await tx.deliveryPlanWeek.findFirst({
+      where: {
+        deliveryPlanId: plan.deliveryPlanId,
+        weekNo: plan.deliveryWeekNo,
+      },
+      select: {
+        id: true,
+      },
+    });
+    deliveryPlanWeekId = matchedWeek?.id;
+  }
+
+  await tx.teachingPlanLesson.upsert({
+    where: {
+      bookId_lessonNo: {
+        bookId: targetBook.id,
+        lessonNo: 1,
+      },
+    },
+    create: {
+      bookId: targetBook.id,
+      lessonNo: 1,
+      title: plan.title,
+      className: plan.className,
+      weekNo: plan.deliveryWeekNo ?? undefined,
+      duration: plan.duration,
+      objectives: plan.objectives,
+      ideologicalElements: plan.ideologicalElements || undefined,
+      integrationMethod: plan.integrationMethod || undefined,
+      keyPoints: plan.keyPoints,
+      methods: plan.methods || undefined,
+      outline: plan.process,
+      reflection: plan.reflection || undefined,
+      contentJson: plan.contentJson || undefined,
+      status: plan.status,
+      deliveryPlanId: plan.deliveryPlanId || undefined,
+      deliveryPlanWeekId,
+      courseStandardTopicRefs: plan.courseStandardRefs || [],
+    },
+    update: {
+      title: plan.title,
+      className: plan.className,
+      weekNo: plan.deliveryWeekNo ?? undefined,
+      duration: plan.duration,
+      objectives: plan.objectives,
+      ideologicalElements: plan.ideologicalElements || undefined,
+      integrationMethod: plan.integrationMethod || undefined,
+      keyPoints: plan.keyPoints,
+      methods: plan.methods || undefined,
+      outline: plan.process,
+      reflection: plan.reflection || undefined,
+      contentJson: plan.contentJson || undefined,
+      status: plan.status,
+      deliveryPlanId: plan.deliveryPlanId || undefined,
+      deliveryPlanWeekId,
+      courseStandardTopicRefs: plan.courseStandardRefs || [],
+      updatedAt: new Date(),
+    },
+  });
+};
 
 /**
  * 教案路由
@@ -65,6 +263,9 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
             className: true,
             duration: true,
             status: true,
+            courseOfferingId: true,
+            deliveryPlanId: true,
+            deliveryWeekNo: true,
             createdAt: true,
             updatedAt: true,
             teacher: {
@@ -151,20 +352,26 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
   .post(
     '/',
     async ({ body, user }) => {
-      const teachingPlan = await prisma.teachingPlan.create({
-        data: {
-          ...body,
-          teacherId: user!.userId,
-        },
-        include: {
-          teacher: {
-            select: {
-              id: true,
-              username: true,
-              department: true,
+      const teachingPlan = await prisma.$transaction(async (tx) => {
+        const created = await tx.teachingPlan.create({
+          data: {
+            ...body,
+            teacherId: user!.userId,
+          },
+        });
+        await syncLegacyPlanToAcademicMirror(tx, created.id);
+        return tx.teachingPlan.findUnique({
+          where: { id: created.id },
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                username: true,
+                department: true,
+              },
             },
           },
-        },
+        });
       });
       
       return {
@@ -189,6 +396,13 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
         htmlContent: t.String(),
         contentJson: t.Optional(t.Any()),
         status: t.Optional(TeachingPlanStatus),
+        courseOfferingId: t.Optional(t.String()),
+        deliveryPlanId: t.Optional(t.String()),
+        deliveryWeekNo: t.Optional(t.Number({ minimum: 1 })),
+        planBookId: t.Optional(t.String()),
+        courseStandardRefs: t.Optional(t.Array(t.String())),
+        ideologicalElements: t.Optional(t.String()),
+        integrationMethod: t.Optional(t.String()),
       }),
     }
   )
@@ -216,21 +430,33 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
 
       let affected = 0;
       if (body.action === 'PUBLISH') {
-        const result = await prisma.teachingPlan.updateMany({
-          where: { id: { in: matchedIds } },
-          data: {
-            status: 'PUBLISHED',
-            updatedAt: new Date(),
-          },
+        const result = await prisma.$transaction(async (tx) => {
+          const updated = await tx.teachingPlan.updateMany({
+            where: { id: { in: matchedIds } },
+            data: {
+              status: 'PUBLISHED',
+              updatedAt: new Date(),
+            },
+          });
+          for (const id of matchedIds) {
+            await syncLegacyPlanToAcademicMirror(tx, id);
+          }
+          return updated;
         });
         affected = result.count;
       } else if (body.action === 'ARCHIVE') {
-        const result = await prisma.teachingPlan.updateMany({
-          where: { id: { in: matchedIds } },
-          data: {
-            status: 'ARCHIVED',
-            updatedAt: new Date(),
-          },
+        const result = await prisma.$transaction(async (tx) => {
+          const updated = await tx.teachingPlan.updateMany({
+            where: { id: { in: matchedIds } },
+            data: {
+              status: 'ARCHIVED',
+              updatedAt: new Date(),
+            },
+          });
+          for (const id of matchedIds) {
+            await syncLegacyPlanToAcademicMirror(tx, id);
+          }
+          return updated;
         });
         affected = result.count;
       } else {
@@ -281,21 +507,27 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
         throw new Error('Forbidden: You can only update your own teaching plans');
       }
       
-      const teachingPlan = await prisma.teachingPlan.update({
-        where: { id: params.id },
-        data: {
-          ...body,
-          updatedAt: new Date(),
-        },
-        include: {
-          teacher: {
-            select: {
-              id: true,
-              username: true,
-              department: true,
+      const teachingPlan = await prisma.$transaction(async (tx) => {
+        await tx.teachingPlan.update({
+          where: { id: params.id },
+          data: {
+            ...body,
+            updatedAt: new Date(),
+          },
+        });
+        await syncLegacyPlanToAcademicMirror(tx, params.id);
+        return tx.teachingPlan.findUnique({
+          where: { id: params.id },
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                username: true,
+                department: true,
+              },
             },
           },
-        },
+        });
       });
       
       return {
@@ -323,6 +555,13 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
         htmlContent: t.Optional(t.String()),
         contentJson: t.Optional(t.Any()),
         status: t.Optional(TeachingPlanStatus),
+        courseOfferingId: t.Optional(t.String()),
+        deliveryPlanId: t.Optional(t.String()),
+        deliveryWeekNo: t.Optional(t.Number({ minimum: 1 })),
+        planBookId: t.Optional(t.String()),
+        courseStandardRefs: t.Optional(t.Array(t.String())),
+        ideologicalElements: t.Optional(t.String()),
+        integrationMethod: t.Optional(t.String()),
       }),
     }
   )
@@ -384,12 +623,18 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
         throw new Error('Forbidden: You can only publish your own teaching plans');
       }
       
-      const teachingPlan = await prisma.teachingPlan.update({
-        where: { id: params.id },
-        data: {
-          status: 'PUBLISHED',
-          updatedAt: new Date(),
-        },
+      const teachingPlan = await prisma.$transaction(async (tx) => {
+        await tx.teachingPlan.update({
+          where: { id: params.id },
+          data: {
+            status: 'PUBLISHED',
+            updatedAt: new Date(),
+          },
+        });
+        await syncLegacyPlanToAcademicMirror(tx, params.id);
+        return tx.teachingPlan.findUnique({
+          where: { id: params.id },
+        });
       });
       
       return {
@@ -425,12 +670,18 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
         throw new Error('Forbidden: You can only archive your own teaching plans');
       }
       
-      const teachingPlan = await prisma.teachingPlan.update({
-        where: { id: params.id },
-        data: {
-          status: 'ARCHIVED',
-          updatedAt: new Date(),
-        },
+      const teachingPlan = await prisma.$transaction(async (tx) => {
+        await tx.teachingPlan.update({
+          where: { id: params.id },
+          data: {
+            status: 'ARCHIVED',
+            updatedAt: new Date(),
+          },
+        });
+        await syncLegacyPlanToAcademicMirror(tx, params.id);
+        return tx.teachingPlan.findUnique({
+          where: { id: params.id },
+        });
       });
       
       return {
@@ -466,33 +717,45 @@ export const teachingPlanRoutes = new Elysia({ prefix: '/teaching-plans' })
         throw new Error('Forbidden: You can only duplicate your own teaching plans');
       }
 
-      const duplicated = await prisma.teachingPlan.create({
-        data: {
-          title: `${existing.title}（副本）`,
-          courseName: existing.courseName,
-          className: existing.className,
-          duration: existing.duration,
-          objectives: existing.objectives,
-          keyPoints: existing.keyPoints,
-          process: existing.process,
-          blackboard: existing.blackboard,
-          reflection: existing.reflection,
-          methods: existing.methods,
-          resources: existing.resources,
-          htmlContent: existing.htmlContent,
-          contentJson: existing.contentJson,
-          status: 'DRAFT',
-          teacherId: existing.teacherId,
-        },
-        include: {
-          teacher: {
-            select: {
-              id: true,
-              username: true,
-              department: true,
+      const duplicated = await prisma.$transaction(async (tx) => {
+        const created = await tx.teachingPlan.create({
+          data: {
+            title: `${existing.title}（副本）`,
+            courseName: existing.courseName,
+            className: existing.className,
+            duration: existing.duration,
+            objectives: existing.objectives,
+            keyPoints: existing.keyPoints,
+            process: existing.process,
+            blackboard: existing.blackboard,
+            reflection: existing.reflection,
+            methods: existing.methods,
+            resources: existing.resources,
+            htmlContent: existing.htmlContent,
+            contentJson: existing.contentJson ?? undefined,
+            status: 'DRAFT',
+            teacherId: existing.teacherId,
+            courseOfferingId: existing.courseOfferingId,
+            deliveryPlanId: existing.deliveryPlanId,
+            deliveryWeekNo: existing.deliveryWeekNo,
+            courseStandardRefs: existing.courseStandardRefs,
+            ideologicalElements: existing.ideologicalElements,
+            integrationMethod: existing.integrationMethod,
+          },
+        });
+        await syncLegacyPlanToAcademicMirror(tx, created.id);
+        return tx.teachingPlan.findUnique({
+          where: { id: created.id },
+          include: {
+            teacher: {
+              select: {
+                id: true,
+                username: true,
+                department: true,
+              },
             },
           },
-        },
+        });
       });
 
       return {

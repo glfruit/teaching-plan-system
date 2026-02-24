@@ -55,7 +55,7 @@ describe('calculatePlanQuality', () => {
       keyPoints: 'Short', // < 5 chars -> 0
       process: 'Short', // < 20 chars -> 0
       reflection: '', // empty -> 0
-      methods: [], // array empty -> 0 (treated as length 0 if string/array logic is consistent)
+      methods: '', // empty -> 0
     };
     const result = calculatePlanQuality(plan);
     expect(result.totalScore).toBe(0);

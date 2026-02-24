@@ -51,12 +51,28 @@ export const authMiddleware = new Elysia()
     }
   });
 
+type AuthUser = {
+  userId: string;
+  username: string;
+  email: string;
+  role: string;
+};
+
+type AuthGuardContext = {
+  user?: AuthUser | null;
+  isAuthenticated?: boolean;
+  set: { status?: number | string };
+};
+
 /**
  * 需要登录的装饰器
  * 如果用户未认证，返回 401 错误
  */
 export const requireAuth = new Elysia()
-  .onBeforeHandle(({ user, isAuthenticated, set }) => {
+  .onBeforeHandle((context) => {
+    const { set } = context;
+    const { user, isAuthenticated } = context as AuthGuardContext;
+
     if (!isAuthenticated || !user) {
       set.status = 401;
       throw new Error('Unauthorized: Please login first');

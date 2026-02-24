@@ -17,9 +17,58 @@ describeWithDatabase('Analytics API', () => {
   
   let authToken: string;
   let testUserId: string;
+  let semesterId: string;
+  let courseId: string;
   
   beforeAll(async () => {
     // Cleanup
+    await prisma.traceLink.deleteMany({
+      where: {
+        createdBy: {
+          username: 'analyst_test'
+        }
+      }
+    });
+    await prisma.coursewareAsset.deleteMany({
+      where: {
+        uploadedBy: {
+          username: 'analyst_test'
+        }
+      }
+    });
+    await prisma.teachingPlanLesson.deleteMany({
+      where: {
+        book: {
+          teacher: {
+            username: 'analyst_test'
+          }
+        }
+      }
+    });
+    await prisma.teachingPlanBook.deleteMany({
+      where: {
+        teacher: {
+          username: 'analyst_test'
+        }
+      }
+    });
+    await prisma.courseOffering.deleteMany({
+      where: {
+        teacher: {
+          username: 'analyst_test'
+        }
+      }
+    });
+    await prisma.course.deleteMany({
+      where: {
+        code: 'ANALYTICS-101'
+      }
+    });
+    await prisma.semester.deleteMany({
+      where: {
+        name: '2026-2027学年第1学期（分析测试）'
+      }
+    });
     await prisma.teachingPlan.deleteMany({
       where: {
         teacher: {
@@ -46,7 +95,7 @@ describeWithDatabase('Analytics API', () => {
       })
     );
     
-    const registerData = await registerResponse.json();
+    const registerData: any = await registerResponse.json();
     authToken = registerData.data.accessToken;
     testUserId = registerData.data.user.id;
 
@@ -91,9 +140,160 @@ describeWithDatabase('Analytics API', () => {
         }
       ]
     });
+
+    const semester = await prisma.semester.create({
+      data: {
+        name: '2026-2027学年第1学期（分析测试）',
+        startDate: new Date('2026-09-01T00:00:00.000Z'),
+        endDate: new Date('2027-01-20T00:00:00.000Z'),
+        status: 'ACTIVE',
+        createdById: testUserId,
+      }
+    });
+    semesterId = semester.id;
+
+    const course = await prisma.course.create({
+      data: {
+        code: 'ANALYTICS-101',
+        name: '分析接口课程',
+        department: 'Mathematics',
+        ownerTeacherId: testUserId,
+        status: 'ACTIVE',
+      }
+    });
+    courseId = course.id;
+
+    const offering = await prisma.courseOffering.create({
+      data: {
+        courseId,
+        semesterId,
+        className: '分析班级A',
+        teacherId: testUserId,
+        weeklyHours: 4,
+        status: 'ACTIVE',
+      }
+    });
+
+    const book = await prisma.teachingPlanBook.create({
+      data: {
+        title: '分析测试教案册',
+        courseOfferingId: offering.id,
+        semesterId,
+        teacherId: testUserId,
+        teacherName: 'analyst_test',
+        targetClass: '分析班级A',
+        totalHours: 32,
+        status: 'PUBLISHED',
+      }
+    });
+
+    const deliveryPlan = await prisma.deliveryPlan.create({
+      data: {
+        title: '分析授课计划',
+        courseOfferingId: offering.id,
+        ownerId: testUserId,
+        status: 'PUBLISHED',
+      }
+    });
+    const deliveryWeek = await prisma.deliveryPlanWeek.create({
+      data: {
+        deliveryPlanId: deliveryPlan.id,
+        weekNo: 1,
+        hours: 4,
+        unitOrTask: '分析任务',
+        linkedStandardTopicIds: [],
+      }
+    });
+
+    const lessonA = await prisma.teachingPlanLesson.create({
+      data: {
+        bookId: book.id,
+        lessonNo: 1,
+        title: '分析单次课A',
+        weekNo: 1,
+        duration: 90,
+        objectives: '目标A',
+        keyPoints: '重点A',
+        outline: '<p>过程A</p>',
+        status: 'PUBLISHED',
+        deliveryPlanId: deliveryPlan.id,
+        deliveryPlanWeekId: deliveryWeek.id,
+        ideologicalElements: '工匠精神',
+        integrationMethod: '案例讨论',
+        courseStandardTopicRefs: ['topic-a'],
+      }
+    });
+
+    const lessonB = await prisma.teachingPlanLesson.create({
+      data: {
+        bookId: book.id,
+        lessonNo: 2,
+        title: '分析单次课B',
+        weekNo: 2,
+        duration: 45,
+        objectives: '目标B',
+        keyPoints: '重点B',
+        outline: '<p>过程B</p>',
+        status: 'DRAFT',
+      }
+    });
+
+    await prisma.traceLink.create({
+      data: {
+        type: 'DELIVERY_TO_LESSON',
+        sourceType: 'delivery-plan',
+        sourceId: deliveryPlan.id,
+        targetType: 'teaching-plan-lesson',
+        targetId: lessonA.id,
+        createdById: testUserId,
+      }
+    });
+
+    await prisma.traceLink.create({
+      data: {
+        type: 'LESSON_TO_COURSEWARE',
+        sourceType: 'teaching-plan-lesson',
+        sourceId: lessonA.id,
+        targetType: 'courseware',
+        targetId: 'courseware-a',
+        createdById: testUserId,
+      }
+    });
   });
   
   afterAll(async () => {
+    await prisma.traceLink.deleteMany({
+      where: {
+        createdById: testUserId
+      }
+    });
+    await prisma.coursewareAsset.deleteMany({
+      where: {
+        uploadedById: testUserId
+      }
+    });
+    await prisma.teachingPlanLesson.deleteMany({
+      where: {
+        book: {
+          teacherId: testUserId
+        }
+      }
+    });
+    await prisma.teachingPlanBook.deleteMany({
+      where: {
+        teacherId: testUserId
+      }
+    });
+    if (courseId) {
+      await prisma.course.deleteMany({
+        where: { id: courseId }
+      });
+    }
+    if (semesterId) {
+      await prisma.semester.deleteMany({
+        where: { id: semesterId }
+      });
+    }
     await prisma.teachingPlan.deleteMany({
       where: { teacherId: testUserId }
     });
@@ -111,7 +311,7 @@ describeWithDatabase('Analytics API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.totalPlans).toBe(3);
       expect(data.data.totalDuration).toBe(180); // 45 + 90 + 45
@@ -127,7 +327,7 @@ describeWithDatabase('Analytics API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.statusDistribution.DRAFT).toBe(1);
       expect(data.data.statusDistribution.PUBLISHED).toBe(1);
@@ -135,7 +335,7 @@ describeWithDatabase('Analytics API', () => {
     });
   });
 
-   describe('GET /analytics/quality', () => {
+  describe('GET /analytics/quality', () => {
     it('should return quality analysis', async () => {
       const response = await app.handle(
         new Request('http://localhost/analytics/quality', {
@@ -144,9 +344,65 @@ describeWithDatabase('Analytics API', () => {
       );
       
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.averageCompleteness).toBeDefined();
+    });
+  });
+
+  describe('GET /analytics/teaching-chain', () => {
+    it('should return teaching-chain analytics with semester/course/week dimensions', async () => {
+      const response = await app.handle(
+        new Request('http://localhost/analytics/teaching-chain', {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        })
+      );
+
+      expect(response.status).toBe(200);
+      const data: any = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.summary.totalLessons).toBe(2);
+      expect(data.data.summary.publishedLessons).toBe(1);
+      expect(data.data.summary.totalSemesters).toBe(1);
+      expect(data.data.summary.totalCourses).toBe(1);
+      expect(data.data.summary.totalWeeks).toBe(2);
+      expect(data.data.summary.consistencyScore).toBe(50);
+      expect(data.data.summary.deliveryTraceCoverage).toBe(50);
+      expect(data.data.summary.coursewareTraceCoverage).toBe(50);
+      expect(data.data.bySemester.length).toBe(1);
+      expect(data.data.byCourse.length).toBe(1);
+      expect(data.data.byWeek.length).toBe(2);
+    });
+
+    it('should support semester/course/week filters', async () => {
+      const response = await app.handle(
+        new Request(`http://localhost/analytics/teaching-chain?semesterId=${semesterId}&courseId=${courseId}&weekNo=1`, {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        })
+      );
+
+      expect(response.status).toBe(200);
+      const data: any = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.summary.totalLessons).toBe(1);
+      expect(data.data.summary.publishedLessons).toBe(1);
+      expect(data.data.byWeek.length).toBe(1);
+      expect(data.data.byWeek[0].weekNo).toBe(1);
+      expect(data.data.filters.semesterId).toBe(semesterId);
+      expect(data.data.filters.courseId).toBe(courseId);
+      expect(data.data.filters.weekNo).toBe(1);
+    });
+
+    it('should reject invalid weekNo filter', async () => {
+      const response = await app.handle(
+        new Request('http://localhost/analytics/teaching-chain?weekNo=0', {
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        })
+      );
+
+      expect(response.status).toBe(422);
+      const data: any = await response.json();
+      expect(data.success).toBe(false);
     });
   });
 
@@ -160,7 +416,7 @@ describeWithDatabase('Analytics API', () => {
       
       expect(response.status).toBe(200);
       expect(response.headers.get('Content-Type')).toContain('application/json');
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.workload).toBeDefined();
       expect(data.execution).toBeDefined();
       expect(data.quality).toBeDefined();

@@ -23,6 +23,18 @@ const router = createRouter({
       meta: { requiresAuth: true },
     },
     {
+      path: '/workbench',
+      name: 'workbench',
+      component: () => import('../views/AcademicWorkbenchView.vue'),
+      meta: { requiresAuth: true },
+    },
+    {
+      path: '/admin',
+      name: 'admin-center',
+      component: () => import('../views/AdminCenterView.vue'),
+      meta: { requiresAuth: true, requiresAdmin: true },
+    },
+    {
       path: '/editor',
       name: 'editor',
       component: () => import('../views/EditorView.vue'),
@@ -48,6 +60,11 @@ router.beforeEach((to, _from, next) => {
   // 需要登录但未登录
   if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     next('/login')
+    return
+  }
+
+  if (to.meta.requiresAdmin && !authStore.isAdmin) {
+    next('/')
     return
   }
   

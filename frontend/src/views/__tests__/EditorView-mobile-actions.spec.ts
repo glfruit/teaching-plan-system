@@ -81,6 +81,8 @@ describe('EditorView mobile quick actions', () => {
     expect(editorViewSource).toContain('showProgressAssistantDialog = true')
     expect(editorViewSource).toContain('showProgressAssistantDialog = false')
     expect(editorViewSource).toContain('实时查看完成度、质量建议与导出前预检结果')
+    expect(editorViewSource).toContain('handleMobileOpenOutlineDialog')
+    expect(editorViewSource).toContain('showOutlineDialog.value = true')
   })
 
   it('uses a mobile-safe two-row layout for quick actions', () => {

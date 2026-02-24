@@ -24,6 +24,11 @@ describeWithDatabase('Export API', () => {
   let testPlanId: string;
   let otherToken: string;
   let otherUserId: string;
+  let exportSemesterId: string;
+  let exportCourseId: string;
+  let exportOfferingId: string;
+  let exportBookId: string;
+  let exportLessonId: string;
   const suffix = `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
   const primaryUsername = `exporttestuser_${suffix}`;
   const otherUsername = `otherexportuser_${suffix}`;
@@ -45,7 +50,7 @@ describeWithDatabase('Export API', () => {
       })
     );
     
-    const registerData = await registerResponse.json();
+    const registerData: any = await registerResponse.json();
     authToken = registerData.data.accessToken;
     testUserId = registerData.data.user.id;
     
@@ -80,8 +85,73 @@ describeWithDatabase('Export API', () => {
       throw new Error('Failed to create test plan');
     }
     
-    const planData = await planResponse.json();
+    const planData: any = await planResponse.json();
     testPlanId = planData.data.id;
+
+    const semester = await prisma.semester.create({
+      data: {
+        name: `导出测试学期-${suffix}`,
+        startDate: new Date('2026-09-01T00:00:00.000Z'),
+        endDate: new Date('2027-01-20T00:00:00.000Z'),
+        status: 'ACTIVE',
+        createdById: testUserId,
+      },
+    });
+    exportSemesterId = semester.id;
+
+    const course = await prisma.course.create({
+      data: {
+        code: `EXPORT-${suffix}`,
+        name: '导出链路课程',
+        department: '测试系',
+        ownerTeacherId: testUserId,
+        status: 'ACTIVE',
+      },
+    });
+    exportCourseId = course.id;
+
+    const offering = await prisma.courseOffering.create({
+      data: {
+        courseId: exportCourseId,
+        semesterId: exportSemesterId,
+        className: '导出班级2401',
+        teacherId: testUserId,
+        weeklyHours: 4,
+        status: 'ACTIVE',
+      },
+    });
+    exportOfferingId = offering.id;
+
+    const book = await prisma.teachingPlanBook.create({
+      data: {
+        title: '导出测试教案册',
+        courseOfferingId: exportOfferingId,
+        semesterId: exportSemesterId,
+        teacherId: testUserId,
+        teacherName: primaryUsername,
+        targetClass: '导出班级2401',
+        totalHours: 64,
+        status: 'DRAFT',
+      },
+    });
+    exportBookId = book.id;
+
+    const lesson = await prisma.teachingPlanLesson.create({
+      data: {
+        bookId: exportBookId,
+        lessonNo: 1,
+        title: '导出测试单次课',
+        className: '导出班级2401',
+        duration: 90,
+        objectives: '导出目标',
+        keyPoints: '导出重点',
+        outline: '<p>导出流程内容</p>',
+        methods: '讲授+讨论',
+        teachingAids: 'PPT+实验箱',
+        status: 'DRAFT',
+      },
+    });
+    exportLessonId = lesson.id;
 
     // 创建另一个用户，用于权限测试
     await app.handle(
@@ -106,12 +176,23 @@ describeWithDatabase('Export API', () => {
         })
       })
     );
-    const otherData = await otherLogin.json();
+    const otherData: any = await otherLogin.json();
     otherToken = otherData.data.accessToken;
     otherUserId = otherData.data.user.id;
   });
 
   afterAll(async () => {
+    if (exportCourseId) {
+      await prisma.course.deleteMany({
+        where: { id: exportCourseId }
+      });
+    }
+    if (exportSemesterId) {
+      await prisma.semester.deleteMany({
+        where: { id: exportSemesterId }
+      });
+    }
+
     const userIds = [testUserId, otherUserId].filter(Boolean);
     if (userIds.length > 0) {
       await prisma.teachingPlan.deleteMany({
@@ -194,6 +275,21 @@ describeWithDatabase('Export API', () => {
         expect(contentDisposition).toContain('.docx');
       }
     });
+
+    it('should support exporting teaching plan book as Word source', async () => {
+      const response = await app.handle(
+        new Request(`http://localhost/export/word/${exportBookId}?sourceType=teaching-plan-book`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        })
+      );
+
+      expect([200, 500, 503]).toContain(response.status);
+      if (response.status === 200) {
+        const contentType = response.headers.get('content-type');
+        expect(contentType).toContain('application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      }
+    });
   });
 
   describe('POST /export/preview/:id', () => {
@@ -238,12 +334,45 @@ describeWithDatabase('Export API', () => {
       );
 
       expect(response.status).toBe(200);
-      const data = await response.json();
+      const data: any = await response.json();
       expect(data.success).toBe(true);
       expect(data.data.plan.id).toBe(testPlanId);
       expect(data.data.plan.title).toBe('测试导出教案');
       expect(Array.isArray(data.data.sections)).toBe(true);
       expect(data.data.sections.length).toBeGreaterThan(0);
+    });
+
+    it('should return export preview for lesson source', async () => {
+      const response = await app.handle(
+        new Request(`http://localhost/export/preview/${exportLessonId}?sourceType=teaching-plan-lesson`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        })
+      );
+
+      expect(response.status).toBe(200);
+      const data: any = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.plan.id).toBe(exportLessonId);
+      expect(data.data.plan.title).toBe('导出测试单次课');
+      expect(data.data.plan.courseName).toBe('导出链路课程');
+    });
+
+    it('should return export preview for teaching plan book source', async () => {
+      const response = await app.handle(
+        new Request(`http://localhost/export/preview/${exportBookId}?sourceType=teaching-plan-book`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${authToken}` }
+        })
+      );
+
+      expect(response.status).toBe(200);
+      const data: any = await response.json();
+      expect(data.success).toBe(true);
+      expect(data.data.plan.id).toBe(exportBookId);
+      expect(data.data.plan.title).toBe('导出测试教案册');
+      expect(data.data.plan.className).toBe('导出班级2401');
+      expect(data.data.plan.courseName).toBe('导出链路课程');
     });
   });
 

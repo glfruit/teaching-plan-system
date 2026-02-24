@@ -54,6 +54,10 @@ export interface TeachingPlan {
     Record<'objectives' | 'keyPoints' | 'process' | 'blackboard' | 'reflection', JSONContent>
   >
   status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
+  courseOfferingId?: string | null
+  deliveryPlanId?: string | null
+  deliveryWeekNo?: number | null
+  planBookId?: string | null
   createdAt?: string
   updatedAt?: string
   teacher?: {

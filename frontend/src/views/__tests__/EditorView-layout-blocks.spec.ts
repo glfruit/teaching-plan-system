@@ -43,13 +43,55 @@ import {
   buildEditorDraftDiffSummary,
   resolveEditorContentSourceLabel,
   buildEditorCompletionSummary,
+  buildEditorSectionCompletion,
+  resolveNextIncompleteEditorSection,
+  resolveActiveEditorSectionFromViewport,
+  sumEditorProcessMinutes,
   buildEditorQualityTips,
   applyEditorLessonSkeleton,
   buildEditorExportPrecheck,
   recommendEditorLessonSkeletonPreset,
+  resolveEditorProcessTimelineOptions,
+  allocateEditorTimelineMinutes,
+  buildEditorProcessTimelineHtml,
+  buildEditorTimelineStepsFromPreset,
+  buildEditorTimelineProcessHtmlFromSteps,
+  alignEditorTimelineStepsToDuration,
+  applyEditorTimelineStepsToForm,
+  normalizeEditorTimelineDraftSteps,
+  buildEditorTimelineApplyPreview,
+  moveEditorTimelineSteps,
+  reorderEditorTimelineSteps,
+  isEditorTimelineStepCollapsedState,
+  toggleEditorTimelineStepCollapsedState,
+  normalizeEditorTimelineStepCollapsedState,
+  areAllEditorTimelineStepsCollapsed,
+  toggleAllEditorTimelineStepCollapsedState,
+  isEditorTimelineStepSelectedState,
+  toggleEditorTimelineStepSelectedState,
+  normalizeEditorTimelineStepSelectedState,
+  areAllEditorTimelineStepsSelected,
+  toggleAllEditorTimelineStepSelectedState,
+  removeSelectedEditorTimelineSteps,
+  redistributeEditorTimelineSelectedStepMinutes,
+  redistributeEditorTimelineSelectedStepMinutesToDuration,
+  adjustEditorTimelineSelectedStepMinutes,
+  autofillEditorTimelineDraftStepLabels,
+  buildEditorTimelineApplyPreviewDiff,
+  cloneEditorTimelineDraftSteps,
+  hasEditorTimelineDraftStepChanges,
+  pushEditorTimelineDraftUndoStack,
+  applyEditorProcessTimeline,
   buildEditorExportPrecheckFixActions,
   applyEditorExportPrecheckFix,
   shouldPersistLocalDraftOnLeave,
+  shouldShowEditorTemplatePanel,
+  isEditorSectionCollapsedInState,
+  setEditorSectionCollapsedState,
+  toggleEditorSectionCollapsedState,
+  normalizeEditorCollapsibleSections,
+  parseEditorViewPreference,
+  serializeEditorViewPreference,
   buildPlanPayload,
   mapFetchedPlanToForm,
   buildEditorDraftSignature,
@@ -78,7 +120,7 @@ describe('EditorView teaching layout persistence', () => {
       title: 'test',
       courseName: 'course',
       className: 'class',
-      duration: 90,
+      duration: 70,
       methods: '',
       resources: '',
       objectives: '<p></p>',
@@ -108,7 +150,7 @@ describe('EditorView teaching layout persistence', () => {
       title: 'test',
       courseName: 'course',
       className: 'class',
-      duration: 90,
+      duration: 70,
       methods: '',
       resources: '',
       objectives: '<p>obj</p>',
@@ -1607,7 +1649,7 @@ describe('EditorView teaching layout persistence', () => {
       title: '教案A',
       courseName: '课程A',
       className: '1班',
-      duration: 90,
+      duration: 70,
       methods: '案例教学',
       resources: 'PPT、视频',
       objectives: '<p>通过本节课学习，学生能够理解核心概念并完成基础应用任务。</p>',
@@ -1783,5 +1825,502 @@ describe('EditorView teaching layout persistence', () => {
     expect(shouldPersistLocalDraftOnLeave(true, false)).toBe(true)
     expect(shouldPersistLocalDraftOnLeave(true, true)).toBe(false)
     expect(shouldPersistLocalDraftOnLeave(false, false)).toBe(false)
+  })
+
+  it('builds section completion status and finds next required incomplete section', () => {
+    const form = {
+      title: '',
+      courseName: '课程A',
+      className: '',
+      duration: 90,
+      methods: '',
+      resources: '',
+      objectives: '<p></p>',
+      keyPoints: '<p>重点</p>',
+      process: '<p></p>',
+      blackboard: '<p></p>',
+      reflection: '<p>反思</p>',
+      contentJson: {},
+    } as any
+
+    const items = buildEditorSectionCompletion(form)
+    const basic = items.find((item) => item.section === 'basic')
+    const objectives = items.find((item) => item.section === 'objectives')
+
+    expect(basic?.requiredMissingLabels).toContain('教案标题')
+    expect(objectives?.requiredMissingLabels).toContain('教学目标')
+    expect(resolveNextIncompleteEditorSection(items)).toBe('basic')
+  })
+
+  it('warns process-duration mismatch and supports aligning duration fix', () => {
+    const form = {
+      title: '示例教案',
+      courseName: '课程A',
+      className: '一班',
+      duration: 90,
+      methods: '讲授法',
+      resources: 'PPT',
+      objectives: '<p>完整教学目标内容不少于20字。</p>',
+      keyPoints: '<p>重点</p>',
+      process: '<p>导入（10分钟）→ 讲解（20分钟）→ 练习（20分钟）</p>',
+      blackboard: '<p>板书</p>',
+      reflection: '<p>反思</p>',
+      contentJson: {},
+    } as any
+
+    expect(sumEditorProcessMinutes(form.process)).toBe(50)
+
+    const qualityTips = buildEditorQualityTips(form)
+    expect(qualityTips.some((item) => item.message.includes('教学过程时间合计约50分钟'))).toBe(true)
+
+    const completion = buildEditorCompletionSummary(form)
+    const actions = buildEditorExportPrecheckFixActions(completion, qualityTips)
+    expect(actions.some((item) => item.key === 'align-duration-with-process')).toBe(true)
+
+    const fixed = applyEditorExportPrecheckFix(form, 'align-duration-with-process')
+    expect(fixed.duration).toBe(50)
+  })
+
+  it('builds timeline options and allocates minutes to exact duration', () => {
+    const options = resolveEditorProcessTimelineOptions()
+    expect(options.length).toBeGreaterThan(0)
+    expect(options.some((item) => item.id === 'balanced')).toBe(true)
+
+    const minutes = allocateEditorTimelineMinutes(90, [0.12, 0.43, 0.3, 0.15])
+    expect(minutes.reduce((sum, value) => sum + value, 0)).toBe(90)
+  })
+
+  it('builds and applies process timeline html in replace/append mode', () => {
+    const html = buildEditorProcessTimelineHtml(45, 'balanced')
+    expect(html).toContain('分钟')
+    expect(html).toContain('导入')
+
+    const baseForm = {
+      title: '教案A',
+      courseName: '课程A',
+      className: '1班',
+      duration: 45,
+      methods: '',
+      resources: '',
+      objectives: '<p></p>',
+      keyPoints: '<p></p>',
+      process: '<p>已有过程</p>',
+      blackboard: '<p></p>',
+      reflection: '<p></p>',
+      contentJson: {
+        process: { type: 'doc', content: [] },
+      },
+    } as any
+
+    const replaced = applyEditorProcessTimeline(baseForm, 'balanced', 'replace')
+    expect(replaced.process).not.toContain('已有过程')
+    expect(replaced.process).toContain('分钟')
+    expect(replaced.contentJson.process).toBeUndefined()
+
+    const appended = applyEditorProcessTimeline(baseForm, 'balanced', 'append')
+    expect(appended.process).toContain('已有过程')
+    expect(appended.process).toContain('分钟')
+    expect(appended.contentJson.process).toBeUndefined()
+  })
+
+  it('builds timeline steps from preset with exact duration total', () => {
+    const steps = buildEditorTimelineStepsFromPreset(75, 'balanced')
+    expect(steps.length).toBe(4)
+    expect(steps[0].label).toBe('导入')
+    expect(steps.reduce((sum, step) => sum + step.minutes, 0)).toBe(75)
+  })
+
+  it('builds timeline html from steps and falls back when empty', () => {
+    const html = buildEditorTimelineProcessHtmlFromSteps([
+      { label: ' 导入 ', minutes: 8.6 },
+      { label: '', minutes: 10 },
+      { label: '讲授', minutes: Number.NaN },
+    ])
+    expect(html).toContain('导入（9分钟）')
+    expect(html).toContain('讲授（0分钟）')
+    expect(buildEditorTimelineProcessHtmlFromSteps([])).toBe('<p></p>')
+  })
+
+  it('applies timeline steps to form in replace and append mode', () => {
+    const baseForm = {
+      title: '教案B',
+      courseName: '课程B',
+      className: '2班',
+      duration: 60,
+      methods: '',
+      resources: '',
+      objectives: '<p></p>',
+      keyPoints: '<p></p>',
+      process: '<p>已有流程</p>',
+      blackboard: '<p></p>',
+      reflection: '<p></p>',
+      contentJson: {
+        process: { type: 'doc', content: [] },
+      },
+    } as any
+
+    const steps = [
+      { label: '导入', minutes: 10 },
+      { label: '讲解', minutes: 20 },
+    ]
+
+    const replaced = applyEditorTimelineStepsToForm(baseForm, steps, 'replace')
+    expect(replaced.process).toContain('导入（10分钟）')
+    expect(replaced.process).not.toContain('已有流程')
+    expect(replaced.contentJson.process).toBeUndefined()
+
+    const appended = applyEditorTimelineStepsToForm(baseForm, steps, 'append')
+    expect(appended.process).toContain('已有流程')
+    expect(appended.process).toContain('讲解（20分钟）')
+    expect(appended.contentJson.process).toBeUndefined()
+  })
+
+  it('normalizes timeline draft steps and builds apply preview', () => {
+    const draftSteps = [
+      { id: 'a', label: ' 导入 ', minutes: 8.6 },
+      { id: 'b', label: ' ', minutes: 10 },
+      { id: 'c', label: '讲授', minutes: -5 },
+    ]
+
+    const normalized = normalizeEditorTimelineDraftSteps(draftSteps)
+    expect(normalized).toEqual([
+      { label: '导入', minutes: 9 },
+      { label: '讲授', minutes: 0 },
+    ])
+
+    const replacePreview = buildEditorTimelineApplyPreview('<p>已有内容</p>', draftSteps, 'replace')
+    expect(replacePreview.canApply).toBe(true)
+    expect(replacePreview.mode).toBe('replace')
+    expect(replacePreview.stepCount).toBe(2)
+    expect(replacePreview.minuteTotal).toBe(9)
+    expect(replacePreview.nextProcessHtml).toContain('导入（9分钟）')
+    expect(replacePreview.currentTextLength).toBeGreaterThan(0)
+
+    const appendPreview = buildEditorTimelineApplyPreview('<p>已有内容</p>', draftSteps, 'append')
+    expect(appendPreview.mode).toBe('append')
+    expect(appendPreview.nextProcessHtml).toContain('已有内容')
+    expect(appendPreview.nextTextLength).toBeGreaterThan(appendPreview.currentTextLength)
+  })
+
+  it('returns blocked preview when timeline draft has no valid step', () => {
+    const preview = buildEditorTimelineApplyPreview('<p>已有内容</p>', [{ id: 'a', label: '   ', minutes: 0 }], 'replace')
+    expect(preview.canApply).toBe(false)
+    expect(preview.stepCount).toBe(0)
+    expect(preview.nextProcessHtml).toBe('')
+  })
+
+  it('moves timeline steps up and down without crossing boundaries', () => {
+    const steps = [
+      { id: 'a', label: '导入', minutes: 8 },
+      { id: 'b', label: '讲授', minutes: 25 },
+      { id: 'c', label: '总结', minutes: 12 },
+    ]
+
+    const moveUp = moveEditorTimelineSteps(steps, 'b', 'up')
+    expect(moveUp.map((item) => item.id)).toEqual(['b', 'a', 'c'])
+
+    const moveDown = moveEditorTimelineSteps(steps, 'b', 'down')
+    expect(moveDown.map((item) => item.id)).toEqual(['a', 'c', 'b'])
+
+    const keepTop = moveEditorTimelineSteps(steps, 'a', 'up')
+    expect(keepTop).toBe(steps)
+
+    const keepBottom = moveEditorTimelineSteps(steps, 'c', 'down')
+    expect(keepBottom).toBe(steps)
+  })
+
+  it('reorders timeline steps by drag source and drop target', () => {
+    const steps = [
+      { id: 'a', label: '导入', minutes: 8 },
+      { id: 'b', label: '讲授', minutes: 25 },
+      { id: 'c', label: '总结', minutes: 12 },
+    ]
+
+    const moved = reorderEditorTimelineSteps(steps, 'c', 'a')
+    expect(moved.map((item) => item.id)).toEqual(['c', 'a', 'b'])
+
+    const unchangedBySame = reorderEditorTimelineSteps(steps, 'b', 'b')
+    expect(unchangedBySame).toBe(steps)
+
+    const unchangedByMissing = reorderEditorTimelineSteps(steps, 'x', 'a')
+    expect(unchangedByMissing).toBe(steps)
+  })
+
+  it('toggles and normalizes collapsed timeline step ids', () => {
+    const collapsed = toggleEditorTimelineStepCollapsedState([], 'a')
+    expect(isEditorTimelineStepCollapsedState(collapsed, 'a')).toBe(true)
+
+    const expanded = toggleEditorTimelineStepCollapsedState(collapsed, 'a')
+    expect(isEditorTimelineStepCollapsedState(expanded, 'a')).toBe(false)
+
+    const normalized = normalizeEditorTimelineStepCollapsedState(
+      ['a', 'a', 'x', 'b'],
+      [{ id: 'a' }, { id: 'b' }]
+    )
+    expect(normalized).toEqual(['a', 'b'])
+  })
+
+  it('supports toggle-all collapsed timeline step ids', () => {
+    const steps = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+
+    expect(areAllEditorTimelineStepsCollapsed([], steps)).toBe(false)
+
+    const collapseAll = toggleAllEditorTimelineStepCollapsedState([], steps)
+    expect(collapseAll).toEqual(['a', 'b', 'c'])
+    expect(areAllEditorTimelineStepsCollapsed(collapseAll, steps)).toBe(true)
+
+    const expandAll = toggleAllEditorTimelineStepCollapsedState(['a', 'b', 'c'], steps)
+    expect(expandAll).toEqual([])
+  })
+
+  it('toggles and normalizes selected timeline step ids', () => {
+    const selected = toggleEditorTimelineStepSelectedState([], 'a')
+    expect(isEditorTimelineStepSelectedState(selected, 'a')).toBe(true)
+
+    const unselected = toggleEditorTimelineStepSelectedState(selected, 'a')
+    expect(isEditorTimelineStepSelectedState(unselected, 'a')).toBe(false)
+
+    const normalized = normalizeEditorTimelineStepSelectedState(
+      ['a', 'a', 'x', 'b'],
+      [{ id: 'a' }, { id: 'b' }]
+    )
+    expect(normalized).toEqual(['a', 'b'])
+  })
+
+  it('supports toggle-all selected timeline step ids', () => {
+    const steps = [{ id: 'a' }, { id: 'b' }, { id: 'c' }]
+
+    expect(areAllEditorTimelineStepsSelected([], steps)).toBe(false)
+
+    const selectAll = toggleAllEditorTimelineStepSelectedState([], steps)
+    expect(selectAll).toEqual(['a', 'b', 'c'])
+    expect(areAllEditorTimelineStepsSelected(selectAll, steps)).toBe(true)
+
+    const clearAll = toggleAllEditorTimelineStepSelectedState(['a', 'b', 'c'], steps)
+    expect(clearAll).toEqual([])
+  })
+
+  it('removes selected timeline steps and keeps original when all are selected', () => {
+    const steps = [
+      { id: 'a', label: '导入', minutes: 10 },
+      { id: 'b', label: '讲授', minutes: 20 },
+      { id: 'c', label: '练习', minutes: 15 },
+    ]
+    const removed = removeSelectedEditorTimelineSteps(steps, ['b'])
+    expect(removed.map((item) => item.id)).toEqual(['a', 'c'])
+
+    const keepOriginal = removeSelectedEditorTimelineSteps(steps, ['a', 'b', 'c'])
+    expect(keepOriginal).toBe(steps)
+  })
+
+  it('redistributes selected timeline step minutes by selected total', () => {
+    const steps = [
+      { id: 'a', label: '导入', minutes: 10 },
+      { id: 'b', label: '讲授', minutes: 20 },
+      { id: 'c', label: '练习', minutes: 15 },
+    ]
+    const redistributed = redistributeEditorTimelineSelectedStepMinutes(steps, ['a', 'c'])
+    expect(redistributed[0]?.minutes).toBe(13)
+    expect(redistributed[2]?.minutes).toBe(12)
+    expect(redistributed[1]?.minutes).toBe(20)
+  })
+
+  it('aligns selected timeline step minutes to duration while keeping unselected fixed', () => {
+    const steps = [
+      { id: 'a', label: '导入', minutes: 10 },
+      { id: 'b', label: '讲授', minutes: 20 },
+      { id: 'c', label: '练习', minutes: 15 },
+    ]
+    const aligned = redistributeEditorTimelineSelectedStepMinutesToDuration(steps, ['a', 'c'], 60)
+    expect(aligned[1]?.minutes).toBe(20)
+    expect((aligned[0]?.minutes || 0) + (aligned[2]?.minutes || 0)).toBe(40)
+    expect(aligned.reduce((sum, item) => sum + item.minutes, 0)).toBe(60)
+  })
+
+  it('adjusts selected timeline step minutes with upper/lower bounds', () => {
+    const steps = [
+      { id: 'a', label: '导入', minutes: 10 },
+      { id: 'b', label: '讲授', minutes: 2 },
+      { id: 'c', label: '练习', minutes: 15 },
+    ]
+    const plus = adjustEditorTimelineSelectedStepMinutes(steps, ['a', 'b'], 5)
+    expect(plus[0]?.minutes).toBe(15)
+    expect(plus[1]?.minutes).toBe(7)
+    expect(plus[2]?.minutes).toBe(15)
+
+    const minus = adjustEditorTimelineSelectedStepMinutes(steps, ['a', 'b'], -5)
+    expect(minus[0]?.minutes).toBe(5)
+    expect(minus[1]?.minutes).toBe(0)
+    expect(minus[2]?.minutes).toBe(15)
+  })
+
+  it('autofills empty timeline labels for selected steps only', () => {
+    const steps = [
+      { id: 'a', label: '', minutes: 10 },
+      { id: 'b', label: '讲授', minutes: 20 },
+      { id: 'c', label: ' ', minutes: 15 },
+    ]
+    const selectedOnly = autofillEditorTimelineDraftStepLabels(steps, ['c'])
+    expect(selectedOnly[0]?.label).toBe('')
+    expect(selectedOnly[2]?.label).toBe('环节3')
+
+    const all = autofillEditorTimelineDraftStepLabels(steps, [])
+    expect(all[0]?.label).toBe('环节1')
+    expect(all[2]?.label).toBe('环节3')
+  })
+
+  it('builds timeline apply preview diff with changed line highlights', () => {
+    const diff = buildEditorTimelineApplyPreviewDiff(
+      '<p>导入（10分钟）</p><p>旧内容</p>',
+      '<p>导入（10分钟）</p><p>讲授（30分钟）</p>'
+    )
+    expect(diff.before.some((item) => item.changed)).toBe(true)
+    expect(diff.after.some((item) => item.changed)).toBe(true)
+    expect(diff.changedCount).toBeGreaterThan(0)
+  })
+
+  it('clones timeline draft steps and detects changes', () => {
+    const steps = [
+      { id: 'a', label: '导入', minutes: 10 },
+      { id: 'b', label: '讲授', minutes: 20 },
+    ]
+    const cloned = cloneEditorTimelineDraftSteps(steps)
+    expect(cloned).toEqual(steps)
+    expect(cloned).not.toBe(steps)
+    expect(hasEditorTimelineDraftStepChanges(steps, cloned)).toBe(false)
+    expect(
+      hasEditorTimelineDraftStepChanges(steps, [
+        { id: 'a', label: '导入', minutes: 12 },
+        { id: 'b', label: '讲授', minutes: 18 },
+      ])
+    ).toBe(true)
+  })
+
+  it('pushes timeline undo snapshots with change detection and limit', () => {
+    const previous = [{ id: 'a', label: '导入', minutes: 10 }]
+    const next = [{ id: 'a', label: '导入', minutes: 12 }]
+    const unchanged = pushEditorTimelineDraftUndoStack([], previous, previous)
+    expect(unchanged).toEqual([])
+
+    const changed = pushEditorTimelineDraftUndoStack([], previous, next, 2)
+    expect(changed).toEqual([[{ id: 'a', label: '导入', minutes: 10 }]])
+
+    const limited = pushEditorTimelineDraftUndoStack(
+      [
+        [{ id: 'x', label: 'x', minutes: 1 }],
+        [{ id: 'y', label: 'y', minutes: 2 }],
+      ],
+      previous,
+      next,
+      2
+    )
+    expect(limited.length).toBe(2)
+    expect(limited[0]?.[0]?.id).toBe('y')
+  })
+
+  it('aligns timeline steps minutes to duration while keeping labels', () => {
+    const steps = [
+      { label: '导入', minutes: 5 },
+      { label: '讲授', minutes: 15 },
+      { label: '训练', minutes: 10 },
+    ]
+    const aligned = alignEditorTimelineStepsToDuration(steps, 60)
+    expect(aligned.map((step) => step.label)).toEqual(['导入', '讲授', '训练'])
+    expect(aligned.reduce((sum, step) => sum + step.minutes, 0)).toBe(60)
+
+    const allZeroAligned = alignEditorTimelineStepsToDuration(
+      [
+        { label: '导入', minutes: 0 },
+        { label: '讲授', minutes: 0 },
+      ],
+      30
+    )
+    expect(allZeroAligned.reduce((sum, step) => sum + step.minutes, 0)).toBe(30)
+  })
+
+  it('shows template panel only when enabled and not in focus mode', () => {
+    expect(shouldShowEditorTemplatePanel(true, false)).toBe(true)
+    expect(shouldShowEditorTemplatePanel(true, true)).toBe(false)
+    expect(shouldShowEditorTemplatePanel(false, false)).toBe(false)
+  })
+
+  it('toggles collapsible editor sections in state', () => {
+    const collapsed = toggleEditorSectionCollapsedState([], 'objectives')
+    expect(isEditorSectionCollapsedInState(collapsed, 'objectives')).toBe(true)
+
+    const expanded = toggleEditorSectionCollapsedState(collapsed, 'objectives')
+    expect(isEditorSectionCollapsedInState(expanded, 'objectives')).toBe(false)
+  })
+
+  it('ignores collapse operations for non-collapsible basic section', () => {
+    const collapsed = setEditorSectionCollapsedState([], 'basic', true)
+    expect(collapsed).toEqual([])
+  })
+
+  it('normalizes and persists editor view preference payload', () => {
+    const normalized = normalizeEditorCollapsibleSections([
+      'process',
+      'process',
+      'unknown',
+      'objectives',
+    ])
+    expect(normalized).toEqual(['process', 'objectives'])
+
+    const serialized = serializeEditorViewPreference({
+      focusMode: true,
+      collapsedSections: ['process', 'objectives'],
+    })
+    const parsed = parseEditorViewPreference(serialized)
+    expect(parsed).toEqual({
+      focusMode: true,
+      collapsedSections: ['process', 'objectives'],
+    })
+  })
+
+  it('returns null for invalid editor view preference payload', () => {
+    expect(parseEditorViewPreference(null)).toBeNull()
+    expect(parseEditorViewPreference('{"focusMode":"yes"}')).toBeNull()
+  })
+
+  it('resolves active editor section from viewport positions', () => {
+    expect(
+      resolveActiveEditorSectionFromViewport(
+        [
+          { section: 'basic', top: 120 },
+          { section: 'objectives', top: 520 },
+          { section: 'keyPoints', top: 860 },
+        ],
+        null,
+        160
+      )
+    ).toBe('basic')
+
+    expect(
+      resolveActiveEditorSectionFromViewport(
+        [
+          { section: 'basic', top: -780 },
+          { section: 'objectives', top: -120 },
+          { section: 'keyPoints', top: 260 },
+          { section: 'process', top: 680 },
+        ],
+        'basic',
+        160
+      )
+    ).toBe('objectives')
+
+    expect(
+      resolveActiveEditorSectionFromViewport(
+        [
+          { section: 'basic', top: -1200 },
+          { section: 'objectives', top: -700 },
+          { section: 'keyPoints', top: -300 },
+          { section: 'process', top: -40 },
+        ],
+        'basic',
+        160
+      )
+    ).toBe('process')
+
+    expect(resolveActiveEditorSectionFromViewport([], 'reflection', 160)).toBe('reflection')
   })
 })

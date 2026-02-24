@@ -1,4 +1,5 @@
 import { Elysia, t } from 'elysia';
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { authMiddleware, requireAuth } from '../middleware/auth';
 import { LRUCache } from 'lru-cache';
@@ -83,6 +84,244 @@ async function fetchAnalyticsData(userId: string) {
       averageScore: qualityScore
     },
     trend: monthlyTrend
+  };
+}
+
+interface TeachingChainFilters {
+  semesterId?: string;
+  courseId?: string;
+  weekNo?: number;
+}
+
+async function fetchTeachingChainAnalytics(userId: string, filters: TeachingChainFilters) {
+  const where: Prisma.TeachingPlanLessonWhereInput = {
+    book: {
+      teacherId: userId,
+      ...(filters.semesterId ? { semesterId: filters.semesterId } : {}),
+      ...(filters.courseId ? { courseOffering: { courseId: filters.courseId } } : {}),
+    },
+    ...(filters.weekNo ? { weekNo: filters.weekNo } : {}),
+  };
+
+  const lessons = await prisma.teachingPlanLesson.findMany({
+    where,
+    select: {
+      id: true,
+      lessonNo: true,
+      title: true,
+      weekNo: true,
+      duration: true,
+      status: true,
+      deliveryPlanId: true,
+      deliveryPlanWeekId: true,
+      ideologicalElements: true,
+      integrationMethod: true,
+      courseStandardTopicRefs: true,
+      book: {
+        select: {
+          id: true,
+          title: true,
+          semesterId: true,
+          semester: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          courseOffering: {
+            select: {
+              id: true,
+              className: true,
+              course: {
+                select: {
+                  id: true,
+                  code: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (lessons.length === 0) {
+    return {
+      summary: {
+        totalLessons: 0,
+        publishedLessons: 0,
+        totalBooks: 0,
+        totalSemesters: 0,
+        totalCourses: 0,
+        totalWeeks: 0,
+        averageLessonDuration: 0,
+        consistencyScore: 0,
+        deliveryTraceCoverage: 0,
+        coursewareTraceCoverage: 0,
+      },
+      bySemester: [],
+      byCourse: [],
+      byWeek: [],
+      filters,
+    };
+  }
+
+  const lessonIds = lessons.map((lesson) => lesson.id);
+  const traceLinks = await prisma.traceLink.findMany({
+    where: {
+      OR: [
+        {
+          type: 'DELIVERY_TO_LESSON',
+          targetType: 'teaching-plan-lesson',
+          targetId: { in: lessonIds },
+        },
+        {
+          type: 'LESSON_TO_COURSEWARE',
+          sourceType: 'teaching-plan-lesson',
+          sourceId: { in: lessonIds },
+        },
+      ],
+    },
+    select: {
+      type: true,
+      sourceId: true,
+      targetId: true,
+    },
+  });
+
+  const deliveryTraceLessonIdSet = new Set(
+    traceLinks.filter((link) => link.type === 'DELIVERY_TO_LESSON').map((link) => link.targetId)
+  );
+  const coursewareTraceLessonIdSet = new Set(
+    traceLinks.filter((link) => link.type === 'LESSON_TO_COURSEWARE').map((link) => link.sourceId)
+  );
+
+  const semesterMap = new Map<
+    string,
+    { semesterId: string; semesterName: string; totalLessons: number; publishedLessons: number; consistencyScoreSum: number }
+  >();
+  const courseMap = new Map<
+    string,
+    { courseId: string; courseCode: string; courseName: string; totalLessons: number; publishedLessons: number; consistencyScoreSum: number }
+  >();
+  const weekMap = new Map<number, { weekNo: number; totalLessons: number; publishedLessons: number; totalDuration: number; consistencyScoreSum: number }>();
+
+  const bookIdSet = new Set<string>();
+  const semesterIdSet = new Set<string>();
+  const courseIdSet = new Set<string>();
+  const weekSet = new Set<number>();
+
+  let publishedLessons = 0;
+  let totalDuration = 0;
+  let consistencyScoreSum = 0;
+  let deliveryTraceCount = 0;
+  let coursewareTraceCount = 0;
+
+  for (const lesson of lessons) {
+    const hasPlanLink = Boolean(lesson.deliveryPlanId && lesson.deliveryPlanWeekId);
+    const hasIdeology = Boolean((lesson.ideologicalElements || '').trim() && (lesson.integrationMethod || '').trim());
+    const hasStandardRefs = lesson.courseStandardTopicRefs.length > 0;
+    const hasDeliveryTrace = deliveryTraceLessonIdSet.has(lesson.id);
+    const hasCoursewareTrace = coursewareTraceLessonIdSet.has(lesson.id);
+    const lessonConsistencyScore =
+      (hasPlanLink ? 20 : 0) +
+      (hasIdeology ? 20 : 0) +
+      (hasStandardRefs ? 20 : 0) +
+      (hasDeliveryTrace ? 20 : 0) +
+      (hasCoursewareTrace ? 20 : 0);
+
+    totalDuration += lesson.duration || 0;
+    consistencyScoreSum += lessonConsistencyScore;
+    if (lesson.status === 'PUBLISHED') {
+      publishedLessons += 1;
+    }
+    if (hasDeliveryTrace) {
+      deliveryTraceCount += 1;
+    }
+    if (hasCoursewareTrace) {
+      coursewareTraceCount += 1;
+    }
+
+    const semesterId = lesson.book.semester.id;
+    const semesterName = lesson.book.semester.name;
+    if (!semesterMap.has(semesterId)) {
+      semesterMap.set(semesterId, { semesterId, semesterName, totalLessons: 0, publishedLessons: 0, consistencyScoreSum: 0 });
+    }
+    const semesterStat = semesterMap.get(semesterId)!;
+    semesterStat.totalLessons += 1;
+    semesterStat.consistencyScoreSum += lessonConsistencyScore;
+    if (lesson.status === 'PUBLISHED') {
+      semesterStat.publishedLessons += 1;
+    }
+
+    const courseId = lesson.book.courseOffering.course.id;
+    const courseName = lesson.book.courseOffering.course.name;
+    const courseCode = lesson.book.courseOffering.course.code;
+    if (!courseMap.has(courseId)) {
+      courseMap.set(courseId, { courseId, courseCode, courseName, totalLessons: 0, publishedLessons: 0, consistencyScoreSum: 0 });
+    }
+    const courseStat = courseMap.get(courseId)!;
+    courseStat.totalLessons += 1;
+    courseStat.consistencyScoreSum += lessonConsistencyScore;
+    if (lesson.status === 'PUBLISHED') {
+      courseStat.publishedLessons += 1;
+    }
+
+    if (lesson.weekNo) {
+      if (!weekMap.has(lesson.weekNo)) {
+        weekMap.set(lesson.weekNo, {
+          weekNo: lesson.weekNo,
+          totalLessons: 0,
+          publishedLessons: 0,
+          totalDuration: 0,
+          consistencyScoreSum: 0,
+        });
+      }
+      const weekStat = weekMap.get(lesson.weekNo)!;
+      weekStat.totalLessons += 1;
+      weekStat.totalDuration += lesson.duration || 0;
+      weekStat.consistencyScoreSum += lessonConsistencyScore;
+      if (lesson.status === 'PUBLISHED') {
+        weekStat.publishedLessons += 1;
+      }
+      weekSet.add(lesson.weekNo);
+    }
+
+    bookIdSet.add(lesson.book.id);
+    semesterIdSet.add(semesterId);
+    courseIdSet.add(courseId);
+  }
+
+  return {
+    summary: {
+      totalLessons: lessons.length,
+      publishedLessons,
+      totalBooks: bookIdSet.size,
+      totalSemesters: semesterIdSet.size,
+      totalCourses: courseIdSet.size,
+      totalWeeks: weekSet.size,
+      averageLessonDuration: lessons.length === 0 ? 0 : Math.round(totalDuration / lessons.length),
+      consistencyScore: lessons.length === 0 ? 0 : Math.round(consistencyScoreSum / lessons.length),
+      deliveryTraceCoverage: lessons.length === 0 ? 0 : Math.round((deliveryTraceCount / lessons.length) * 100),
+      coursewareTraceCoverage: lessons.length === 0 ? 0 : Math.round((coursewareTraceCount / lessons.length) * 100),
+    },
+    bySemester: Array.from(semesterMap.values()).map((item) => ({
+      ...item,
+      consistencyScore: item.totalLessons === 0 ? 0 : Math.round(item.consistencyScoreSum / item.totalLessons),
+    })),
+    byCourse: Array.from(courseMap.values()).map((item) => ({
+      ...item,
+      consistencyScore: item.totalLessons === 0 ? 0 : Math.round(item.consistencyScoreSum / item.totalLessons),
+    })),
+    byWeek: Array.from(weekMap.values())
+      .sort((a, b) => a.weekNo - b.weekNo)
+      .map((item) => ({
+        ...item,
+        averageDuration: item.totalLessons === 0 ? 0 : Math.round(item.totalDuration / item.totalLessons),
+        consistencyScore: item.totalLessons === 0 ? 0 : Math.round(item.consistencyScoreSum / item.totalLessons),
+      })),
+    filters,
   };
 }
 
@@ -250,6 +489,44 @@ export const analyticsRoutes = new Elysia({ prefix: '/analytics' })
     };
     cache.set(cacheKey, data);
     return data;
+  })
+
+  .get('/teaching-chain', async ({ user, query, set }) => {
+    let weekNo: number | undefined;
+    if (query.weekNo !== undefined) {
+      const parsedWeekNo = Number(query.weekNo);
+      if (!Number.isInteger(parsedWeekNo) || parsedWeekNo < 1) {
+        set.status = 422;
+        return {
+          success: false,
+          message: 'weekNo must be a positive integer',
+        };
+      }
+      weekNo = parsedWeekNo;
+    }
+
+    const filters: TeachingChainFilters = {
+      semesterId: query.semesterId,
+      courseId: query.courseId,
+      weekNo,
+    };
+
+    const cacheKey = `teaching-chain:${user!.userId}:${filters.semesterId || ''}:${filters.courseId || ''}:${filters.weekNo || ''}`;
+    if (cache.has(cacheKey)) return cache.get(cacheKey);
+
+    const metrics = await fetchTeachingChainAnalytics(user!.userId, filters);
+    const data = {
+      success: true,
+      data: metrics,
+    };
+    cache.set(cacheKey, data);
+    return data;
+  }, {
+    query: t.Object({
+      semesterId: t.Optional(t.String()),
+      courseId: t.Optional(t.String()),
+      weekNo: t.Optional(t.String()),
+    })
   })
 
   /**

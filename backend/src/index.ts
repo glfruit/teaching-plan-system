@@ -5,6 +5,7 @@ import { teachingPlanRoutes } from './routes/teaching-plans'
 import { exportRoutes } from './routes/export'
 import { analyticsRoutes } from './routes/analytics'
 import { planTemplateRoutes } from './routes/plan-templates'
+import { academicRoutes } from './routes/academic'
 import { resolvePort } from './lib/server-config'
 
 const PORT = resolvePort(process.env.PORT)
@@ -17,6 +18,7 @@ const app = new Elysia()
   .use(authRoutes)
   .use(teachingPlanRoutes)
   .use(planTemplateRoutes)
+  .use(academicRoutes)
   .use(exportRoutes)
   .use(analyticsRoutes)
   .get('/health', () => ({

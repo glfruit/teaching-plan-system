@@ -26,7 +26,7 @@ describe('tablet breakpoint layout', () => {
 
   it('keeps EditorView single-column on tablet and two-column on desktop', () => {
     expect(editorView).toContain('editor-layout-shell grid grid-cols-1 gap-4 lg:gap-6')
-    expect(editorView).toContain("showTemplatePanel ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : 'lg:grid-cols-1 lg:justify-items-center'")
+    expect(editorView).toContain("shouldRenderTemplatePanel ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : 'lg:grid-cols-1 lg:justify-items-center'")
     expect(editorView).toContain('sm:p-6')
   })
 })

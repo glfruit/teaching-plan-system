@@ -15,7 +15,7 @@
             </router-link>
             
             <div class="min-w-0">
-              <h1 class="text-base sm:text-lg font-semibold text-slate-800 truncate">{{ isEditing ? '编辑教案' : '新建教案' }}</h1>
+              <h1 class="text-base sm:text-lg font-semibold text-slate-800 truncate">{{ editorPageTitle }}</h1>
               <p class="hidden lg:block text-xs text-[#647269] truncate">{{ contentSourceLabel }} · {{ editorStatusText }}</p>
               <p v-if="localDraftMessage" class="hidden xl:block text-[11px] text-emerald-600 truncate max-w-[24rem]">{{ localDraftMessage }}</p>
             </div>
@@ -25,8 +25,20 @@
             <!-- Desktop Buttons -->
             <div class="hidden sm:flex items-center gap-3">
               <button
-                @click="showTemplatePanel = !showTemplatePanel"
+                @click="handleToggleFocusMode"
                 class="inline-flex items-center gap-1.5 px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors font-medium"
+                :class="isFocusMode ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : ''"
+              >
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M7 4h10M7 20h10M4 17h16" />
+                </svg>
+                <span>{{ isFocusMode ? '退出专注' : '专注模式' }}</span>
+              </button>
+              <button
+                @click="showTemplatePanel = !showTemplatePanel"
+                :disabled="isFocusMode"
+                class="inline-flex items-center gap-1.5 px-4 py-2 text-slate-700 bg-white border border-slate-300 rounded hover:bg-slate-50 transition-colors font-medium"
+                :class="isFocusMode ? 'cursor-not-allowed opacity-50' : ''"
               >
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5 5.145 5 3.118 5.87 2 7.124v11.502C3.118 17.37 5.145 16.5 7.5 16.5c1.746 0 3.332.477 4.5 1.253m0-11.5C13.168 5.477 14.754 5 16.5 5c2.355 0 4.382.87 5.5 2.124v11.502C20.882 17.37 18.855 16.5 16.5 16.5c-1.746 0-3.332.477-4.5 1.253" />
@@ -43,12 +55,12 @@
               </button>
               
               <button
-                v-if="isEditing && planStore.currentPlan?.status === 'DRAFT'"
+                v-if="canPublishCurrentDocument"
                 @click="handlePublish"
-                :disabled="planStore.isSaving"
+                :disabled="isEditorSaving"
                 class="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700 transition-colors font-medium disabled:opacity-50 shadow-sm"
               >
-                发布
+                {{ publishButtonText }}
               </button>
 
               <button
@@ -73,10 +85,10 @@
               
               <button
                 @click="handleSave"
-                :disabled="planStore.isSaving || !isFormValid"
+                :disabled="isEditorSaving || !isFormValid"
                 class="px-4 py-2 bg-[#647269] text-white rounded hover:bg-[#55645b] transition-colors font-medium disabled:opacity-50 shadow-sm"
               >
-                {{ planStore.isSaving ? '保存中...' : '保存' }}
+                {{ isEditorSaving ? '保存中...' : '保存' }}
               </button>
             </div>
 
@@ -106,7 +118,7 @@
 
       <section
         class="mb-4 rounded border border-slate-200 bg-white p-4 shadow-sm"
-        :class="showTemplatePanel ? '' : 'mx-auto w-full max-w-4xl'"
+        :class="shouldRenderTemplatePanel ? '' : 'mx-auto w-full max-w-4xl'"
       >
         <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div class="flex flex-wrap items-center gap-2">
@@ -119,12 +131,93 @@
             <span class="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-medium text-emerald-700">
               进度 {{ editorCompletionSummary.score }}%
             </span>
+            <span
+              v-if="isFocusMode"
+              class="inline-flex items-center rounded-sm border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-sm font-medium text-emerald-700"
+            >
+              专注编辑中
+            </span>
+          </div>
+          <div class="flex flex-wrap items-center gap-2">
+            <button
+              @click="showOutlineDialog = true"
+              class="h-10 rounded border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              章节大纲
+            </button>
+            <button
+              @click="isAllCollapsibleSectionsCollapsed ? handleExpandAllEditorSections() : handleCollapseAllEditorSections()"
+              class="h-10 rounded border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {{ isAllCollapsibleSectionsCollapsed ? '展开正文分区' : '收起正文分区' }}
+            </button>
+            <button
+              @click="showProgressAssistantDialog = true"
+              class="h-10 rounded border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              查看编写助手
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section
+        class="mb-4 rounded border border-slate-200 bg-white p-4 shadow-sm"
+        :class="shouldRenderTemplatePanel ? '' : 'mx-auto w-full max-w-4xl'"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <p class="text-sm font-semibold text-slate-800">编辑导航</p>
+            <span class="inline-flex items-center rounded border border-sky-200 bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">
+              当前分区：{{ resolveEditorSectionLabelForView(activeEditorSection) }}
+            </span>
           </div>
           <button
-            @click="showProgressAssistantDialog = true"
-            class="h-10 rounded border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            @click="handleFocusNextIncompleteSection"
+            class="h-9 rounded border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-50"
           >
-            查看编写助手
+            下一待补分区
+          </button>
+        </div>
+        <div class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+          <button
+            v-for="item in editorSectionCompletionItems"
+            :key="`editor-section-nav-${item.section}`"
+            @click="handleFocusEditorSection(item.section)"
+            class="rounded border px-2.5 py-2 text-left transition-colors"
+            :class="[
+              isActiveEditorSectionForView(item.section)
+                ? 'border-sky-300 bg-sky-50/80 ring-1 ring-sky-200'
+                :
+              item.status === 'complete'
+                ? 'border-emerald-200 bg-emerald-50/60'
+                : item.requiredMissingLabels.length > 0
+                  ? 'border-amber-200 bg-amber-50/60'
+                  : 'border-slate-200 bg-slate-50/60',
+            ]"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-xs font-medium text-slate-700">{{ item.label }}</p>
+                <span
+                  v-if="isActiveEditorSectionForView(item.section)"
+                  class="rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700"
+                >
+                当前
+              </span>
+            </div>
+            <p class="mt-1 text-[11px] text-slate-500">{{ item.filledCount }}/{{ item.totalCount }}</p>
+            <p
+              class="mt-1 text-[10px] font-medium"
+              :class="item.status === 'complete' ? 'text-emerald-700' : item.requiredMissingLabels.length > 0 ? 'text-amber-700' : 'text-slate-500'"
+            >
+              {{
+                item.status === 'complete'
+                  ? '已完成'
+                  : item.requiredMissingLabels.length > 0
+                    ? '缺必填'
+                    : '待完善'
+              }}
+            </p>
           </button>
         </div>
       </section>
@@ -369,16 +462,192 @@
       </div>
 
       <div
+        v-if="showOutlineDialog"
+        class="fixed inset-0 z-40 bg-slate-900/45 p-4 overflow-y-auto"
+        @click.self="showOutlineDialog = false"
+      >
+        <div class="mx-auto mt-8 max-w-md rounded border border-slate-200 bg-white p-5 shadow-lg sm:p-6">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-lg font-semibold text-slate-900">章节大纲</p>
+              <p class="mt-1 text-sm text-slate-500">点击可快速定位到对应编辑分区。</p>
+            </div>
+            <button
+              @click="showOutlineDialog = false"
+              class="inline-flex h-9 w-9 items-center justify-center rounded border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+              title="关闭"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="mt-4 space-y-2">
+            <button
+              v-for="item in editorOutlineItems"
+              :key="`outline-${item.section}`"
+              @click="handleFocusOutlineSection(item.section)"
+              class="flex w-full items-center justify-between rounded border px-3 py-2 text-left transition-colors"
+              :class="isActiveEditorSectionForView(item.section)
+                ? 'border-sky-300 bg-sky-50/80 ring-1 ring-sky-200'
+                : item.status === 'complete'
+                ? 'border-emerald-200 bg-emerald-50/60'
+                : item.requiredMissingCount > 0
+                  ? 'border-amber-200 bg-amber-50/60'
+                  : 'border-slate-200 bg-slate-50/60'"
+            >
+              <span class="text-sm font-medium text-slate-700">
+                {{ item.label }}
+                <span
+                  v-if="isActiveEditorSectionForView(item.section)"
+                  class="ml-1 inline-flex items-center rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-700"
+                >
+                  当前
+                </span>
+              </span>
+              <span class="text-xs font-medium text-slate-500">
+                {{ item.progress }}%
+                <span v-if="item.requiredMissingCount > 0" class="text-amber-700"> · 缺{{ item.requiredMissingCount }}项</span>
+              </span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="showTimelineApplyPreviewDialog"
+        class="fixed inset-0 z-40 bg-slate-900/45 p-4 overflow-y-auto"
+        @click.self="showTimelineApplyPreviewDialog = false"
+      >
+        <div class="mx-auto mt-8 max-w-2xl rounded border border-slate-200 bg-white p-5 shadow-lg sm:p-6">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <p class="text-lg font-semibold text-slate-900">时间轴应用预览</p>
+              <p class="mt-1 text-sm text-slate-500">
+                {{ timelineApplyPreview.mode === 'replace' ? '将替换当前教学过程正文' : '将追加到当前教学过程末尾' }}
+              </p>
+            </div>
+            <button
+              @click="showTimelineApplyPreviewDialog = false"
+              class="inline-flex h-9 w-9 items-center justify-center rounded border border-slate-300 bg-white text-slate-600 hover:bg-slate-50"
+              title="关闭"
+            >
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          <div class="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div class="rounded border border-slate-200 bg-slate-50 p-2">
+              <p class="text-[11px] text-slate-500">有效环节</p>
+              <p class="text-sm font-semibold text-slate-800">{{ timelineApplyPreview.stepCount }}</p>
+            </div>
+            <div class="rounded border border-slate-200 bg-slate-50 p-2">
+              <p class="text-[11px] text-slate-500">草案分钟</p>
+              <p class="text-sm font-semibold text-slate-800">{{ timelineApplyPreview.minuteTotal }}</p>
+            </div>
+            <div class="rounded border border-slate-200 bg-slate-50 p-2">
+              <p class="text-[11px] text-slate-500">当前文本长度</p>
+              <p class="text-sm font-semibold text-slate-800">{{ timelineApplyPreview.currentTextLength }}</p>
+            </div>
+            <div class="rounded border border-slate-200 bg-slate-50 p-2">
+              <p class="text-[11px] text-slate-500">应用后文本长度</p>
+              <p class="text-sm font-semibold text-slate-800">{{ timelineApplyPreview.nextTextLength }}</p>
+            </div>
+          </div>
+
+          <div class="mt-4 rounded border border-slate-200 bg-slate-50 p-3">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-xs font-medium text-slate-600">差异高亮（替换前后）</p>
+              <span class="text-[11px] text-slate-500">变更行 {{ timelineApplyPreviewDiff.changedCount }}</span>
+            </div>
+            <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div class="rounded border border-slate-200 bg-white p-2">
+                <p class="text-[11px] font-medium text-slate-500">替换前</p>
+                <div class="mt-1 max-h-40 overflow-auto space-y-1">
+                  <p
+                    v-for="item in timelineApplyPreviewDiff.before"
+                    :key="item.key"
+                    class="rounded px-1.5 py-1 text-xs break-words"
+                    :class="item.changed ? 'bg-rose-50 text-rose-700' : 'bg-slate-50 text-slate-600'"
+                  >
+                    {{ item.text }}
+                  </p>
+                  <p v-if="timelineApplyPreviewDiff.before.length === 0" class="text-xs text-slate-400">无内容</p>
+                </div>
+              </div>
+              <div class="rounded border border-slate-200 bg-white p-2">
+                <p class="text-[11px] font-medium text-slate-500">替换后</p>
+                <div class="mt-1 max-h-40 overflow-auto space-y-1">
+                  <p
+                    v-for="item in timelineApplyPreviewDiff.after"
+                    :key="item.key"
+                    class="rounded px-1.5 py-1 text-xs break-words"
+                    :class="item.changed ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-600'"
+                  >
+                    {{ item.text }}
+                  </p>
+                  <p v-if="timelineApplyPreviewDiff.after.length === 0" class="text-xs text-slate-400">无内容</p>
+                </div>
+              </div>
+            </div>
+            <p class="mt-2 text-xs text-slate-500 break-words">
+              预览片段：{{ timelineApplyPreview.nextProcessPreviewText || '暂无可预览内容' }}
+            </p>
+          </div>
+
+          <div class="mt-4 flex flex-wrap justify-end gap-2">
+            <button
+              @click="showTimelineApplyPreviewDialog = false"
+              class="h-9 rounded border border-slate-300 bg-white px-4 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              取消
+            </button>
+            <button
+              @click="handleConfirmProcessTimelineApplyPreview"
+              :disabled="!timelineApplyPreview.canApply"
+              class="h-9 rounded bg-[#647269] px-4 text-sm text-white disabled:opacity-50"
+            >
+              确认应用
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div
         class="editor-layout-shell grid grid-cols-1 gap-4 lg:gap-6"
-        :class="showTemplatePanel ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : 'lg:grid-cols-1 lg:justify-items-center'"
+        :class="shouldRenderTemplatePanel ? 'lg:grid-cols-[minmax(0,1fr)_320px]' : 'lg:grid-cols-1 lg:justify-items-center'"
       >
       <aside
-        v-if="showTemplatePanel"
+        v-if="shouldRenderTemplatePanel"
         aria-label="模板工作台"
         class="editor-template-panel bg-white rounded shadow-sm border border-slate-100 p-4 sm:p-6 lg:sticky lg:top-24"
       >
         <h2 class="text-base sm:text-lg font-semibold text-slate-800 mb-1">模板工作台</h2>
         <p class="text-xs text-slate-500 mb-4">可检索、套用与维护个人模板</p>
+        <div class="mb-4 rounded border border-slate-200 bg-slate-50 p-3">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-xs font-semibold text-slate-700">当前编写分区</p>
+            <span class="inline-flex items-center rounded border border-sky-200 bg-sky-50 px-1.5 py-0.5 text-[11px] font-medium text-sky-700">
+              {{ resolveEditorSectionLabelForView(activeEditorSection) }}
+            </span>
+          </div>
+          <div class="mt-2 grid grid-cols-2 gap-1.5">
+            <button
+              v-for="item in editorSectionCompletionItems"
+              :key="`template-outline-${item.section}`"
+              @click="handleFocusEditorSection(item.section)"
+              class="rounded border px-2 py-1.5 text-left text-[11px] transition-colors"
+              :class="isActiveEditorSectionForView(item.section)
+                ? 'border-sky-300 bg-sky-50 text-sky-700'
+                : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'"
+            >
+              {{ item.label }}
+            </button>
+          </div>
+        </div>
         <div class="grid grid-cols-1 gap-4">
           <div>
             <label class="block text-sm font-medium text-slate-700 mb-2">模板检索</label>
@@ -680,7 +949,7 @@
 
       <div
         class="min-w-0 space-y-4 sm:space-y-6"
-        :class="showTemplatePanel ? '' : 'w-full max-w-4xl'"
+        :class="shouldRenderTemplatePanel ? '' : 'w-full max-w-4xl'"
       >
       <!-- Basic Info -->
       <section id="editor-section-basic" class="bg-white rounded shadow-sm border border-slate-100 p-4 sm:p-6">
@@ -799,84 +1068,989 @@
         </div>
       </section>
 
+      <section
+        v-if="isLessonEditorMode"
+        class="bg-white rounded shadow-sm border border-slate-100 p-4 sm:p-6"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-base sm:text-lg font-semibold text-slate-800">单次课链路映证</h2>
+          <button
+            @click="handleRunLessonTraceabilityCheck"
+            :disabled="isLessonTraceabilityChecking"
+            class="h-9 rounded border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+          >
+            {{ isLessonTraceabilityChecking ? '校验中...' : '执行映证校验' }}
+          </button>
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="md:col-span-2 rounded border border-slate-200 bg-slate-50 p-3 sm:p-4">
+            <p class="text-sm font-medium text-slate-700">课堂教学教案头信息（No.x）</p>
+            <div class="mt-3 grid grid-cols-1 gap-3 text-xs text-slate-600 sm:grid-cols-2 lg:grid-cols-4">
+              <div class="rounded border border-slate-200 bg-white px-3 py-2">
+                <p class="text-[11px] text-slate-500">授课教师</p>
+                <p class="mt-1 font-medium text-slate-800">{{ lessonHeaderTeacherName || '未填写（来自教案册）' }}</p>
+              </div>
+              <div class="rounded border border-slate-200 bg-white px-3 py-2">
+                <p class="text-[11px] text-slate-500">课程</p>
+                <p class="mt-1 font-medium text-slate-800">{{ lessonHeaderCourseName || form.courseName || '未关联课程' }}</p>
+              </div>
+              <div class="rounded border border-slate-200 bg-white px-3 py-2">
+                <p class="text-[11px] text-slate-500">课题</p>
+                <p class="mt-1 font-medium text-slate-800">{{ form.title || '未填写' }}</p>
+              </div>
+              <div class="rounded border border-slate-200 bg-white px-3 py-2">
+                <p class="text-[11px] text-slate-500">授课班级</p>
+                <p class="mt-1 font-medium text-slate-800">{{ form.className || '未填写' }}</p>
+              </div>
+            </div>
+          </div>
+          <div>
+            <BaseInput
+              v-model="lessonContext.lessonType"
+              label="课型"
+              placeholder="例如：理论课/理实一体课"
+              size="md"
+            />
+          </div>
+          <div id="lesson-field-week-no">
+            <BaseInput
+              v-model="lessonWeekNoText"
+              label="关联周次"
+              type="number"
+              placeholder="例如：1"
+              size="md"
+            />
+          </div>
+          <div>
+            <BaseInput
+              v-model="lessonContext.weekday"
+              label="星期"
+              placeholder="例如：星期三"
+              size="md"
+            />
+          </div>
+          <div>
+            <BaseInput
+              v-model="lessonContext.period"
+              label="节次"
+              placeholder="例如：第3-4节"
+              size="md"
+            />
+          </div>
+          <div>
+            <BaseInput
+              v-model="lessonContext.lessonDate"
+              label="日期"
+              type="date"
+              size="md"
+            />
+          </div>
+          <div id="lesson-field-ideology">
+            <BaseInput
+              v-model="lessonContext.ideologicalElements"
+              label="课程思政元素"
+              placeholder="例如：工匠精神、职业规范"
+              size="md"
+            />
+          </div>
+          <div id="lesson-field-integration">
+            <BaseInput
+              v-model="lessonContext.integrationMethod"
+              label="融入方式"
+              placeholder="例如：案例讨论、任务驱动"
+              size="md"
+            />
+          </div>
+          <div>
+            <BaseInput
+              v-model="lessonContext.difficulty"
+              label="教学难点"
+              placeholder="例如：概念迁移与综合应用"
+              size="md"
+            />
+          </div>
+          <div>
+            <BaseInput
+              v-model="lessonContext.teachingAids"
+              label="方法与教具"
+              placeholder="例如：任务驱动+PPT+实训平台"
+              size="md"
+            />
+          </div>
+          <div id="lesson-field-topic-refs" class="md:col-span-2 rounded border border-slate-200 bg-slate-50 p-3 sm:p-4">
+            <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <p class="text-sm font-medium text-slate-700">课程标准条目引用</p>
+              <p class="text-xs text-slate-500">
+                已选 {{ lessonContext.courseStandardTopicRefs.length }} / {{ lessonTopicCandidates.length }}
+              </p>
+            </div>
+
+            <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                v-model="lessonTopicSearch"
+                type="text"
+                class="h-9 w-full rounded border border-slate-300 bg-white px-3 text-sm text-slate-700 outline-none transition focus:border-emerald-300 focus:ring-2 focus:ring-emerald-100"
+                placeholder="搜索条目标题、模块或 ID"
+              />
+              <button
+                type="button"
+                @click="handleSelectAllFilteredLessonTopics"
+                :disabled="filteredLessonTopicCandidates.length === 0"
+                class="h-9 rounded border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                全选筛选结果
+              </button>
+              <button
+                type="button"
+                @click="handleClearAllLessonTopicRefs"
+                :disabled="lessonContext.courseStandardTopicRefs.length === 0"
+                class="h-9 rounded border border-red-200 bg-red-50 px-3 text-xs font-medium text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                清空已选
+              </button>
+            </div>
+
+            <div class="mt-3 rounded border border-slate-200 bg-white p-2">
+              <p v-if="isLessonTopicLoading" class="px-2 py-3 text-xs text-slate-500">正在加载授课计划条目...</p>
+              <p v-else-if="!lessonContext.deliveryPlanId" class="px-2 py-3 text-xs text-slate-500">
+                未绑定授课计划，暂无法加载候选条目。
+              </p>
+              <p v-else-if="filteredLessonTopicCandidates.length === 0" class="px-2 py-3 text-xs text-slate-500">
+                未找到可选条目，请调整搜索条件或检查授课计划配置。
+              </p>
+              <div v-else class="max-h-52 space-y-1 overflow-y-auto pr-1">
+                <label
+                  v-for="item in filteredLessonTopicCandidates"
+                  :key="`lesson-topic-candidate-${item.id}`"
+                  class="flex cursor-pointer items-start gap-2 rounded border border-transparent px-2 py-1.5 hover:border-slate-200 hover:bg-slate-50"
+                >
+                  <input
+                    type="checkbox"
+                    class="mt-0.5 h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    :checked="lessonTopicRefSet.has(item.id)"
+                    @change="handleToggleLessonTopicRef(item.id)"
+                  />
+                  <div class="min-w-0 flex-1">
+                    <p class="truncate text-sm font-medium text-slate-700">{{ item.title }}</p>
+                    <p class="mt-0.5 truncate text-xs text-slate-500">{{ item.moduleName }} · {{ item.id }}</p>
+                  </div>
+                  <span
+                    v-if="currentWeekLinkedTopicSet.has(item.id)"
+                    class="inline-flex shrink-0 items-center rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700"
+                  >
+                    本周推荐
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <p v-if="lessonContext.weekNo !== null" class="mt-2 text-xs text-slate-500">
+              当前周次推荐条目数：{{ currentWeekLinkedTopicIds.length }}
+            </p>
+
+            <div
+              v-if="orphanLessonTopicRefs.length > 0"
+              class="mt-3 rounded border border-amber-200 bg-amber-50 p-2.5"
+            >
+              <p class="text-xs font-medium text-amber-700">存在未匹配条目（可能来自旧数据或模板变更）</p>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <span
+                  v-for="topicId in orphanLessonTopicRefs"
+                  :key="`lesson-topic-orphan-${topicId}`"
+                  class="inline-flex items-center rounded border border-amber-300 bg-white px-1.5 py-0.5 font-mono text-[11px] text-amber-700"
+                >
+                  {{ topicId }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div class="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+            <p class="text-xs text-slate-500">授课计划 ID</p>
+            <p class="mt-1 text-xs font-mono text-slate-700 break-all">{{ lessonContext.deliveryPlanId || '未关联' }}</p>
+          </div>
+          <div class="rounded border border-slate-200 bg-slate-50 px-3 py-2">
+            <p class="text-xs text-slate-500">周次记录 ID</p>
+            <p class="mt-1 text-xs font-mono text-slate-700 break-all">{{ lessonContext.deliveryPlanWeekId || '未关联' }}</p>
+          </div>
+        </div>
+
+        <div
+          id="lesson-courseware-traceability"
+          class="mt-4 rounded border border-slate-200 bg-slate-50 p-3 sm:p-4"
+        >
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm font-semibold text-slate-800">课件附件映证</p>
+            <button
+              type="button"
+              @click="loadLessonCoursewareAssets"
+              :disabled="isLessonCoursewareLoading"
+              class="h-8 rounded border border-slate-300 bg-white px-3 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {{ isLessonCoursewareLoading ? '刷新中...' : '刷新列表' }}
+            </button>
+          </div>
+
+          <p class="mt-2 text-xs text-slate-500">
+            当前已关联 {{ lessonCoursewareAssets.length }} 个附件。建议为每个附件补充章节与思政标签，提升映证完整度。
+          </p>
+          <p
+            v-if="editingLessonCoursewareAssetId"
+            class="mt-2 rounded border border-sky-200 bg-sky-50 px-2.5 py-1.5 text-xs text-sky-700"
+          >
+            正在编辑附件：{{ editingLessonCoursewareAssetId }}
+          </p>
+
+          <div class="mt-3 rounded border border-slate-200 bg-white p-3">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <p class="text-xs font-medium text-slate-700">
+                已选择 {{ selectedLessonCoursewareAssetIds.length }} / {{ lessonCoursewareAssets.length }} 条附件
+              </p>
+              <div class="flex items-center gap-2">
+                <button
+                  type="button"
+                  @click="handleToggleAllLessonCoursewareAssetSelection"
+                  class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                >
+                  {{ isAllLessonCoursewareSelected ? '取消全选' : '全选当前列表' }}
+                </button>
+                <button
+                  type="button"
+                  @click="handleClearLessonCoursewareAssetSelection"
+                  :disabled="selectedLessonCoursewareAssetIds.length === 0"
+                  class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  清空选择
+                </button>
+              </div>
+            </div>
+
+            <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <BaseInput
+                v-model="lessonCoursewareBatchForm.chapterRef"
+                label="批量章节"
+                placeholder="留空则不更新"
+                size="sm"
+              />
+              <BaseInput
+                v-model="lessonCoursewareBatchForm.tagsText"
+                label="批量标签"
+                placeholder="逗号分隔，留空则不更新"
+                size="sm"
+              />
+              <BaseInput
+                v-model="lessonCoursewareBatchForm.ideologicalElementsText"
+                label="批量思政标签"
+                placeholder="逗号分隔，留空则不更新"
+                size="sm"
+              />
+            </div>
+
+            <div class="mt-3 flex flex-wrap justify-end gap-2">
+              <button
+                type="button"
+                @click="resetLessonCoursewareBatchForm"
+                class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-100"
+              >
+                清空批量字段
+              </button>
+              <button
+                type="button"
+                @click="handleApplyLessonCoursewareBatchUpdate({ onlyMissing: false })"
+                :disabled="isLessonCoursewareBatchUpdating"
+                class="h-8 rounded border border-sky-300 bg-sky-50 px-2.5 text-xs font-medium text-sky-700 hover:bg-sky-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {{ isLessonCoursewareBatchUpdating ? '处理中...' : '批量覆盖已选' }}
+              </button>
+              <button
+                type="button"
+                @click="handleApplyLessonCoursewareBatchUpdate({ onlyMissing: true })"
+                :disabled="isLessonCoursewareBatchUpdating"
+                class="h-8 rounded border border-amber-300 bg-amber-50 px-2.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {{ isLessonCoursewareBatchUpdating ? '处理中...' : '批量补齐缺失' }}
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <BaseInput
+              v-model="lessonCoursewareForm.title"
+              label="附件标题"
+              placeholder="例如：第 1 周教学课件"
+              size="sm"
+            />
+            <BaseInput
+              v-model="lessonCoursewareForm.fileName"
+              label="文件名"
+              placeholder="例如：week1.pptx"
+              size="sm"
+            />
+            <BaseInput
+              v-model="lessonCoursewareForm.fileUrl"
+              label="文件地址"
+              placeholder="例如：https://example.com/week1.pptx"
+              size="sm"
+            />
+            <BaseInput
+              v-model="lessonCoursewareForm.chapterRef"
+              label="对应章节"
+              placeholder="例如：模块一-主题1"
+              size="sm"
+            />
+            <BaseInput
+              v-model="lessonCoursewareForm.tagsText"
+              label="标签"
+              placeholder="逗号分隔，例如：PPT,示例代码"
+              size="sm"
+            />
+            <BaseInput
+              v-model="lessonCoursewareForm.ideologicalElementsText"
+              label="思政标签"
+              placeholder="逗号分隔，例如：工匠精神,团队协作"
+              size="sm"
+            />
+          </div>
+
+          <div class="mt-3 flex justify-end">
+            <div class="flex items-center gap-2">
+              <button
+                v-if="editingLessonCoursewareAssetId"
+                type="button"
+                @click="handleCancelEditLessonCoursewareAsset"
+                class="h-9 rounded border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 hover:bg-slate-100"
+              >
+                取消编辑
+              </button>
+              <button
+                type="button"
+                @click="handleCreateLessonCoursewareAsset"
+                :disabled="isLessonCoursewareSubmitting"
+                class="h-9 rounded bg-emerald-600 px-4 text-sm font-medium text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {{
+                  isLessonCoursewareSubmitting
+                    ? (editingLessonCoursewareAssetId ? '保存中...' : '添加中...')
+                    : (editingLessonCoursewareAssetId ? '保存修改' : '添加课件附件')
+                }}
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-3 overflow-x-auto rounded border border-slate-200 bg-white">
+            <table class="min-w-full text-xs text-slate-600 sm:text-sm">
+              <thead class="bg-slate-50 text-slate-500">
+                <tr>
+                  <th class="px-3 py-2 text-left font-medium w-10">
+                    <input
+                      type="checkbox"
+                      :checked="isAllLessonCoursewareSelected"
+                      @change="handleToggleAllLessonCoursewareAssetSelection"
+                      class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                  </th>
+                  <th class="px-3 py-2 text-left font-medium">标题</th>
+                  <th class="px-3 py-2 text-left font-medium">文件</th>
+                  <th class="px-3 py-2 text-left font-medium">章节</th>
+                  <th class="px-3 py-2 text-left font-medium">完整性</th>
+                  <th class="px-3 py-2 text-right font-medium">操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="asset in lessonCoursewareAssets"
+                  :key="`lesson-courseware-${asset.id}`"
+                  class="border-t border-slate-100"
+                >
+                  <td class="px-3 py-2">
+                    <input
+                      type="checkbox"
+                      :checked="selectedLessonCoursewareAssetIds.includes(asset.id)"
+                      @change="handleToggleLessonCoursewareAssetSelection(asset.id)"
+                      class="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                  </td>
+                  <td class="px-3 py-2">{{ asset.title }}</td>
+                  <td class="px-3 py-2">
+                    <a
+                      :href="asset.fileUrl"
+                      target="_blank"
+                      rel="noreferrer"
+                      class="text-sky-700 hover:text-sky-800 hover:underline"
+                    >
+                      {{ asset.fileName }}
+                    </a>
+                  </td>
+                  <td class="px-3 py-2">{{ asset.chapterRef || '未标注' }}</td>
+                  <td class="px-3 py-2">
+                    <div class="flex flex-wrap gap-1">
+                      <span
+                        v-for="field in resolveCoursewareMissingFields(asset)"
+                        :key="`courseware-missing-${asset.id}-${field}`"
+                        class="inline-flex items-center rounded border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700"
+                      >
+                        缺{{ field }}
+                      </span>
+                      <span
+                        v-if="resolveCoursewareMissingFields(asset).length === 0"
+                        class="inline-flex items-center rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700"
+                      >
+                        完整
+                      </span>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    <div class="inline-flex items-center gap-1.5">
+                      <button
+                        v-if="resolveCoursewareMissingFields(asset).length > 0"
+                        type="button"
+                        @click="handleAutofillLessonCoursewareAsset(asset)"
+                        :disabled="autofillingLessonCoursewareAssetId === asset.id"
+                        class="h-7 rounded border border-amber-300 bg-amber-50 px-2 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {{ autofillingLessonCoursewareAssetId === asset.id ? '补齐中...' : '一键补齐' }}
+                      </button>
+                      <button
+                        type="button"
+                        @click="handleEditLessonCoursewareAsset(asset)"
+                        class="h-7 rounded border border-slate-300 bg-white px-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
+                      >
+                        编辑
+                      </button>
+                      <button
+                        type="button"
+                        @click="handleDeleteLessonCoursewareAsset(asset.id)"
+                        :disabled="deletingLessonCoursewareAssetId === asset.id"
+                        class="h-7 rounded border border-red-200 bg-red-50 px-2 text-xs font-medium text-red-600 hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {{ deletingLessonCoursewareAssetId === asset.id ? '删除中...' : '删除' }}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+                <tr v-if="!isLessonCoursewareLoading && lessonCoursewareAssets.length === 0">
+                  <td colspan="6" class="px-3 py-5 text-center text-slate-400">暂无课件附件</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div v-if="lessonTraceabilityResult" class="mt-4 rounded border border-slate-200 bg-slate-50 px-4 py-3">
+          <p class="text-sm font-medium" :class="lessonTraceabilityResult.passed ? 'text-emerald-700' : 'text-red-600'">
+            {{ lessonTraceabilityResult.passed ? '映证校验通过' : '映证校验未通过' }}
+          </p>
+          <div class="mt-2">
+            <p class="text-xs font-semibold text-red-600">阻断项</p>
+            <ul class="mt-1 list-disc pl-5 text-xs text-red-600 space-y-1">
+              <li v-for="item in lessonTraceabilityResult.blockers" :key="`lesson-blocker-${item}`">{{ item }}</li>
+              <li v-if="lessonTraceabilityResult.blockers.length === 0" class="text-slate-400">无阻断项</li>
+            </ul>
+          </div>
+          <div class="mt-2">
+            <p class="text-xs font-semibold text-amber-700">告警项</p>
+            <div class="mt-2 space-y-2">
+              <div
+                v-for="group in lessonWarningGroups"
+                :key="`lesson-warning-group-${group.key}`"
+                class="rounded border border-amber-200 bg-amber-50 px-2.5 py-2"
+              >
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <p class="text-xs font-semibold text-amber-800">{{ group.label }}（{{ group.items.length }}）</p>
+                  <div class="flex items-center gap-1.5">
+                    <button
+                      v-if="group.key === 'courseware'"
+                      type="button"
+                      @click="handleFocusLessonCoursewareSection"
+                      class="h-7 rounded border border-amber-300 bg-white px-2 text-[11px] font-medium text-amber-700 hover:bg-amber-100"
+                    >
+                      定位处理
+                    </button>
+                    <button
+                      v-if="group.key === 'courseware' && lessonCoursewareAssets.length > 0"
+                      type="button"
+                      @click="handleAutofillAllMissingLessonCoursewareAssets"
+                      class="h-7 rounded border border-amber-300 bg-white px-2 text-[11px] font-medium text-amber-700 hover:bg-amber-100"
+                    >
+                      一键补齐全部缺失
+                    </button>
+                  </div>
+                </div>
+                <ul class="mt-1 space-y-1 text-xs text-amber-700">
+                  <li
+                    v-for="item in group.items"
+                    :key="`lesson-warning-${group.key}-${item}`"
+                    class="flex items-start justify-between gap-2 rounded border border-amber-100 bg-white/70 px-2 py-1"
+                  >
+                    <span class="leading-5">{{ item }}</span>
+                    <button
+                      type="button"
+                      @click="handleResolveLessonWarning(item)"
+                      class="shrink-0 h-6 rounded border border-amber-300 bg-white px-2 text-[11px] font-medium text-amber-700 hover:bg-amber-100"
+                    >
+                      去处理
+                    </button>
+                  </li>
+                </ul>
+              </div>
+              <p v-if="lessonWarningGroups.length === 0" class="text-xs text-slate-400">无告警项</p>
+            </div>
+            <div
+              v-if="lessonWarningFixChecklist.length > 0"
+              class="mt-2 rounded border border-emerald-200 bg-emerald-50 px-2.5 py-2"
+            >
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <p class="text-xs font-semibold text-emerald-700">发布前修复建议</p>
+                <button
+                  v-if="lessonWarningHasCoursewareAutofix && lessonCoursewareAssets.length > 0"
+                  type="button"
+                  @click="handleApplyLessonWarningAutofix"
+                  class="h-7 rounded border border-emerald-300 bg-white px-2 text-[11px] font-medium text-emerald-700 hover:bg-emerald-100"
+                >
+                  一键执行可自动项
+                </button>
+              </div>
+              <ul class="mt-1 list-disc pl-4 text-xs text-emerald-700 space-y-1">
+                <li
+                  v-for="item in lessonWarningFixChecklist"
+                  :key="`lesson-warning-fix-${item}`"
+                >
+                  {{ item }}
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- Teaching Objectives -->
       <section id="editor-section-objectives" class="bg-white rounded shadow-sm border border-slate-100 p-6">
-        <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-          <svg class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          教学目标
-        </h2>
-        
-        <TipTapEditor
-          v-model="form.objectives"
-          v-model:modelJson="form.contentJson.objectives"
-          :shortcut-config="tiptapShortcutConfig"
-        />
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            {{ isLessonEditorMode ? '教学目的和要求' : '教学目标' }}
+          </h2>
+          <button
+            @click="handleToggleEditorSectionCollapsed('objectives')"
+            class="inline-flex h-8 items-center gap-1 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            :aria-expanded="(!isEditorSectionCollapsedForView('objectives')).toString()"
+            aria-controls="editor-section-content-objectives"
+          >
+            {{ isEditorSectionCollapsedForView('objectives') ? '展开' : '收起' }}
+          </button>
+        </div>
+        <p v-if="isEditorSectionCollapsedForView('objectives')" class="mt-3 text-xs text-slate-500">
+          已收起，点击“展开”继续编辑。
+        </p>
+        <div
+          id="editor-section-content-objectives"
+          v-show="!isEditorSectionCollapsedForView('objectives')"
+          class="mt-4"
+        >
+          <TipTapEditor
+            v-model="form.objectives"
+            v-model:modelJson="form.contentJson.objectives"
+            :shortcut-config="tiptapShortcutConfig"
+          />
+        </div>
       </section>
 
       <!-- Key Points -->
       <section id="editor-section-keypoints" class="bg-white rounded shadow-sm border border-slate-100 p-6">
-        <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-          <svg class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
-          </svg>
-          重点难点
-        </h2>
-        
-        <TipTapEditor
-          v-model="form.keyPoints"
-          v-model:modelJson="form.contentJson.keyPoints"
-          :shortcut-config="tiptapShortcutConfig"
-        />
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+            </svg>
+            {{ isLessonEditorMode ? '教学重点与难点' : '重点难点' }}
+          </h2>
+          <button
+            @click="handleToggleEditorSectionCollapsed('keyPoints')"
+            class="inline-flex h-8 items-center gap-1 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            :aria-expanded="(!isEditorSectionCollapsedForView('keyPoints')).toString()"
+            aria-controls="editor-section-content-keypoints"
+          >
+            {{ isEditorSectionCollapsedForView('keyPoints') ? '展开' : '收起' }}
+          </button>
+        </div>
+        <p v-if="isEditorSectionCollapsedForView('keyPoints')" class="mt-3 text-xs text-slate-500">
+          已收起，点击“展开”继续编辑。
+        </p>
+        <div
+          id="editor-section-content-keypoints"
+          v-show="!isEditorSectionCollapsedForView('keyPoints')"
+          class="mt-4"
+        >
+          <TipTapEditor
+            v-model="form.keyPoints"
+            v-model:modelJson="form.contentJson.keyPoints"
+            :shortcut-config="tiptapShortcutConfig"
+          />
+        </div>
       </section>
 
       <!-- Teaching Process -->
       <section id="editor-section-process" class="bg-white rounded shadow-sm border border-slate-100 p-6">
-        <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-          <svg class="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-          </svg>
-          教学过程
-        </h2>
-        
-        <TipTapEditor
-          v-model="form.process"
-          v-model:modelJson="form.contentJson.process"
-          :shortcut-config="tiptapShortcutConfig"
-        />
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            {{ isLessonEditorMode ? '授课提纲' : '教学过程' }}
+          </h2>
+          <div class="flex flex-wrap items-center gap-2">
+            <span
+              v-if="processMinutesTotal > 0"
+              class="inline-flex h-8 items-center rounded border px-2.5 text-xs font-medium"
+              :class="hasProcessDurationMismatch ? 'border-amber-300 bg-amber-50 text-amber-700' : 'border-emerald-300 bg-emerald-50 text-emerald-700'"
+            >
+              环节分钟 {{ processMinutesTotal }} / 课时 {{ form.duration }}
+            </span>
+            <button
+              v-if="hasProcessDurationMismatch"
+              @click="handleAlignDurationWithProcessMinutes"
+              class="inline-flex h-8 items-center rounded border border-amber-300 bg-amber-50 px-2.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
+            >
+              对齐课时
+            </button>
+            <button
+              @click="handleToggleEditorSectionCollapsed('process')"
+              class="inline-flex h-8 items-center gap-1 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              :aria-expanded="(!isEditorSectionCollapsedForView('process')).toString()"
+              aria-controls="editor-section-content-process"
+            >
+              {{ isEditorSectionCollapsedForView('process') ? '展开' : '收起' }}
+            </button>
+          </div>
+        </div>
+        <div class="mt-3 rounded border border-slate-200 bg-slate-50/80 p-2.5 sm:p-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-xs font-medium text-slate-600">结构化时间轴</span>
+            <span class="text-[11px] text-slate-500">拖拽排序</span>
+            <span
+              v-if="!canUseTimelineDrag"
+              class="text-[11px] font-medium text-amber-700"
+            >
+              当前设备建议使用上移/下移
+            </span>
+            <select
+              :value="selectedProcessTimelinePreset"
+              @change="handleSelectProcessTimelinePreset"
+              class="h-8 rounded border border-slate-300 bg-white px-2 text-xs text-slate-700"
+            >
+              <option
+                v-for="option in processTimelineOptions"
+                :key="`process-timeline-${option.id}`"
+                :value="option.id"
+              >
+                {{ option.label }}
+              </option>
+            </select>
+            <button
+              @click="handleResetProcessTimelineDraft"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              生成草案
+            </button>
+            <button
+              @click="handleUndoProcessTimelineDraft"
+              :disabled="!canUndoProcessTimelineDraft"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              撤销草案
+            </button>
+            <button
+              @click="handleRedoProcessTimelineDraft"
+              :disabled="!canRedoProcessTimelineDraft"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              重做草案
+            </button>
+            <button
+              @click="handleToggleAllProcessTimelineDraftStepCollapsed"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {{ isAllProcessTimelineDraftStepsCollapsed ? '全部展开' : '全部收起' }}
+            </button>
+            <button
+              @click="handleToggleAllProcessTimelineDraftStepSelected"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              {{ isAllProcessTimelineDraftStepsSelected ? '清空选择' : '全选' }}
+            </button>
+          </div>
+          <p class="mt-1 text-[11px] text-slate-500">
+            {{ processTimelineOptions.find((item) => item.id === selectedProcessTimelinePreset)?.description }}
+          </p>
+          <p class="mt-1 text-[11px] text-slate-500">
+            已选 {{ selectedProcessTimelineDraftStepCount }} 项
+          </p>
+          <div class="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div
+              v-for="(step, index) in processTimelineDraftSteps"
+              :key="step.id"
+              :draggable="canUseTimelineDrag"
+              @dragstart="canUseTimelineDrag && handleStartProcessTimelineDraftDrag(step.id, $event)"
+              @dragover.prevent="canUseTimelineDrag && handleDragOverProcessTimelineDraftStep(step.id)"
+              @drop.prevent="canUseTimelineDrag && handleDropProcessTimelineDraftStep(step.id, $event)"
+              @dragend="canUseTimelineDrag && handleEndProcessTimelineDraftDrag()"
+              class="rounded border bg-white p-2 transition-colors"
+              :class="[
+                canUseTimelineDrag ? 'cursor-grab active:cursor-grabbing' : '',
+                dragOverProcessTimelineDraftStepId === step.id && draggingProcessTimelineDraftStepId !== step.id
+                  ? 'border-sky-300 bg-sky-50/70'
+                  : 'border-slate-200',
+              ]"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2">
+                  <input
+                    :checked="isProcessTimelineDraftStepSelected(step.id)"
+                    @change="handleToggleProcessTimelineDraftStepSelected(step.id)"
+                    type="checkbox"
+                    class="h-3.5 w-3.5 rounded border-slate-300 text-emerald-600 focus:ring-emerald-400"
+                  />
+                  <p class="text-[11px] font-medium text-slate-600">环节 {{ index + 1 }}</p>
+                </div>
+                <div class="flex items-center gap-1">
+                  <button
+                    @click="handleToggleProcessTimelineDraftStepCollapsed(step.id)"
+                    class="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] text-slate-500 hover:bg-slate-50"
+                    :title="isProcessTimelineDraftStepCollapsed(step.id) ? '展开' : '收起'"
+                  >
+                    {{ isProcessTimelineDraftStepCollapsed(step.id) ? '展开' : '收起' }}
+                  </button>
+                  <button
+                    @click="handleMoveProcessTimelineDraftStep(step.id, 'up')"
+                    :disabled="index === 0"
+                    class="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                    title="上移"
+                  >
+                    上移
+                  </button>
+                  <button
+                    @click="handleMoveProcessTimelineDraftStep(step.id, 'down')"
+                    :disabled="index === processTimelineDraftSteps.length - 1"
+                    class="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                    title="下移"
+                  >
+                    下移
+                  </button>
+                  <button
+                    @click="handleRemoveProcessTimelineDraftStep(step.id)"
+                    :disabled="processTimelineDraftSteps.length <= 1"
+                    class="rounded border border-slate-300 px-1.5 py-0.5 text-[10px] text-slate-500 hover:bg-slate-50 disabled:opacity-50"
+                    title="删除"
+                  >
+                    删除
+                  </button>
+                </div>
+              </div>
+              <p
+                v-if="isProcessTimelineDraftStepCollapsed(step.id)"
+                class="mt-1 truncate text-[11px] text-slate-500"
+              >
+                {{ step.label || `环节${index + 1}` }} · {{ Math.max(0, Math.round(step.minutes || 0)) }}分钟
+              </p>
+              <div v-show="!isProcessTimelineDraftStepCollapsed(step.id)">
+                <input
+                  v-model="step.label"
+                  type="text"
+                  class="mt-1 h-8 w-full rounded border border-slate-300 bg-white px-2 text-xs text-slate-700"
+                />
+                <div class="mt-1 flex items-center gap-1">
+                  <input
+                    v-model.number="step.minutes"
+                    type="number"
+                    min="0"
+                    step="1"
+                    class="h-8 w-20 rounded border border-slate-300 bg-white px-2 text-xs text-slate-700"
+                  />
+                  <span class="text-xs text-slate-500">分钟</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              @click="handleAddProcessTimelineDraftStep"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              新增环节
+            </button>
+            <button
+              @click="handleApplyProcessTimelineDraft('replace')"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              应用替换
+            </button>
+            <button
+              @click="handleOpenProcessTimelineApplyPreview('replace')"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              预览替换
+            </button>
+            <button
+              @click="handleApplyProcessTimelineDraft('append')"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              应用追加
+            </button>
+            <button
+              @click="handleOpenProcessTimelineApplyPreview('append')"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              预览追加
+            </button>
+            <button
+              @click="handleGenerateProcessTimeline('replace')"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              一键生成替换
+            </button>
+            <button
+              @click="handleRemoveSelectedProcessTimelineDraftSteps"
+              :disabled="selectedProcessTimelineDraftStepCount === 0 || selectedProcessTimelineDraftStepCount >= processTimelineDraftSteps.length"
+              class="h-8 rounded border border-rose-300 bg-rose-50 px-2.5 text-xs font-medium text-rose-700 hover:bg-rose-100 disabled:opacity-50"
+            >
+              批量删除选中
+            </button>
+            <button
+              @click="handleRedistributeSelectedProcessTimelineDraftStepMinutes"
+              :disabled="selectedProcessTimelineDraftStepCount < 2"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              选中等分总分钟
+            </button>
+            <button
+              @click="handleAlignSelectedProcessTimelineDraftMinutesWithDuration"
+              :disabled="selectedProcessTimelineDraftStepCount < 1"
+              class="h-8 rounded border border-amber-300 bg-amber-50 px-2.5 text-xs font-medium text-amber-700 hover:bg-amber-100 disabled:opacity-50"
+            >
+              选中对齐课时
+            </button>
+            <button
+              @click="handleAdjustSelectedProcessTimelineDraftStepMinutes(5)"
+              :disabled="selectedProcessTimelineDraftStepCount < 1"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              选中+5分钟
+            </button>
+            <button
+              @click="handleAdjustSelectedProcessTimelineDraftStepMinutes(-5)"
+              :disabled="selectedProcessTimelineDraftStepCount < 1"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+            >
+              选中-5分钟
+            </button>
+            <button
+              @click="handleAutofillSelectedProcessTimelineDraftStepLabels"
+              class="h-8 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+            >
+              补全空标签
+            </button>
+            <button
+              v-if="hasProcessTimelineDraftMismatch"
+              @click="handleAlignProcessTimelineDraftMinutes"
+              class="h-8 rounded border border-amber-300 bg-amber-50 px-2.5 text-xs font-medium text-amber-700 hover:bg-amber-100"
+            >
+              草案对齐课时
+            </button>
+          </div>
+          <p class="mt-1 text-[11px]" :class="hasProcessTimelineDraftMismatch ? 'text-amber-700' : 'text-slate-500'">
+            草案分钟合计 {{ processTimelineDraftMinutesTotal }} 分钟
+            <span v-if="hasProcessTimelineDraftMismatch">
+              ，与课时 {{ form.duration }} 分钟偏差 {{ Math.abs(processTimelineDraftDurationDelta) }} 分钟
+            </span>
+          </p>
+        </div>
+        <p v-if="isEditorSectionCollapsedForView('process')" class="mt-3 text-xs text-slate-500">
+          已收起，点击“展开”继续编辑。
+        </p>
+        <div
+          id="editor-section-content-process"
+          v-show="!isEditorSectionCollapsedForView('process')"
+          class="mt-4"
+        >
+          <TipTapEditor
+            v-model="form.process"
+            v-model:modelJson="form.contentJson.process"
+            :shortcut-config="tiptapShortcutConfig"
+          />
+        </div>
       </section>
 
       <!-- Blackboard Design -->
       <section id="editor-section-blackboard" class="bg-white rounded shadow-sm border border-slate-100 p-6">
-        <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-          <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-          </svg>
-          板书设计
-        </h2>
-        
-        <TipTapEditor
-          v-model="form.blackboard"
-          v-model:modelJson="form.contentJson.blackboard"
-          :shortcut-config="tiptapShortcutConfig"
-        />
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            </svg>
+            板书设计
+          </h2>
+          <button
+            @click="handleToggleEditorSectionCollapsed('blackboard')"
+            class="inline-flex h-8 items-center gap-1 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            :aria-expanded="(!isEditorSectionCollapsedForView('blackboard')).toString()"
+            aria-controls="editor-section-content-blackboard"
+          >
+            {{ isEditorSectionCollapsedForView('blackboard') ? '展开' : '收起' }}
+          </button>
+        </div>
+        <p v-if="isEditorSectionCollapsedForView('blackboard')" class="mt-3 text-xs text-slate-500">
+          已收起，点击“展开”继续编辑。
+        </p>
+        <div
+          id="editor-section-content-blackboard"
+          v-show="!isEditorSectionCollapsedForView('blackboard')"
+          class="mt-4"
+        >
+          <TipTapEditor
+            v-model="form.blackboard"
+            v-model:modelJson="form.contentJson.blackboard"
+            :shortcut-config="tiptapShortcutConfig"
+          />
+        </div>
       </section>
 
       <!-- Teaching Reflection -->
       <section id="editor-section-reflection" class="bg-white rounded shadow-sm border border-slate-100 p-6">
-        <h2 class="text-lg font-semibold text-slate-800 mb-4 flex items-center gap-2">
-          <svg class="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-          </svg>
-          教学反思
-        </h2>
-        
-        <TipTapEditor
-          v-model="form.reflection"
-          v-model:modelJson="form.contentJson.reflection"
-          :shortcut-config="tiptapShortcutConfig"
-        />
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
+            <svg class="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            {{ isLessonEditorMode ? '课后小结' : '教学反思' }}
+          </h2>
+          <button
+            @click="handleToggleEditorSectionCollapsed('reflection')"
+            class="inline-flex h-8 items-center gap-1 rounded border border-slate-300 bg-white px-2.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            :aria-expanded="(!isEditorSectionCollapsedForView('reflection')).toString()"
+            aria-controls="editor-section-content-reflection"
+          >
+            {{ isEditorSectionCollapsedForView('reflection') ? '展开' : '收起' }}
+          </button>
+        </div>
+        <p v-if="isEditorSectionCollapsedForView('reflection')" class="mt-3 text-xs text-slate-500">
+          已收起，点击“展开”继续编辑。
+        </p>
+        <div
+          id="editor-section-content-reflection"
+          v-show="!isEditorSectionCollapsedForView('reflection')"
+          class="mt-4"
+        >
+          <TipTapEditor
+            v-model="form.reflection"
+            v-model:modelJson="form.contentJson.reflection"
+            :shortcut-config="tiptapShortcutConfig"
+          />
+        </div>
       </section>
       </div>
       </div>
@@ -885,18 +2059,18 @@
     <div class="mobile-quick-actions sm:hidden fixed bottom-0 inset-x-0 z-30 border-t border-[#d9e1dc] bg-white/95 backdrop-blur">
       <div class="max-w-6xl mx-auto px-3 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] grid grid-cols-1 gap-2">
         <button
-          @click="handleMobileToggleTemplatePanel"
+          @click="isFocusMode ? handleToggleFocusMode() : handleMobileToggleTemplatePanel()"
           class="h-10 rounded border text-sm font-medium transition-colors"
-          :class="showTemplatePanel ? 'border-[#647269] bg-[#eef4f0] text-[#1f3128]' : 'border-[#d1ddd5] bg-white text-[#435549]'"
+          :class="isFocusMode ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : showTemplatePanel ? 'border-[#647269] bg-[#eef4f0] text-[#1f3128]' : 'border-[#d1ddd5] bg-white text-[#435549]'"
         >
-          模板库
+          {{ isFocusMode ? '退出专注' : '模板库' }}
         </button>
         <button
           @click="handleMobileSave"
-          :disabled="planStore.isSaving || !isFormValid"
+          :disabled="isEditorSaving || !isFormValid"
           class="h-10 rounded bg-[#647269] text-white text-sm font-medium disabled:opacity-50"
         >
-          {{ planStore.isSaving ? '保存中...' : '保存草稿' }}
+          {{ isEditorSaving ? '保存中...' : '保存草稿' }}
         </button>
         <button
           @click="showMobileActions = true"
@@ -917,8 +2091,17 @@
         <p class="text-sm font-semibold text-[#33463c] mb-3">更多操作</p>
         <div class="space-y-2">
           <button
+            @click="handleMobileToggleFocusMode"
+            class="w-full h-11 rounded border text-sm font-medium"
+            :class="isFocusMode ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-[#d1ddd5] bg-white text-[#435549]'"
+          >
+            {{ isFocusMode ? '退出专注模式' : '开启专注模式' }}
+          </button>
+          <button
             @click="handleMobileToggleTemplatePanel"
+            :disabled="isFocusMode"
             class="w-full h-11 rounded border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
+            :class="isFocusMode ? 'cursor-not-allowed opacity-50' : ''"
           >
             {{ showTemplatePanel ? '收起模板库' : '打开模板库' }}
           </button>
@@ -935,6 +2118,18 @@
             快捷键帮助
           </button>
           <button
+            @click="handleMobileOpenOutlineDialog"
+            class="w-full h-11 rounded border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
+          >
+            章节大纲
+          </button>
+          <button
+            @click="handleMobileFocusNextIncompleteSection"
+            class="w-full h-11 rounded border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
+          >
+            下一待补分区
+          </button>
+          <button
             v-if="isEditing"
             @click="handleMobileExport"
             class="w-full h-11 rounded border border-[#d1ddd5] bg-white text-[#435549] text-sm font-medium"
@@ -942,12 +2137,12 @@
             导出 Word
           </button>
           <button
-            v-if="isEditing && planStore.currentPlan?.status === 'DRAFT'"
+            v-if="canPublishCurrentDocument"
             @click="handleMobilePublish"
-            :disabled="planStore.isSaving"
+            :disabled="isEditorSaving"
             class="w-full h-11 rounded bg-emerald-600 text-white text-sm font-medium disabled:opacity-50"
           >
-            发布教案
+            {{ publishButtonText }}
           </button>
           <button
             @click="closeMobileActions"
@@ -2491,6 +3686,21 @@ export type EditorCompletionSummary = {
   missingLabels: string[]
 }
 
+export type EditorSectionCompletionItem = {
+  section: EditorSectionKey
+  label: string
+  filledCount: number
+  totalCount: number
+  requiredMissingLabels: string[]
+  status: 'empty' | 'partial' | 'complete'
+  progress: number
+}
+
+export type EditorViewPreference = {
+  focusMode: boolean
+  collapsedSections: EditorCollapsibleSectionKey[]
+}
+
 export type EditorQualityTip = {
   level: 'warning' | 'suggestion'
   message: string
@@ -2503,6 +3713,11 @@ export type EditorSectionKey =
   | 'process'
   | 'blackboard'
   | 'reflection'
+export type EditorCollapsibleSectionKey = Exclude<EditorSectionKey, 'basic'>
+export type EditorSectionViewportPosition = {
+  section: EditorSectionKey
+  top: number
+}
 
 export type EditorLessonSkeletonPreset = 'lecture' | 'practice' | 'lab'
 export type EditorLessonSkeletonApplyMode = 'fill-empty' | 'overwrite'
@@ -2520,10 +3735,48 @@ export type EditorExportPrecheckFixAction = {
   section: EditorSectionKey
 }
 
+export type EditorProcessTimelinePreset = 'balanced' | 'lecture' | 'practice'
+export type EditorProcessTimelineApplyMode = 'replace' | 'append'
+export type EditorTimelineMoveDirection = 'up' | 'down'
+export type EditorTimelineStep = {
+  label: string
+  minutes: number
+}
+export type EditorTimelineDraftStep = EditorTimelineStep & {
+  id: string
+}
+export type EditorTimelineApplyPreview = {
+  mode: EditorProcessTimelineApplyMode
+  canApply: boolean
+  normalizedSteps: EditorTimelineStep[]
+  stepCount: number
+  minuteTotal: number
+  currentTextLength: number
+  nextTextLength: number
+  nextProcessHtml: string
+  nextProcessPreviewText: string
+}
+export type EditorTimelinePreviewDiffSegment = {
+  key: string
+  text: string
+  changed: boolean
+}
+export type EditorTimelineApplyPreviewDiff = {
+  before: EditorTimelinePreviewDiffSegment[]
+  after: EditorTimelinePreviewDiffSegment[]
+  changedCount: number
+}
+
 type EditorLessonSkeletonDefinition = {
   label: string
   description: string
   patch: Partial<EditorPlanForm>
+}
+
+type EditorProcessTimelineDefinition = {
+  label: string
+  description: string
+  steps: Array<{ label: string; weight: number }>
 }
 
 const EDITOR_SECTION_LABELS: Record<EditorSectionKey, string> = {
@@ -2543,6 +3796,79 @@ const EDITOR_SECTION_ELEMENT_IDS: Record<EditorSectionKey, string> = {
   blackboard: 'editor-section-blackboard',
   reflection: 'editor-section-reflection',
 }
+
+const EDITOR_COLLAPSIBLE_SECTIONS: EditorCollapsibleSectionKey[] = [
+  'objectives',
+  'keyPoints',
+  'process',
+  'blackboard',
+  'reflection',
+]
+
+const EDITOR_VIEW_PREFERENCE_STORAGE_KEY = 'editor-view-preference-v1'
+
+const EDITOR_SECTION_ORDER: EditorSectionKey[] = [
+  'basic',
+  'objectives',
+  'keyPoints',
+  'process',
+  'blackboard',
+  'reflection',
+]
+
+export const normalizeEditorCollapsibleSections = (
+  sections: string[]
+): EditorCollapsibleSectionKey[] => {
+  const normalized: EditorCollapsibleSectionKey[] = []
+  for (const section of sections) {
+    if (!EDITOR_COLLAPSIBLE_SECTIONS.includes(section as EditorCollapsibleSectionKey)) {
+      continue
+    }
+    if (normalized.includes(section as EditorCollapsibleSectionKey)) {
+      continue
+    }
+    normalized.push(section as EditorCollapsibleSectionKey)
+  }
+  return normalized
+}
+
+export const parseEditorViewPreference = (
+  raw: string | null
+): EditorViewPreference | null => {
+  if (!raw) {
+    return null
+  }
+  try {
+    const parsed = JSON.parse(raw) as unknown
+    if (!parsed || typeof parsed !== 'object') {
+      return null
+    }
+    const payload = parsed as Record<string, unknown>
+    if (typeof payload.focusMode !== 'boolean') {
+      return null
+    }
+    if (!Array.isArray(payload.collapsedSections)) {
+      return null
+    }
+    const collapsedSections = normalizeEditorCollapsibleSections(
+      payload.collapsedSections.filter((item): item is string => typeof item === 'string')
+    )
+    return {
+      focusMode: payload.focusMode,
+      collapsedSections,
+    }
+  } catch {
+    return null
+  }
+}
+
+export const serializeEditorViewPreference = (
+  preference: EditorViewPreference
+): string =>
+  JSON.stringify({
+    focusMode: Boolean(preference.focusMode),
+    collapsedSections: normalizeEditorCollapsibleSections(preference.collapsedSections),
+  })
 
 const EDITOR_REQUIRED_COMPLETION_LABELS = new Set([
   '教案标题',
@@ -2609,6 +3935,39 @@ const EDITOR_LESSON_SKELETONS: Record<EditorLessonSkeletonPreset, EditorLessonSk
   },
 }
 
+const EDITOR_PROCESS_TIMELINE_PRESETS: Record<EditorProcessTimelinePreset, EditorProcessTimelineDefinition> = {
+  balanced: {
+    label: '标准四段',
+    description: '导入、讲解、练习、总结均衡分配课时',
+    steps: [
+      { label: '导入', weight: 0.12 },
+      { label: '新知讲解', weight: 0.43 },
+      { label: '任务练习', weight: 0.3 },
+      { label: '总结反馈', weight: 0.15 },
+    ],
+  },
+  lecture: {
+    label: '讲授导向',
+    description: '加大讲解比例，适合理论知识建构',
+    steps: [
+      { label: '导入', weight: 0.1 },
+      { label: '新知讲解', weight: 0.55 },
+      { label: '课堂练习', weight: 0.23 },
+      { label: '小结作业', weight: 0.12 },
+    ],
+  },
+  practice: {
+    label: '实训导向',
+    description: '强化实践环节，适合任务驱动课堂',
+    steps: [
+      { label: '任务发布', weight: 0.12 },
+      { label: '分组协作', weight: 0.2 },
+      { label: '实操完成', weight: 0.5 },
+      { label: '展示讲评', weight: 0.18 },
+    ],
+  },
+}
+
 const EDITOR_DRAFT_DIFF_FIELDS: Array<{ key: EditorDraftComparableField; label: string; richText?: boolean }> = [
   { key: 'title', label: '教案标题' },
   { key: 'courseName', label: '课程名称' },
@@ -2668,6 +4027,30 @@ const EDITOR_COMPLETION_FIELDS: Array<{
   { key: 'reflection', label: '教学反思', richText: true },
 ]
 
+const EDITOR_SECTION_COMPLETION_FIELDS: Record<
+  EditorSectionKey,
+  Array<{
+    key: EditorDraftComparableField
+    label: string
+    richText?: boolean
+    required?: boolean
+  }>
+> = {
+  basic: [
+    { key: 'title', label: '教案标题', required: true },
+    { key: 'courseName', label: '课程名称', required: true },
+    { key: 'className', label: '授课班级', required: true },
+    { key: 'duration', label: '课时长度', required: true },
+    { key: 'methods', label: '教学方法' },
+    { key: 'resources', label: '教学资源' },
+  ],
+  objectives: [{ key: 'objectives', label: '教学目标', richText: true, required: true }],
+  keyPoints: [{ key: 'keyPoints', label: '教学重点', richText: true }],
+  process: [{ key: 'process', label: '教学过程', richText: true, required: true }],
+  blackboard: [{ key: 'blackboard', label: '板书设计', richText: true }],
+  reflection: [{ key: 'reflection', label: '教学反思', richText: true }],
+}
+
 const isEditorCompletionFieldFilled = (
   form: EditorPlanForm,
   field: { key: EditorDraftComparableField; richText?: boolean }
@@ -2710,6 +4093,49 @@ export const resolveEditorSectionLabel = (section: EditorSectionKey): string =>
 export const resolveEditorSectionElementId = (section: EditorSectionKey): string =>
   EDITOR_SECTION_ELEMENT_IDS[section]
 
+export const shouldShowEditorTemplatePanel = (
+  showTemplatePanel: boolean,
+  isFocusMode: boolean
+): boolean => showTemplatePanel && !isFocusMode
+
+export const isEditorSectionCollapsedInState = (
+  collapsedSections: EditorCollapsibleSectionKey[],
+  section: EditorSectionKey
+): boolean => collapsedSections.includes(section as EditorCollapsibleSectionKey)
+
+export const setEditorSectionCollapsedState = (
+  collapsedSections: EditorCollapsibleSectionKey[],
+  section: EditorSectionKey,
+  collapsed: boolean
+): EditorCollapsibleSectionKey[] => {
+  if (!EDITOR_COLLAPSIBLE_SECTIONS.includes(section as EditorCollapsibleSectionKey)) {
+    return collapsedSections
+  }
+
+  const normalized = collapsedSections.filter((item) =>
+    EDITOR_COLLAPSIBLE_SECTIONS.includes(item)
+  )
+
+  if (collapsed) {
+    if (normalized.includes(section as EditorCollapsibleSectionKey)) {
+      return normalized
+    }
+    return [...normalized, section as EditorCollapsibleSectionKey]
+  }
+
+  return normalized.filter((item) => item !== section)
+}
+
+export const toggleEditorSectionCollapsedState = (
+  collapsedSections: EditorCollapsibleSectionKey[],
+  section: EditorSectionKey
+): EditorCollapsibleSectionKey[] =>
+  setEditorSectionCollapsedState(
+    collapsedSections,
+    section,
+    !isEditorSectionCollapsedInState(collapsedSections, section)
+  )
+
 export const resolveEditorLessonSkeletonOptions = (): Array<{
   id: EditorLessonSkeletonPreset
   label: string
@@ -2723,6 +4149,17 @@ export const resolveEditorLessonSkeletonOptions = (): Array<{
 
 export const resolveEditorLessonSkeletonLabel = (preset: EditorLessonSkeletonPreset): string =>
   EDITOR_LESSON_SKELETONS[preset].label
+
+export const resolveEditorProcessTimelineOptions = (): Array<{
+  id: EditorProcessTimelinePreset
+  label: string
+  description: string
+}> =>
+  (Object.keys(EDITOR_PROCESS_TIMELINE_PRESETS) as EditorProcessTimelinePreset[]).map((id) => ({
+    id,
+    label: EDITOR_PROCESS_TIMELINE_PRESETS[id].label,
+    description: EDITOR_PROCESS_TIMELINE_PRESETS[id].description,
+  }))
 
 export const recommendEditorLessonSkeletonPreset = (
   courseName: string
@@ -2760,6 +4197,564 @@ export const applyEditorLessonSkeleton = (
   }
 
   return next
+}
+
+export const allocateEditorTimelineMinutes = (duration: number, weights: number[]): number[] => {
+  const safeDuration = Math.max(0, Math.round(duration))
+  if (!weights.length) {
+    return []
+  }
+  if (safeDuration <= 0) {
+    return weights.map(() => 0)
+  }
+
+  const safeWeights = weights.map((weight) => (Number.isFinite(weight) && weight > 0 ? weight : 1))
+  const sumWeight = safeWeights.reduce((sum, weight) => sum + weight, 0) || safeWeights.length
+  const rawValues = safeWeights.map((weight) => (weight / sumWeight) * safeDuration)
+  const minutes = rawValues.map((value) => Math.floor(value))
+
+  if (safeDuration >= minutes.length) {
+    for (let index = 0; index < minutes.length; index += 1) {
+      if (minutes[index] === 0) {
+        minutes[index] = 1
+      }
+    }
+  }
+
+  const order = rawValues
+    .map((value, index) => ({ index, fraction: value - Math.floor(value) }))
+    .sort((a, b) => b.fraction - a.fraction)
+    .map((item) => item.index)
+
+  const minPerStep = safeDuration >= minutes.length ? 1 : 0
+  let diff = safeDuration - minutes.reduce((sum, value) => sum + value, 0)
+  let cursor = 0
+
+  while (diff > 0) {
+    const targetIndex = order[cursor % order.length]
+    minutes[targetIndex] += 1
+    diff -= 1
+    cursor += 1
+  }
+
+  cursor = 0
+  while (diff < 0) {
+    const targetIndex = order[cursor % order.length]
+    if (minutes[targetIndex] > minPerStep) {
+      minutes[targetIndex] -= 1
+      diff += 1
+    }
+    cursor += 1
+    if (cursor > order.length * 5 && diff < 0) {
+      break
+    }
+  }
+
+  return minutes
+}
+
+export const buildEditorProcessTimelineHtml = (
+  duration: number,
+  preset: EditorProcessTimelinePreset
+): string => {
+  const steps = buildEditorTimelineStepsFromPreset(duration, preset)
+  return buildEditorTimelineProcessHtmlFromSteps(steps)
+}
+
+export const buildEditorTimelineStepsFromPreset = (
+  duration: number,
+  preset: EditorProcessTimelinePreset
+): EditorTimelineStep[] => {
+  const definition = EDITOR_PROCESS_TIMELINE_PRESETS[preset]
+  const minutes = allocateEditorTimelineMinutes(
+    duration,
+    definition.steps.map((step) => step.weight)
+  )
+  return definition.steps.map((step, index) => ({
+    label: step.label,
+    minutes: minutes[index] || 0,
+  }))
+}
+
+export const buildEditorTimelineProcessHtmlFromSteps = (steps: EditorTimelineStep[]): string => {
+  const segments = steps
+    .map((step) => ({
+      label: step.label.trim(),
+      minutes: Number.isFinite(step.minutes) ? Math.max(0, Math.round(step.minutes)) : 0,
+    }))
+    .filter((step) => step.label)
+
+  if (!segments.length) {
+    return '<p></p>'
+  }
+
+  return `<p>${segments.map((step) => `${step.label}（${step.minutes}分钟）`).join('→')}</p>`
+}
+
+export const alignEditorTimelineStepsToDuration = (
+  steps: EditorTimelineStep[],
+  duration: number
+): EditorTimelineStep[] => {
+  if (!steps.length) {
+    return []
+  }
+  const safeDuration = Number.isFinite(duration) ? Math.max(0, Math.round(duration)) : 0
+  const baseWeights = steps.map((step) => {
+    const minutes = Number.isFinite(step.minutes) ? Math.max(0, step.minutes) : 0
+    return minutes
+  })
+  const hasPositive = baseWeights.some((value) => value > 0)
+  const weights = hasPositive ? baseWeights : steps.map(() => 1)
+  const alignedMinutes = allocateEditorTimelineMinutes(safeDuration, weights)
+  return steps.map((step, index) => ({
+    label: step.label,
+    minutes: alignedMinutes[index] || 0,
+  }))
+}
+
+export const normalizeEditorTimelineDraftSteps = (
+  steps: Array<Pick<EditorTimelineDraftStep, 'label' | 'minutes'>>
+): EditorTimelineStep[] =>
+  steps
+    .map((step) => ({
+      label: step.label.trim(),
+      minutes: Math.max(0, Math.round(step.minutes || 0)),
+    }))
+    .filter((step) => step.label)
+
+export const buildEditorTimelineApplyPreview = (
+  currentProcessHtml: string,
+  steps: Array<Pick<EditorTimelineDraftStep, 'label' | 'minutes'>>,
+  mode: EditorProcessTimelineApplyMode
+): EditorTimelineApplyPreview => {
+  const normalizedSteps = normalizeEditorTimelineDraftSteps(steps)
+  const canApply = normalizedSteps.length > 0
+  const timelineHtml = canApply ? buildEditorTimelineProcessHtmlFromSteps(normalizedSteps) : ''
+  const nextProcessHtml =
+    mode === 'append' && htmlToText(currentProcessHtml).trim()
+      ? `${currentProcessHtml}${timelineHtml}`
+      : timelineHtml
+  const currentTextLength = htmlToText(currentProcessHtml).trim().length
+  const nextTextLength = htmlToText(nextProcessHtml).trim().length
+  return {
+    mode,
+    canApply,
+    normalizedSteps,
+    stepCount: normalizedSteps.length,
+    minuteTotal: normalizedSteps.reduce((sum, step) => sum + step.minutes, 0),
+    currentTextLength,
+    nextTextLength,
+    nextProcessHtml,
+    nextProcessPreviewText: htmlToText(nextProcessHtml).trim().slice(0, 220),
+  }
+}
+
+export const applyEditorTimelineStepsToForm = (
+  form: EditorPlanForm,
+  steps: EditorTimelineStep[],
+  mode: EditorProcessTimelineApplyMode
+): EditorPlanForm => {
+  const timelineHtml = buildEditorTimelineProcessHtmlFromSteps(steps)
+  const nextContentJson = { ...form.contentJson }
+  delete nextContentJson.process
+
+  if (mode === 'append' && htmlToText(form.process).trim()) {
+    return {
+      ...form,
+      process: `${form.process}${timelineHtml}`,
+      contentJson: nextContentJson,
+    }
+  }
+
+  return {
+    ...form,
+    process: timelineHtml,
+    contentJson: nextContentJson,
+  }
+}
+
+export const moveEditorTimelineSteps = <T extends { id: string }>(
+  steps: T[],
+  id: string,
+  direction: EditorTimelineMoveDirection
+): T[] => {
+  const currentIndex = steps.findIndex((step) => step.id === id)
+  if (currentIndex < 0) {
+    return steps
+  }
+  const nextIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
+  if (nextIndex < 0 || nextIndex >= steps.length) {
+    return steps
+  }
+  const next = [...steps]
+  const [target] = next.splice(currentIndex, 1)
+  next.splice(nextIndex, 0, target)
+  return next
+}
+
+export const reorderEditorTimelineSteps = <T extends { id: string }>(
+  steps: T[],
+  sourceId: string,
+  targetId: string
+): T[] => {
+  const sourceIndex = steps.findIndex((step) => step.id === sourceId)
+  const targetIndex = steps.findIndex((step) => step.id === targetId)
+  if (sourceIndex < 0 || targetIndex < 0 || sourceIndex === targetIndex) {
+    return steps
+  }
+  const next = [...steps]
+  const [source] = next.splice(sourceIndex, 1)
+  const adjustedTargetIndex = sourceIndex < targetIndex ? targetIndex - 1 : targetIndex
+  next.splice(adjustedTargetIndex, 0, source)
+  return next
+}
+
+export const isEditorTimelineStepCollapsedState = (
+  collapsedStepIds: string[],
+  id: string
+): boolean => collapsedStepIds.includes(id)
+
+export const toggleEditorTimelineStepCollapsedState = (
+  collapsedStepIds: string[],
+  id: string
+): string[] =>
+  collapsedStepIds.includes(id)
+    ? collapsedStepIds.filter((item) => item !== id)
+    : [...collapsedStepIds, id]
+
+export const normalizeEditorTimelineStepCollapsedState = (
+  collapsedStepIds: string[],
+  steps: Array<{ id: string }>
+): string[] => {
+  const idSet = new Set(steps.map((step) => step.id))
+  const next: string[] = []
+  for (const id of collapsedStepIds) {
+    if (!idSet.has(id) || next.includes(id)) {
+      continue
+    }
+    next.push(id)
+  }
+  return next
+}
+
+export const areAllEditorTimelineStepsCollapsed = (
+  collapsedStepIds: string[],
+  steps: Array<{ id: string }>
+): boolean => {
+  if (!steps.length) {
+    return false
+  }
+  const normalized = normalizeEditorTimelineStepCollapsedState(collapsedStepIds, steps)
+  return steps.every((step) => normalized.includes(step.id))
+}
+
+export const toggleAllEditorTimelineStepCollapsedState = (
+  collapsedStepIds: string[],
+  steps: Array<{ id: string }>
+): string[] => {
+  if (areAllEditorTimelineStepsCollapsed(collapsedStepIds, steps)) {
+    return []
+  }
+  return steps.map((step) => step.id)
+}
+
+export const isEditorTimelineStepSelectedState = (
+  selectedStepIds: string[],
+  id: string
+): boolean => selectedStepIds.includes(id)
+
+export const toggleEditorTimelineStepSelectedState = (
+  selectedStepIds: string[],
+  id: string
+): string[] =>
+  selectedStepIds.includes(id)
+    ? selectedStepIds.filter((item) => item !== id)
+    : [...selectedStepIds, id]
+
+export const normalizeEditorTimelineStepSelectedState = (
+  selectedStepIds: string[],
+  steps: Array<{ id: string }>
+): string[] => {
+  const idSet = new Set(steps.map((step) => step.id))
+  const next: string[] = []
+  for (const id of selectedStepIds) {
+    if (!idSet.has(id) || next.includes(id)) {
+      continue
+    }
+    next.push(id)
+  }
+  return next
+}
+
+export const areAllEditorTimelineStepsSelected = (
+  selectedStepIds: string[],
+  steps: Array<{ id: string }>
+): boolean => {
+  if (!steps.length) {
+    return false
+  }
+  const normalized = normalizeEditorTimelineStepSelectedState(selectedStepIds, steps)
+  return steps.every((step) => normalized.includes(step.id))
+}
+
+export const toggleAllEditorTimelineStepSelectedState = (
+  selectedStepIds: string[],
+  steps: Array<{ id: string }>
+): string[] => {
+  if (areAllEditorTimelineStepsSelected(selectedStepIds, steps)) {
+    return []
+  }
+  return steps.map((step) => step.id)
+}
+
+export const removeSelectedEditorTimelineSteps = <T extends { id: string }>(
+  steps: T[],
+  selectedStepIds: string[]
+): T[] => {
+  const selectedSet = new Set(selectedStepIds)
+  if (!selectedSet.size || selectedSet.size >= steps.length) {
+    return steps
+  }
+  return steps.filter((step) => !selectedSet.has(step.id))
+}
+
+export const redistributeEditorTimelineSelectedStepMinutes = <T extends { id: string; minutes: number }>(
+  steps: T[],
+  selectedStepIds: string[]
+): T[] => {
+  const selectedSet = new Set(selectedStepIds)
+  const selectedSteps = steps.filter((step) => selectedSet.has(step.id))
+  if (selectedSteps.length < 2) {
+    return steps
+  }
+
+  const totalMinutes = selectedSteps.reduce(
+    (sum, step) => sum + Math.max(0, Math.round(step.minutes || 0)),
+    0
+  )
+  const distributed = allocateEditorTimelineMinutes(
+    totalMinutes,
+    selectedSteps.map(() => 1)
+  )
+  let distributedIndex = 0
+  return steps.map((step) => {
+    if (!selectedSet.has(step.id)) {
+      return step
+    }
+    const minutes = distributed[distributedIndex] ?? 0
+    distributedIndex += 1
+    return {
+      ...step,
+      minutes,
+    }
+  })
+}
+
+export const redistributeEditorTimelineSelectedStepMinutesToDuration = <
+  T extends { id: string; minutes: number }
+>(
+  steps: T[],
+  selectedStepIds: string[],
+  duration: number
+): T[] => {
+  const selectedSet = new Set(selectedStepIds)
+  if (!selectedSet.size) {
+    return steps
+  }
+
+  const safeDuration = Math.max(0, Math.round(duration || 0))
+  const selectedSteps = steps.filter((step) => selectedSet.has(step.id))
+  const fixedMinutes = steps
+    .filter((step) => !selectedSet.has(step.id))
+    .reduce((sum, step) => sum + Math.max(0, Math.round(step.minutes || 0)), 0)
+  const selectedTargetTotal = Math.max(0, safeDuration - fixedMinutes)
+  const selectedWeights = selectedSteps.map((step) => Math.max(0, Math.round(step.minutes || 0)))
+  const hasPositiveWeight = selectedWeights.some((weight) => weight > 0)
+  const distributed = allocateEditorTimelineMinutes(
+    selectedTargetTotal,
+    hasPositiveWeight ? selectedWeights : selectedSteps.map(() => 1)
+  )
+
+  let distributedIndex = 0
+  return steps.map((step) => {
+    if (!selectedSet.has(step.id)) {
+      return step
+    }
+    const minutes = distributed[distributedIndex] ?? 0
+    distributedIndex += 1
+    return {
+      ...step,
+      minutes,
+    }
+  })
+}
+
+export const adjustEditorTimelineSelectedStepMinutes = <
+  T extends { id: string; minutes: number }
+>(
+  steps: T[],
+  selectedStepIds: string[],
+  deltaMinutes: number
+): T[] => {
+  const selectedSet = new Set(selectedStepIds)
+  if (!selectedSet.size || !deltaMinutes) {
+    return steps
+  }
+  return steps.map((step) => {
+    if (!selectedSet.has(step.id)) {
+      return step
+    }
+    return {
+      ...step,
+      minutes: Math.max(0, Math.round((step.minutes || 0) + deltaMinutes)),
+    }
+  })
+}
+
+export const autofillEditorTimelineDraftStepLabels = <
+  T extends { id: string; label: string }
+>(
+  steps: T[],
+  selectedStepIds: string[]
+): T[] => {
+  const selectedSet = new Set(selectedStepIds)
+  return steps.map((step, index) => {
+    if (selectedSet.size > 0 && !selectedSet.has(step.id)) {
+      return step
+    }
+    if (step.label.trim()) {
+      return step
+    }
+    return {
+      ...step,
+      label: `环节${index + 1}`,
+    }
+  })
+}
+
+const splitEditorTimelinePreviewDiffLines = (html: string): string[] =>
+  htmlToText(html)
+    .split('\n')
+    .map((line) => line.replace(/\s+/g, ' ').trim())
+    .filter((line) => line.length > 0)
+
+export const buildEditorTimelineApplyPreviewDiff = (
+  currentProcessHtml: string,
+  nextProcessHtml: string
+): EditorTimelineApplyPreviewDiff => {
+  const beforeLines = splitEditorTimelinePreviewDiffLines(currentProcessHtml)
+  const afterLines = splitEditorTimelinePreviewDiffLines(nextProcessHtml)
+
+  const beforeMatchCounts = new Map<string, number>()
+  for (const line of beforeLines) {
+    beforeMatchCounts.set(line, (beforeMatchCounts.get(line) || 0) + 1)
+  }
+  const afterMatchCounts = new Map<string, number>()
+  for (const line of afterLines) {
+    afterMatchCounts.set(line, (afterMatchCounts.get(line) || 0) + 1)
+  }
+
+  const before: EditorTimelinePreviewDiffSegment[] = beforeLines.map((line, index) => {
+    const count = afterMatchCounts.get(line) || 0
+    if (count > 0) {
+      afterMatchCounts.set(line, count - 1)
+      return {
+        key: `before-${index}-${line}`,
+        text: line,
+        changed: false,
+      }
+    }
+    return {
+      key: `before-${index}-${line}`,
+      text: line,
+      changed: true,
+    }
+  })
+
+  const after: EditorTimelinePreviewDiffSegment[] = afterLines.map((line, index) => {
+    const count = beforeMatchCounts.get(line) || 0
+    if (count > 0) {
+      beforeMatchCounts.set(line, count - 1)
+      return {
+        key: `after-${index}-${line}`,
+        text: line,
+        changed: false,
+      }
+    }
+    return {
+      key: `after-${index}-${line}`,
+      text: line,
+      changed: true,
+    }
+  })
+
+  const changedCount = before.filter((item) => item.changed).length + after.filter((item) => item.changed).length
+  return {
+    before,
+    after,
+    changedCount,
+  }
+}
+
+export const cloneEditorTimelineDraftSteps = (
+  steps: EditorTimelineDraftStep[]
+): EditorTimelineDraftStep[] =>
+  steps.map((step) => ({
+    id: step.id,
+    label: step.label,
+    minutes: step.minutes,
+  }))
+
+export const hasEditorTimelineDraftStepChanges = (
+  previous: EditorTimelineDraftStep[],
+  next: EditorTimelineDraftStep[]
+): boolean => {
+  if (previous.length !== next.length) {
+    return true
+  }
+  for (let index = 0; index < previous.length; index += 1) {
+    const prevStep = previous[index]
+    const nextStep = next[index]
+    if (!nextStep) {
+      return true
+    }
+    if (
+      prevStep.id !== nextStep.id
+      || prevStep.label !== nextStep.label
+      || prevStep.minutes !== nextStep.minutes
+    ) {
+      return true
+    }
+  }
+  return false
+}
+
+export const pushEditorTimelineDraftUndoStack = (
+  undoStack: EditorTimelineDraftStep[][],
+  previous: EditorTimelineDraftStep[],
+  next: EditorTimelineDraftStep[],
+  limit = 40
+): EditorTimelineDraftStep[][] => {
+  if (!hasEditorTimelineDraftStepChanges(previous, next)) {
+    return undoStack
+  }
+  const nextStack = [...undoStack, cloneEditorTimelineDraftSteps(previous)]
+  if (nextStack.length <= limit) {
+    return nextStack
+  }
+  return nextStack.slice(nextStack.length - limit)
+}
+
+export const applyEditorProcessTimeline = (
+  form: EditorPlanForm,
+  preset: EditorProcessTimelinePreset,
+  mode: EditorProcessTimelineApplyMode
+): EditorPlanForm => {
+  return applyEditorTimelineStepsToForm(
+    form,
+    buildEditorTimelineStepsFromPreset(form.duration, preset),
+    mode
+  )
 }
 
 export const mapEditorMissingLabelsToFocusSections = (labels: string[]): EditorSectionKey[] => {
@@ -2829,11 +4824,83 @@ export const buildEditorCompletionSummary = (
   }
 }
 
+export const buildEditorSectionCompletion = (
+  form: EditorPlanForm
+): EditorSectionCompletionItem[] =>
+  EDITOR_SECTION_ORDER.map((section) => {
+    const fields = EDITOR_SECTION_COMPLETION_FIELDS[section]
+    let filledCount = 0
+    const requiredMissingLabels: string[] = []
+
+    for (const field of fields) {
+      const filled = isEditorCompletionFieldFilled(form, field)
+      if (filled) {
+        filledCount += 1
+      } else if (field.required) {
+        requiredMissingLabels.push(field.label)
+      }
+    }
+
+    const totalCount = fields.length
+    const status: EditorSectionCompletionItem['status'] =
+      filledCount === 0 ? 'empty' : filledCount === totalCount ? 'complete' : 'partial'
+
+    return {
+      section,
+      label: resolveEditorSectionLabel(section),
+      filledCount,
+      totalCount,
+      requiredMissingLabels,
+      status,
+      progress: Math.round((filledCount / Math.max(1, totalCount)) * 100),
+    }
+  })
+
+export const resolveNextIncompleteEditorSection = (
+  items: EditorSectionCompletionItem[]
+): EditorSectionKey | null => {
+  for (const item of items) {
+    if (item.requiredMissingLabels.length > 0) {
+      return item.section
+    }
+  }
+  return null
+}
+
+export const resolveActiveEditorSectionFromViewport = (
+  positions: EditorSectionViewportPosition[],
+  current: EditorSectionKey | null,
+  anchor = 160
+): EditorSectionKey | null => {
+  if (!positions.length) {
+    return current
+  }
+  const safeAnchor = Number.isFinite(anchor) ? anchor : 160
+  const ordered = [...positions].sort((a, b) => a.top - b.top)
+  const passed = ordered.filter((item) => item.top <= safeAnchor)
+  if (passed.length > 0) {
+    return passed[passed.length - 1].section
+  }
+  return ordered[0]?.section ?? current
+}
+
+export const sumEditorProcessMinutes = (processHtml: string): number => {
+  const text = htmlToText(processHtml)
+  const regex = /(\d+)\s*分钟/g
+  let total = 0
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(text)) !== null) {
+    total += Number(match[1]) || 0
+  }
+  return total
+}
+
 export const buildEditorQualityTips = (form: EditorPlanForm): EditorQualityTip[] => {
   const tips: EditorQualityTip[] = []
   const objectivesLength = htmlToText(form.objectives).trim().length
   const processLength = htmlToText(form.process).trim().length
   const reflectionLength = htmlToText(form.reflection).trim().length
+  const processMinutesTotal = sumEditorProcessMinutes(form.process)
 
   if (objectivesLength > 0 && objectivesLength < 20) {
     tips.push({
@@ -2846,6 +4913,15 @@ export const buildEditorQualityTips = (form: EditorPlanForm): EditorQualityTip[]
       level: 'warning',
       message: '教学过程建议包含关键环节与时间安排。',
     })
+  }
+  if (processMinutesTotal > 0 && form.duration > 0) {
+    const diff = Math.abs(processMinutesTotal - form.duration)
+    if (diff >= 10) {
+      tips.push({
+        level: 'warning',
+        message: `教学过程时间合计约${processMinutesTotal}分钟，与课时长度${form.duration}分钟存在偏差。`,
+      })
+    }
   }
   if (!form.methods.trim() && !form.resources.trim()) {
     tips.push({
@@ -2917,6 +4993,12 @@ export const buildEditorExportPrecheckFixActions = (
       pushUnique({ key: 'enhance-objectives', label: '扩展教学目标表述', section: 'objectives' })
     } else if (tip.message.includes('教学过程建议包含关键环节与时间安排')) {
       pushUnique({ key: 'enhance-process', label: '补全教学过程时间结构', section: 'process' })
+    } else if (tip.message.includes('教学过程时间合计约')) {
+      pushUnique({
+        key: 'align-duration-with-process',
+        label: '将课时长度对齐为教学过程分钟合计',
+        section: 'basic',
+      })
     } else if (tip.message.includes('建议补充教学方法或教学资源')) {
       pushUnique({ key: 'fill-methods-resources', label: '补全教学方法与资源', section: 'basic' })
     } else if (tip.message.includes('建议补充教学反思')) {
@@ -2957,6 +5039,13 @@ export const applyEditorExportPrecheckFix = (
         next.duration = 45
       }
       break
+    case 'align-duration-with-process': {
+      const processMinutes = sumEditorProcessMinutes(next.process)
+      if (processMinutes > 0) {
+        next.duration = processMinutes
+      }
+      break
+    }
     case 'fill-objectives':
       if (!htmlToText(next.objectives).trim()) {
         next.objectives = '<p>【待补充】请填写本节课的知识目标、能力目标与素养目标。</p>'
@@ -2971,12 +5060,14 @@ export const applyEditorExportPrecheckFix = (
     case 'fill-process':
       if (!htmlToText(next.process).trim()) {
         next.process = '<p>导入（5分钟）→ 新知讲解（25分钟）→ 任务练习（10分钟）→ 总结反馈（5分钟）。</p>'
+        delete next.contentJson.process
       }
       break
     case 'enhance-process':
       if (htmlToText(next.process).trim().length < 40) {
         next.process =
           '<p>导入（5分钟）明确任务，讲解（25分钟）拆解关键步骤，练习（10分钟）巩固应用，总结（5分钟）回顾要点。</p>'
+        delete next.contentJson.process
       }
       break
     case 'fill-methods-resources':
@@ -3033,13 +5124,29 @@ export const resolveTemplateEditSubmission = (
 </script>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, reactive, computed, onMounted, onBeforeUnmount, watch, nextTick, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { usePlanStore } from '../stores/plan'
 import { usePlanTemplateStore } from '../stores/planTemplate'
-import TipTapEditor from '../components/TipTapEditor.vue'
 import BaseInput from '../components/ui/BaseInput.vue'
 import { normalizeTemplateTags } from '../stores/planTemplate'
+import {
+  type CoursewareAsset,
+  type DeliveryPlanDetail,
+  type TeachingPlanLessonDetail,
+  type TraceabilityValidationResult,
+  createCoursewareAsset,
+  deleteCoursewareAsset,
+  getDeliveryPlan,
+  getTeachingPlanLesson,
+  listCoursewareAssets,
+  updateCoursewareAsset,
+  updateTeachingPlanLesson,
+  publishTeachingPlanLesson,
+  validateTraceability,
+} from '../api/academic'
+
+const TipTapEditor = defineAsyncComponent(() => import('../components/TipTapEditor.vue'))
 
 type EditorShortcutAction = 'save' | 'export' | 'publish' | 'openHelp' | 'insertTable' | 'deleteTable'
 type EditorShortcutKey = 'S' | 'E' | 'P' | 'K' | 'D' | 'R' | 'H' | 'T' | 'G'
@@ -3107,9 +5214,68 @@ const planStore = usePlanStore()
 const templateStore = usePlanTemplateStore()
 let localDraftPersistTimer: ReturnType<typeof setTimeout> | null = null
 
+const resolveSingleQueryValue = (value: unknown): string => {
+  if (typeof value === 'string') {
+    return value
+  }
+  if (Array.isArray(value) && typeof value[0] === 'string') {
+    return value[0]
+  }
+  return ''
+}
+
 const planId = computed(() => route.params.id as string)
 const isEditing = computed(() => !!planId.value)
+const editorSource = computed(() => resolveSingleQueryValue(route.query.source))
+const isLessonEditorMode = computed(() => isEditing.value && editorSource.value === 'lesson')
 const lastSaved = ref('')
+const isLessonSaving = ref(false)
+const lessonStatus = ref<'DRAFT' | 'PUBLISHED' | 'ARCHIVED'>('DRAFT')
+const lessonContext = reactive({
+  bookId: '',
+  lessonType: '',
+  weekNo: null as number | null,
+  weekday: '',
+  period: '',
+  lessonDate: '',
+  deliveryPlanId: null as string | null,
+  deliveryPlanWeekId: null as string | null,
+  courseStandardTopicRefs: [] as string[],
+  ideologicalElements: '',
+  integrationMethod: '',
+  difficulty: '',
+  teachingAids: '',
+})
+const lessonTraceabilityResult = ref<TraceabilityValidationResult | null>(null)
+const isLessonTraceabilityChecking = ref(false)
+const isLessonTopicLoading = ref(false)
+const lessonHeaderTeacherName = ref('')
+const lessonHeaderCourseName = ref('')
+const lessonTopicSearch = ref('')
+const lessonTopicCandidates = ref<Array<{ id: string; title: string; moduleName: string }>>([])
+const lessonWeekTopicLinkMap = ref<Record<number, string[]>>({})
+const lessonCourseOfferingId = ref<string | null>(null)
+const lessonCoursewareAssets = ref<CoursewareAsset[]>([])
+const isLessonCoursewareLoading = ref(false)
+const isLessonCoursewareSubmitting = ref(false)
+const isLessonCoursewareBatchUpdating = ref(false)
+const deletingLessonCoursewareAssetId = ref('')
+const editingLessonCoursewareAssetId = ref('')
+const autofillingLessonCoursewareAssetId = ref('')
+const selectedLessonCoursewareAssetIds = ref<string[]>([])
+const lessonCoursewareForm = reactive({
+  title: '',
+  fileName: '',
+  fileUrl: '',
+  chapterRef: '',
+  tagsText: '',
+  ideologicalElementsText: '',
+})
+const lessonCoursewareBatchForm = reactive({
+  chapterRef: '',
+  tagsText: '',
+  ideologicalElementsText: '',
+})
 const savedDraftSignature = ref('')
 const localDraftMessage = ref('')
 const localDraftImportInputRef = ref<HTMLInputElement | null>(null)
@@ -3139,6 +5305,8 @@ const shortcutDraftConfig = ref<Record<EditorShortcutAction, EditorShortcutConfi
 })
 const showMobileActions = ref(false)
 const showTemplatePanel = ref(false)
+const isFocusMode = ref(false)
+const collapsedEditorSections = ref<EditorCollapsibleSectionKey[]>([])
 const templateSearch = ref('')
 const selectedTemplateId = ref('')
 const templateTitle = ref('')
@@ -3151,10 +5319,28 @@ const templateEditTitle = ref('')
 const templateEditTagInput = ref('')
 const templateEditTags = ref<string[]>([])
 const selectedLessonSkeletonPreset = ref<EditorLessonSkeletonPreset>('lecture')
+const selectedProcessTimelinePreset = ref<EditorProcessTimelinePreset>('balanced')
+const processTimelineDraftSteps = ref<EditorTimelineDraftStep[]>([])
+const selectedProcessTimelineDraftStepIds = ref<string[]>([])
+const collapsedProcessTimelineDraftStepIds = ref<string[]>([])
+const processTimelineDraftUndoStack = ref<EditorTimelineDraftStep[][]>([])
+const processTimelineDraftRedoStack = ref<EditorTimelineDraftStep[][]>([])
+const isSyncingProcessTimelineDraftHistory = ref(false)
+const processTimelineDraftHistoryAnchor = ref<EditorTimelineDraftStep[]>([])
+const timelineStepIdSeed = ref(0)
+const draggingProcessTimelineDraftStepId = ref<string | null>(null)
+const dragOverProcessTimelineDraftStepId = ref<string | null>(null)
+const canUseTimelineDrag = ref(true)
+const showTimelineApplyPreviewDialog = ref(false)
+const timelineApplyPreviewMode = ref<EditorProcessTimelineApplyMode>('replace')
 const lessonSkeletonPresetManuallySelected = ref(false)
 const isDraftPersistenceReady = ref(false)
 const PRESET_TEMPLATE_TAGS = ['导入', '探究', '复习', '实验', '评价'] as const
 const lessonSkeletonOptions = resolveEditorLessonSkeletonOptions()
+const processTimelineOptions = resolveEditorProcessTimelineOptions()
+const showOutlineDialog = ref(false)
+const activeEditorSection = ref<EditorSectionKey>('basic')
+let editorSectionSyncRafId: number | null = null
 
 const cloneShortcutConfig = (
   config: Record<EditorShortcutAction, EditorShortcutConfig>
@@ -3249,6 +5435,31 @@ const loadShortcutConfigFromStorage = () => {
   }
 }
 
+const loadEditorViewPreferenceFromStorage = () => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  const parsed = parseEditorViewPreference(
+    window.localStorage.getItem(EDITOR_VIEW_PREFERENCE_STORAGE_KEY)
+  )
+  if (!parsed) {
+    return
+  }
+  isFocusMode.value = parsed.focusMode
+  collapsedEditorSections.value = [...parsed.collapsedSections]
+}
+
+const persistEditorViewPreference = () => {
+  if (typeof window === 'undefined') {
+    return
+  }
+  const payload = serializeEditorViewPreference({
+    focusMode: isFocusMode.value,
+    collapsedSections: collapsedEditorSections.value,
+  })
+  window.localStorage.setItem(EDITOR_VIEW_PREFERENCE_STORAGE_KEY, payload)
+}
+
 const shortcutConflictGroups = computed<EditorShortcutConflictGroup[]>(() => {
   const map = new Map<string, EditorShortcutAction[]>()
   for (const action of SHORTCUT_ACTIONS) {
@@ -3334,8 +5545,114 @@ const hasUnsavedDraft = computed(() =>
   hasEditorDraftChanges(form as EditorPlanForm, savedDraftSignature.value)
 )
 
+const isEditorSaving = computed(() => planStore.isSaving || isLessonSaving.value)
+const currentDocumentStatus = computed<'DRAFT' | 'PUBLISHED' | 'ARCHIVED' | undefined>(() =>
+  isLessonEditorMode.value ? lessonStatus.value : planStore.currentPlan?.status
+)
+const canPublishCurrentDocument = computed(() =>
+  isEditing.value && currentDocumentStatus.value === 'DRAFT'
+)
+const editorPageTitle = computed(() => {
+  if (!isEditing.value) {
+    return '新建教案'
+  }
+  return isLessonEditorMode.value ? '编辑单次课教案' : '编辑教案'
+})
+const publishButtonText = computed(() =>
+  isLessonEditorMode.value ? '发布单次课' : '发布教案'
+)
+const lessonWeekNoText = computed({
+  get: () => (lessonContext.weekNo ? String(lessonContext.weekNo) : ''),
+  set: (value: string) => {
+    const parsed = Number.parseInt(value, 10)
+    lessonContext.weekNo = Number.isFinite(parsed) && parsed > 0 ? parsed : null
+  },
+})
+const lessonTopicRefSet = computed(() => new Set(lessonContext.courseStandardTopicRefs))
+const filteredLessonTopicCandidates = computed(() => {
+  const keyword = lessonTopicSearch.value.trim().toLowerCase()
+  if (!keyword) {
+    return lessonTopicCandidates.value
+  }
+  return lessonTopicCandidates.value.filter((item) => {
+    const haystack = `${item.moduleName} ${item.title} ${item.id}`.toLowerCase()
+    return haystack.includes(keyword)
+  })
+})
+const orphanLessonTopicRefs = computed(() => {
+  const validTopicIds = new Set(lessonTopicCandidates.value.map((item) => item.id))
+  return lessonContext.courseStandardTopicRefs.filter((topicId) => !validTopicIds.has(topicId))
+})
+const currentWeekLinkedTopicIds = computed(() => {
+  if (lessonContext.weekNo === null) {
+    return []
+  }
+  return lessonWeekTopicLinkMap.value[lessonContext.weekNo] || []
+})
+const currentWeekLinkedTopicSet = computed(() => new Set(currentWeekLinkedTopicIds.value))
+const selectedLessonCoursewareAssets = computed(() => {
+  const selectedIdSet = new Set(selectedLessonCoursewareAssetIds.value)
+  return lessonCoursewareAssets.value.filter((asset) => selectedIdSet.has(asset.id))
+})
+const isAllLessonCoursewareSelected = computed(
+  () =>
+    lessonCoursewareAssets.value.length > 0
+    && selectedLessonCoursewareAssetIds.value.length === lessonCoursewareAssets.value.length
+)
+const lessonWarningGroups = computed(() => {
+  const warnings = lessonTraceabilityResult.value?.warnings || []
+  const groups = new Map<string, { key: string; label: string; items: string[] }>()
+  for (const warning of warnings) {
+    const key = warning.includes('课件附件')
+      ? 'courseware'
+      : warning.includes('思政')
+        ? 'ideology'
+        : warning.includes('授课计划') || warning.includes('课程标准')
+          ? 'traceability'
+          : 'other'
+    const label = key === 'courseware'
+      ? '课件附件'
+      : key === 'ideology'
+        ? '思政一致性'
+        : key === 'traceability'
+          ? '链路一致性'
+          : '其他告警'
+    if (!groups.has(key)) {
+      groups.set(key, { key, label, items: [] })
+    }
+    groups.get(key)!.items.push(warning)
+  }
+  return [...groups.values()]
+})
+
+const resolveLessonWarningFixChecklist = (warnings: string[]) => {
+  const items: string[] = []
+  if (warnings.some((item) => item.includes('课件附件有'))) {
+    items.push(`自动：可执行“课件附件缺失字段一键补齐”（当前附件 ${lessonCoursewareAssets.value.length} 条）`)
+  }
+  if (warnings.some((item) => item.includes('未关联任何课件附件'))) {
+    items.push('手动：请先新增至少一个课件附件并补充章节/标签')
+  }
+  if (warnings.some((item) => item.includes('思政元素'))) {
+    items.push('手动：核对“课程思政元素”与授课计划周次描述一致')
+  }
+  if (warnings.some((item) => item.includes('融入方式'))) {
+    items.push('手动：核对“融入方式”与授课计划周次描述一致')
+  }
+  if (warnings.some((item) => item.includes('课程标准'))) {
+    items.push('手动：核对“课程标准条目引用”与周次绑定关系')
+  }
+  return items
+}
+const lessonWarningFixChecklist = computed(() =>
+  resolveLessonWarningFixChecklist(lessonTraceabilityResult.value?.warnings || [])
+)
+const lessonWarningHasCoursewareAutofix = computed(() =>
+  (lessonTraceabilityResult.value?.warnings || []).some((item) => item.includes('课件附件有'))
+)
+
 const editorStatusText = computed(() => {
-  if (planStore.isSaving) {
+  if (isEditorSaving.value) {
     return '保存中...'
   }
   if (hasUnsavedDraft.value) {
@@ -3347,6 +5664,43 @@ const editorStatusText = computed(() => {
 const contentSourceLabel = computed(() => resolveEditorContentSourceLabel(contentSource.value))
 const editorCompletionSummary = computed(() =>
   buildEditorCompletionSummary(form as EditorPlanForm)
+)
+const editorSectionCompletionItems = computed(() =>
+  buildEditorSectionCompletion(form as EditorPlanForm)
+)
+const nextIncompleteEditorSection = computed(() =>
+  resolveNextIncompleteEditorSection(editorSectionCompletionItems.value)
+)
+const processMinutesTotal = computed(() => sumEditorProcessMinutes(form.process))
+const processDurationDelta = computed(() => {
+  if (processMinutesTotal.value <= 0 || form.duration <= 0) {
+    return 0
+  }
+  return processMinutesTotal.value - form.duration
+})
+const hasProcessDurationMismatch = computed(() =>
+  processMinutesTotal.value > 0 && form.duration > 0 && Math.abs(processDurationDelta.value) >= 10
+)
+const processTimelineDraftMinutesTotal = computed(() =>
+  processTimelineDraftSteps.value.reduce((sum, item) => sum + Math.max(0, Math.round(item.minutes || 0)), 0)
+)
+const processTimelineDraftDurationDelta = computed(() => {
+  if (processTimelineDraftMinutesTotal.value <= 0 || form.duration <= 0) {
+    return 0
+  }
+  return processTimelineDraftMinutesTotal.value - form.duration
+})
+const hasProcessTimelineDraftMismatch = computed(() =>
+  processTimelineDraftMinutesTotal.value > 0 && form.duration > 0 && Math.abs(processTimelineDraftDurationDelta.value) >= 10
+)
+const editorOutlineItems = computed(() =>
+  editorSectionCompletionItems.value.map((item) => ({
+    section: item.section,
+    label: item.label,
+    status: item.status,
+    requiredMissingCount: item.requiredMissingLabels.length,
+    progress: item.progress,
+  }))
 )
 const editorQualityTips = computed(() =>
   buildEditorQualityTips(form as EditorPlanForm)
@@ -3363,8 +5717,113 @@ const recommendedLessonSkeletonPreset = computed(() =>
 const recommendedLessonSkeletonLabel = computed(() =>
   resolveEditorLessonSkeletonLabel(recommendedLessonSkeletonPreset.value)
 )
+const shouldRenderTemplatePanel = computed(() =>
+  shouldShowEditorTemplatePanel(showTemplatePanel.value, isFocusMode.value)
+)
+const isAllCollapsibleSectionsCollapsed = computed(() =>
+  EDITOR_COLLAPSIBLE_SECTIONS.every((section) => collapsedEditorSections.value.includes(section))
+)
 const resolveEditorSectionLabelForView = (section: EditorSectionKey): string =>
   resolveEditorSectionLabel(section)
+const isActiveEditorSectionForView = (section: EditorSectionKey): boolean =>
+  activeEditorSection.value === section
+const isProcessTimelineDraftStepCollapsed = (id: string): boolean =>
+  isEditorTimelineStepCollapsedState(collapsedProcessTimelineDraftStepIds.value, id)
+const isAllProcessTimelineDraftStepsCollapsed = computed(() =>
+  areAllEditorTimelineStepsCollapsed(
+    collapsedProcessTimelineDraftStepIds.value,
+    processTimelineDraftSteps.value
+  )
+)
+const isProcessTimelineDraftStepSelected = (id: string): boolean =>
+  isEditorTimelineStepSelectedState(selectedProcessTimelineDraftStepIds.value, id)
+const selectedProcessTimelineDraftStepCount = computed(() =>
+  selectedProcessTimelineDraftStepIds.value.length
+)
+const canUndoProcessTimelineDraft = computed(() =>
+  processTimelineDraftUndoStack.value.length > 0
+)
+const canRedoProcessTimelineDraft = computed(() =>
+  processTimelineDraftRedoStack.value.length > 0
+)
+const isAllProcessTimelineDraftStepsSelected = computed(() =>
+  areAllEditorTimelineStepsSelected(
+    selectedProcessTimelineDraftStepIds.value,
+    processTimelineDraftSteps.value
+  )
+)
+const processTimelineDraftSignature = computed(() =>
+  JSON.stringify(
+    processTimelineDraftSteps.value.map((step) => ({
+      id: step.id,
+      label: step.label,
+      minutes: step.minutes,
+    }))
+  )
+)
+const timelineApplyPreview = computed(() =>
+  buildEditorTimelineApplyPreview(
+    form.process,
+    processTimelineDraftSteps.value,
+    timelineApplyPreviewMode.value
+  )
+)
+const timelineApplyPreviewDiff = computed(() =>
+  buildEditorTimelineApplyPreviewDiff(
+    form.process,
+    timelineApplyPreview.value.nextProcessHtml
+  )
+)
+
+const syncTimelineDragCapability = () => {
+  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') {
+    return
+  }
+  canUseTimelineDrag.value = !window.matchMedia('(pointer: coarse)').matches
+}
+
+const collectEditorSectionViewportPositions = (): EditorSectionViewportPosition[] => {
+  if (typeof document === 'undefined') {
+    return []
+  }
+  return EDITOR_SECTION_ORDER.map((section) => {
+    const elementId = resolveEditorSectionElementId(section)
+    const element = document.getElementById(elementId)
+    if (!element) {
+      return null
+    }
+    return {
+      section,
+      top: element.getBoundingClientRect().top,
+    }
+  }).filter((item): item is EditorSectionViewportPosition => item !== null)
+}
+
+const syncActiveEditorSectionByViewport = () => {
+  const nextSection = resolveActiveEditorSectionFromViewport(
+    collectEditorSectionViewportPositions(),
+    activeEditorSection.value,
+    180
+  )
+  if (nextSection) {
+    activeEditorSection.value = nextSection
+  }
+}
+
+const scheduleSyncActiveEditorSectionByViewport = () => {
+  if (typeof window === 'undefined' || editorSectionSyncRafId !== null) {
+    return
+  }
+  editorSectionSyncRafId = window.requestAnimationFrame(() => {
+    editorSectionSyncRafId = null
+    syncActiveEditorSectionByViewport()
+  })
+}
+
+const handleEditorViewportChange = () => {
+  scheduleSyncActiveEditorSectionByViewport()
+  syncTimelineDragCapability()
+}
 
 const currentLocalDraft = computed<EditorLocalDraft | null>(() => localDraftHistory.value[0] ?? null)
 
@@ -3574,12 +6033,355 @@ const handleFocusEditorSection = (section: EditorSectionKey) => {
   if (typeof document === 'undefined') {
     return
   }
+  activeEditorSection.value = section
+  collapsedEditorSections.value = setEditorSectionCollapsedState(
+    collapsedEditorSections.value,
+    section,
+    false
+  )
   const elementId = resolveEditorSectionElementId(section)
-  const target = document.getElementById(elementId)
-  if (!target) {
+  nextTick(() => {
+    const target = document.getElementById(elementId)
+    if (!target) {
+      return
+    }
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  })
+}
+
+const isEditorSectionCollapsedForView = (section: EditorSectionKey): boolean =>
+  isEditorSectionCollapsedInState(collapsedEditorSections.value, section)
+
+const handleToggleEditorSectionCollapsed = (section: EditorSectionKey) => {
+  collapsedEditorSections.value = toggleEditorSectionCollapsedState(
+    collapsedEditorSections.value,
+    section
+  )
+}
+
+const handleCollapseAllEditorSections = () => {
+  collapsedEditorSections.value = [...EDITOR_COLLAPSIBLE_SECTIONS]
+}
+
+const handleExpandAllEditorSections = () => {
+  collapsedEditorSections.value = []
+}
+
+const handleToggleFocusMode = () => {
+  isFocusMode.value = !isFocusMode.value
+}
+
+const handleFocusNextIncompleteSection = () => {
+  if (!nextIncompleteEditorSection.value) {
+    alert('必填分区已完成，可继续优化内容质量。')
     return
   }
-  target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  handleFocusEditorSection(nextIncompleteEditorSection.value)
+}
+
+const handleFocusOutlineSection = (section: EditorSectionKey) => {
+  showOutlineDialog.value = false
+  handleFocusEditorSection(section)
+}
+
+const handleAlignDurationWithProcessMinutes = () => {
+  if (processMinutesTotal.value <= 0) {
+    alert('未检测到有效分钟数，请先在教学过程中补充“XX分钟”描述。')
+    return
+  }
+  form.duration = processMinutesTotal.value
+}
+
+const buildTimelineDraftId = (): string => {
+  timelineStepIdSeed.value += 1
+  return `timeline-step-${timelineStepIdSeed.value}`
+}
+
+const replaceProcessTimelineDraftSteps = (steps: EditorTimelineStep[]) => {
+  processTimelineDraftSteps.value = steps.map((step) => ({
+    id: buildTimelineDraftId(),
+    label: step.label,
+    minutes: step.minutes,
+  }))
+}
+
+const syncProcessTimelineDraftHistoryAnchor = () => {
+  processTimelineDraftHistoryAnchor.value = cloneEditorTimelineDraftSteps(
+    processTimelineDraftSteps.value
+  )
+}
+
+const resetProcessTimelineDraftHistory = () => {
+  processTimelineDraftUndoStack.value = []
+  processTimelineDraftRedoStack.value = []
+  syncProcessTimelineDraftHistoryAnchor()
+}
+
+const handleResetProcessTimelineDraft = () => {
+  draggingProcessTimelineDraftStepId.value = null
+  dragOverProcessTimelineDraftStepId.value = null
+  selectedProcessTimelineDraftStepIds.value = []
+  showTimelineApplyPreviewDialog.value = false
+  replaceProcessTimelineDraftSteps(
+    buildEditorTimelineStepsFromPreset(form.duration, selectedProcessTimelinePreset.value)
+  )
+  collapsedProcessTimelineDraftStepIds.value = processTimelineDraftSteps.value
+    .slice(1)
+    .map((step) => step.id)
+}
+
+const handleUndoProcessTimelineDraft = () => {
+  if (!processTimelineDraftUndoStack.value.length) {
+    return
+  }
+  const previous = processTimelineDraftUndoStack.value[processTimelineDraftUndoStack.value.length - 1]
+  processTimelineDraftUndoStack.value = processTimelineDraftUndoStack.value.slice(
+    0,
+    processTimelineDraftUndoStack.value.length - 1
+  )
+  processTimelineDraftRedoStack.value = [
+    ...processTimelineDraftRedoStack.value,
+    cloneEditorTimelineDraftSteps(processTimelineDraftSteps.value),
+  ]
+  isSyncingProcessTimelineDraftHistory.value = true
+  processTimelineDraftSteps.value = cloneEditorTimelineDraftSteps(previous)
+  syncProcessTimelineDraftHistoryAnchor()
+  isSyncingProcessTimelineDraftHistory.value = false
+}
+
+const handleRedoProcessTimelineDraft = () => {
+  if (!processTimelineDraftRedoStack.value.length) {
+    return
+  }
+  const next = processTimelineDraftRedoStack.value[processTimelineDraftRedoStack.value.length - 1]
+  processTimelineDraftRedoStack.value = processTimelineDraftRedoStack.value.slice(
+    0,
+    processTimelineDraftRedoStack.value.length - 1
+  )
+  processTimelineDraftUndoStack.value = [
+    ...processTimelineDraftUndoStack.value,
+    cloneEditorTimelineDraftSteps(processTimelineDraftSteps.value),
+  ]
+  isSyncingProcessTimelineDraftHistory.value = true
+  processTimelineDraftSteps.value = cloneEditorTimelineDraftSteps(next)
+  syncProcessTimelineDraftHistoryAnchor()
+  isSyncingProcessTimelineDraftHistory.value = false
+}
+
+const handleAddProcessTimelineDraftStep = () => {
+  const nextStep = {
+    id: buildTimelineDraftId(),
+    label: `环节${processTimelineDraftSteps.value.length + 1}`,
+    minutes: 0,
+  }
+  processTimelineDraftSteps.value = [
+    ...processTimelineDraftSteps.value,
+    nextStep,
+  ]
+  collapsedProcessTimelineDraftStepIds.value = collapsedProcessTimelineDraftStepIds.value.filter(
+    (id) => id !== nextStep.id
+  )
+}
+
+const handleRemoveProcessTimelineDraftStep = (id: string) => {
+  if (processTimelineDraftSteps.value.length <= 1) {
+    return
+  }
+  processTimelineDraftSteps.value = processTimelineDraftSteps.value.filter((step) => step.id !== id)
+  selectedProcessTimelineDraftStepIds.value = selectedProcessTimelineDraftStepIds.value.filter(
+    (item) => item !== id
+  )
+  collapsedProcessTimelineDraftStepIds.value = collapsedProcessTimelineDraftStepIds.value.filter(
+    (item) => item !== id
+  )
+}
+
+const handleToggleProcessTimelineDraftStepCollapsed = (id: string) => {
+  collapsedProcessTimelineDraftStepIds.value = toggleEditorTimelineStepCollapsedState(
+    collapsedProcessTimelineDraftStepIds.value,
+    id
+  )
+}
+
+const handleToggleAllProcessTimelineDraftStepCollapsed = () => {
+  collapsedProcessTimelineDraftStepIds.value = toggleAllEditorTimelineStepCollapsedState(
+    collapsedProcessTimelineDraftStepIds.value,
+    processTimelineDraftSteps.value
+  )
+}
+
+const handleToggleProcessTimelineDraftStepSelected = (id: string) => {
+  selectedProcessTimelineDraftStepIds.value = toggleEditorTimelineStepSelectedState(
+    selectedProcessTimelineDraftStepIds.value,
+    id
+  )
+}
+
+const handleToggleAllProcessTimelineDraftStepSelected = () => {
+  selectedProcessTimelineDraftStepIds.value = toggleAllEditorTimelineStepSelectedState(
+    selectedProcessTimelineDraftStepIds.value,
+    processTimelineDraftSteps.value
+  )
+}
+
+const handleRemoveSelectedProcessTimelineDraftSteps = () => {
+  if (!selectedProcessTimelineDraftStepIds.value.length) {
+    return
+  }
+  if (selectedProcessTimelineDraftStepIds.value.length >= processTimelineDraftSteps.value.length) {
+    alert('至少保留一个时间轴环节。')
+    return
+  }
+  processTimelineDraftSteps.value = removeSelectedEditorTimelineSteps(
+    processTimelineDraftSteps.value,
+    selectedProcessTimelineDraftStepIds.value
+  )
+  selectedProcessTimelineDraftStepIds.value = []
+}
+
+const handleRedistributeSelectedProcessTimelineDraftStepMinutes = () => {
+  if (selectedProcessTimelineDraftStepIds.value.length < 2) {
+    alert('请至少选择两个环节进行等分。')
+    return
+  }
+  processTimelineDraftSteps.value = redistributeEditorTimelineSelectedStepMinutes(
+    processTimelineDraftSteps.value,
+    selectedProcessTimelineDraftStepIds.value
+  )
+}
+
+const handleAdjustSelectedProcessTimelineDraftStepMinutes = (deltaMinutes: number) => {
+  if (selectedProcessTimelineDraftStepIds.value.length < 1) {
+    alert('请先选择至少一个环节。')
+    return
+  }
+  processTimelineDraftSteps.value = adjustEditorTimelineSelectedStepMinutes(
+    processTimelineDraftSteps.value,
+    selectedProcessTimelineDraftStepIds.value,
+    deltaMinutes
+  )
+}
+
+const handleAlignSelectedProcessTimelineDraftMinutesWithDuration = () => {
+  if (selectedProcessTimelineDraftStepIds.value.length === 0) {
+    alert('请先选择至少一个环节。')
+    return
+  }
+  processTimelineDraftSteps.value = redistributeEditorTimelineSelectedStepMinutesToDuration(
+    processTimelineDraftSteps.value,
+    selectedProcessTimelineDraftStepIds.value,
+    form.duration
+  )
+}
+
+const handleAutofillSelectedProcessTimelineDraftStepLabels = () => {
+  processTimelineDraftSteps.value = autofillEditorTimelineDraftStepLabels(
+    processTimelineDraftSteps.value,
+    selectedProcessTimelineDraftStepIds.value
+  )
+}
+
+const handleMoveProcessTimelineDraftStep = (id: string, direction: EditorTimelineMoveDirection) => {
+  processTimelineDraftSteps.value = moveEditorTimelineSteps(
+    processTimelineDraftSteps.value,
+    id,
+    direction
+  )
+}
+
+const handleStartProcessTimelineDraftDrag = (id: string, event: DragEvent) => {
+  if (!canUseTimelineDrag.value) {
+    return
+  }
+  draggingProcessTimelineDraftStepId.value = id
+  dragOverProcessTimelineDraftStepId.value = id
+  if (!event.dataTransfer) {
+    return
+  }
+  event.dataTransfer.effectAllowed = 'move'
+  event.dataTransfer.setData('text/plain', id)
+}
+
+const handleDragOverProcessTimelineDraftStep = (targetId: string) => {
+  if (!canUseTimelineDrag.value || !draggingProcessTimelineDraftStepId.value) {
+    return
+  }
+  dragOverProcessTimelineDraftStepId.value = targetId
+}
+
+const handleDropProcessTimelineDraftStep = (targetId: string, event: DragEvent) => {
+  if (!canUseTimelineDrag.value) {
+    return
+  }
+  const sourceId = draggingProcessTimelineDraftStepId.value
+    || event.dataTransfer?.getData('text/plain')
+    || ''
+  if (!sourceId) {
+    dragOverProcessTimelineDraftStepId.value = null
+    return
+  }
+  processTimelineDraftSteps.value = reorderEditorTimelineSteps(
+    processTimelineDraftSteps.value,
+    sourceId,
+    targetId
+  )
+  draggingProcessTimelineDraftStepId.value = null
+  dragOverProcessTimelineDraftStepId.value = null
+}
+
+const handleEndProcessTimelineDraftDrag = () => {
+  draggingProcessTimelineDraftStepId.value = null
+  dragOverProcessTimelineDraftStepId.value = null
+}
+
+const handleAlignProcessTimelineDraftMinutes = () => {
+  const aligned = alignEditorTimelineStepsToDuration(processTimelineDraftSteps.value, form.duration)
+  processTimelineDraftSteps.value = processTimelineDraftSteps.value.map((step, index) => ({
+    ...step,
+    minutes: aligned[index]?.minutes ?? step.minutes,
+  }))
+}
+
+const handleOpenProcessTimelineApplyPreview = (mode: EditorProcessTimelineApplyMode) => {
+  timelineApplyPreviewMode.value = mode
+  if (!timelineApplyPreview.value.canApply) {
+    alert('请先填写至少一个有效时间轴环节。')
+    return
+  }
+  showTimelineApplyPreviewDialog.value = true
+}
+
+const handleApplyProcessTimelineDraft = (
+  mode: EditorProcessTimelineApplyMode,
+  options?: { skipReplaceConfirm?: boolean }
+) => {
+  const normalizedSteps = normalizeEditorTimelineDraftSteps(processTimelineDraftSteps.value)
+  if (!normalizedSteps.length) {
+    alert('请先填写至少一个有效时间轴环节。')
+    return
+  }
+
+  if (!options?.skipReplaceConfirm && mode === 'replace' && htmlToText(form.process).trim()) {
+    const confirmed = window.confirm('应用可视化时间轴将替换当前教学过程内容，是否继续？')
+    if (!confirmed) {
+      return
+    }
+  }
+
+  const next = applyEditorTimelineStepsToForm(
+    form as EditorPlanForm,
+    normalizedSteps,
+    mode
+  )
+  Object.assign(form, next)
+}
+
+const handleConfirmProcessTimelineApplyPreview = () => {
+  if (!timelineApplyPreview.value.canApply) {
+    return
+  }
+  showTimelineApplyPreviewDialog.value = false
+  handleApplyProcessTimelineDraft(timelineApplyPreviewMode.value, { skipReplaceConfirm: true })
 }
 
 const handleSelectLessonSkeletonPreset = (event: Event) => {
@@ -3590,6 +6392,37 @@ const handleSelectLessonSkeletonPreset = (event: Event) => {
   }
   selectedLessonSkeletonPreset.value = nextPreset as EditorLessonSkeletonPreset
   lessonSkeletonPresetManuallySelected.value = true
+}
+
+const handleSelectProcessTimelinePreset = (event: Event) => {
+  const target = event.target as HTMLSelectElement | null
+  const nextPreset = target?.value ?? ''
+  if (!processTimelineOptions.some((option) => option.id === nextPreset)) {
+    return
+  }
+  selectedProcessTimelinePreset.value = nextPreset as EditorProcessTimelinePreset
+  handleResetProcessTimelineDraft()
+}
+
+const handleGenerateProcessTimeline = (mode: EditorProcessTimelineApplyMode) => {
+  if (form.duration <= 0) {
+    alert('请先填写有效的课时长度。')
+    handleFocusEditorSection('basic')
+    return
+  }
+  if (mode === 'replace' && htmlToText(form.process).trim()) {
+    const confirmed = window.confirm('生成时间轴将替换当前教学过程内容，是否继续？')
+    if (!confirmed) {
+      return
+    }
+  }
+  const next = applyEditorProcessTimeline(
+    form as EditorPlanForm,
+    selectedProcessTimelinePreset.value,
+    mode
+  )
+  Object.assign(form, next)
+  handleResetProcessTimelineDraft()
 }
 
 const handleApplyLessonSkeleton = (mode: EditorLessonSkeletonApplyMode) => {
@@ -3674,7 +6507,7 @@ const writeLocalDraftHistory = (history: EditorLocalDraft[]) => {
 }
 
 const persistLocalDraft = (force = false) => {
-  if (!hasUnsavedDraft.value || planStore.isSaving) {
+  if (!hasUnsavedDraft.value || isEditorSaving.value) {
     return
   }
 
@@ -3960,7 +6793,7 @@ const handleClearLocalDraft = () => {
 }
 
 const persistLocalDraftBeforeLeave = () => {
-  if (!shouldPersistLocalDraftOnLeave(hasUnsavedDraft.value, planStore.isSaving)) {
+  if (!shouldPersistLocalDraftOnLeave(hasUnsavedDraft.value, isEditorSaving.value)) {
     return
   }
   persistLocalDraft(true)
@@ -3968,7 +6801,7 @@ const persistLocalDraftBeforeLeave = () => {
 
 const handleBeforeUnload = (event: BeforeUnloadEvent) => {
   persistLocalDraftBeforeLeave()
-  if (!shouldPromptUnsavedChanges(hasUnsavedDraft.value, planStore.isSaving)) {
+  if (!shouldPromptUnsavedChanges(hasUnsavedDraft.value, isEditorSaving.value)) {
     return
   }
   event.preventDefault()
@@ -3976,7 +6809,7 @@ const handleBeforeUnload = (event: BeforeUnloadEvent) => {
 }
 
 const confirmLeaveWithUnsavedDraft = (): boolean => {
-  if (!shouldPromptUnsavedChanges(hasUnsavedDraft.value, planStore.isSaving)) {
+  if (!shouldPromptUnsavedChanges(hasUnsavedDraft.value, isEditorSaving.value)) {
     return true
   }
   return window.confirm('当前教案有未保存更改，确定离开吗？')
@@ -4013,7 +6846,7 @@ const isShortcutActionEnabled = (action: EditorShortcutAction): boolean => {
     return isEditing.value
   }
   if (action === 'publish') {
-    return isEditing.value && planStore.currentPlan?.status === 'DRAFT'
+    return canPublishCurrentDocument.value
   }
   return true
 }
@@ -4073,6 +6906,7 @@ onBeforeRouteLeave((_to, _from, next) => {
 
 onMounted(async () => {
   loadShortcutConfigFromStorage()
+  loadEditorViewPreferenceFromStorage()
   contentSource.value = isEditing.value ? 'server' : 'new'
   if (isEditing.value) {
     await loadPlan()
@@ -4080,23 +6914,664 @@ onMounted(async () => {
     updateSavedDraftSignature()
   }
   restoreLocalDraftIfNeeded()
+  handleResetProcessTimelineDraft()
+  resetProcessTimelineDraftHistory()
+  syncTimelineDragCapability()
   isDraftPersistenceReady.value = true
   await loadTemplates()
+  await nextTick()
+  syncActiveEditorSectionByViewport()
   window.addEventListener('beforeunload', handleBeforeUnload)
   window.addEventListener('keydown', handleEditorKeyboardShortcuts)
+  window.addEventListener('scroll', handleEditorViewportChange, { passive: true })
+  window.addEventListener('resize', handleEditorViewportChange)
 })
 
 onBeforeUnmount(() => {
   window.removeEventListener('beforeunload', handleBeforeUnload)
   window.removeEventListener('keydown', handleEditorKeyboardShortcuts)
+  window.removeEventListener('scroll', handleEditorViewportChange)
+  window.removeEventListener('resize', handleEditorViewportChange)
+  if (typeof window !== 'undefined' && editorSectionSyncRafId !== null) {
+    window.cancelAnimationFrame(editorSectionSyncRafId)
+    editorSectionSyncRafId = null
+  }
   if (localDraftPersistTimer) {
     clearTimeout(localDraftPersistTimer)
     localDraftPersistTimer = null
   }
 })
 
+const resetLessonContext = () => {
+  lessonStatus.value = 'DRAFT'
+  lessonHeaderTeacherName.value = ''
+  lessonHeaderCourseName.value = ''
+  lessonContext.bookId = ''
+  lessonContext.lessonType = ''
+  lessonContext.weekNo = null
+  lessonContext.weekday = ''
+  lessonContext.period = ''
+  lessonContext.lessonDate = ''
+  lessonContext.deliveryPlanId = null
+  lessonContext.deliveryPlanWeekId = null
+  lessonContext.courseStandardTopicRefs = []
+  lessonContext.ideologicalElements = ''
+  lessonContext.integrationMethod = ''
+  lessonContext.difficulty = ''
+  lessonContext.teachingAids = ''
+  lessonTraceabilityResult.value = null
+  lessonTopicSearch.value = ''
+  lessonTopicCandidates.value = []
+  lessonWeekTopicLinkMap.value = {}
+  lessonCourseOfferingId.value = null
+  lessonCoursewareAssets.value = []
+  selectedLessonCoursewareAssetIds.value = []
+  isLessonCoursewareBatchUpdating.value = false
+  deletingLessonCoursewareAssetId.value = ''
+  editingLessonCoursewareAssetId.value = ''
+  autofillingLessonCoursewareAssetId.value = ''
+  lessonCoursewareForm.title = ''
+  lessonCoursewareForm.fileName = ''
+  lessonCoursewareForm.fileUrl = ''
+  lessonCoursewareForm.chapterRef = ''
+  lessonCoursewareForm.tagsText = ''
+  lessonCoursewareForm.ideologicalElementsText = ''
+  lessonCoursewareBatchForm.chapterRef = ''
+  lessonCoursewareBatchForm.tagsText = ''
+  lessonCoursewareBatchForm.ideologicalElementsText = ''
+}
+
+const mapLessonToEditorPlan = (lesson: TeachingPlanLessonDetail) => ({
+  title: lesson.title || '',
+  courseName: lesson.book?.courseOffering?.course?.name || '',
+  className: lesson.className || lesson.book?.courseOffering?.className || '',
+  duration: lesson.duration || 90,
+  methods: lesson.methods || '',
+  resources: lesson.teachingAids || '',
+  objectives: lesson.objectives || '',
+  keyPoints: lesson.keyPoints || '',
+  process: lesson.outline || '',
+  blackboard: '',
+  reflection: lesson.reflection || '',
+  contentJson: lesson.contentJson || {},
+})
+
+const extractLessonTopicCandidates = (
+  deliveryPlan: DeliveryPlanDetail | null | undefined
+): Array<{ id: string; title: string; moduleName: string }> => {
+  const modules = deliveryPlan?.courseStandard?.modules || []
+  return modules.flatMap((module) =>
+    (module.topics || []).map((topic) => ({
+      id: topic.id,
+      title: topic.title,
+      moduleName: module.name,
+    }))
+  )
+}
+
+const syncLessonTopicRefsByWeek = (deliveryPlan: DeliveryPlanDetail | null | undefined) => {
+  if (!deliveryPlan?.weeks || lessonContext.weekNo === null || lessonContext.courseStandardTopicRefs.length > 0) {
+    return
+  }
+  const currentWeek = deliveryPlan.weeks.find((week) => week.weekNo === lessonContext.weekNo)
+  if (currentWeek && Array.isArray(currentWeek.linkedStandardTopicIds) && currentWeek.linkedStandardTopicIds.length > 0) {
+    lessonContext.courseStandardTopicRefs = Array.from(new Set(currentWeek.linkedStandardTopicIds))
+  }
+}
+
+const loadLessonTopicCandidates = async () => {
+  if (!lessonContext.deliveryPlanId) {
+    lessonTopicCandidates.value = []
+    lessonWeekTopicLinkMap.value = {}
+    return
+  }
+
+  isLessonTopicLoading.value = true
+  try {
+    const deliveryPlan = await getDeliveryPlan(lessonContext.deliveryPlanId)
+    lessonTopicCandidates.value = extractLessonTopicCandidates(deliveryPlan)
+    lessonWeekTopicLinkMap.value = Object.fromEntries(
+      (deliveryPlan.weeks || []).map((week) => [week.weekNo, Array.isArray(week.linkedStandardTopicIds) ? week.linkedStandardTopicIds : []])
+    )
+    syncLessonTopicRefsByWeek(deliveryPlan)
+  } catch {
+    lessonTopicCandidates.value = []
+    lessonWeekTopicLinkMap.value = {}
+  } finally {
+    isLessonTopicLoading.value = false
+  }
+}
+
+const handleToggleLessonTopicRef = (topicId: string) => {
+  if (lessonContext.courseStandardTopicRefs.includes(topicId)) {
+    lessonContext.courseStandardTopicRefs = lessonContext.courseStandardTopicRefs.filter((id) => id !== topicId)
+    return
+  }
+  lessonContext.courseStandardTopicRefs = [...lessonContext.courseStandardTopicRefs, topicId]
+}
+
+const handleSelectAllFilteredLessonTopics = () => {
+  const merged = new Set(lessonContext.courseStandardTopicRefs)
+  filteredLessonTopicCandidates.value.forEach((item) => merged.add(item.id))
+  lessonContext.courseStandardTopicRefs = Array.from(merged)
+}
+
+const handleClearAllLessonTopicRefs = () => {
+  lessonContext.courseStandardTopicRefs = []
+}
+
+const resolveCoursewareMissingFields = (asset: CoursewareAsset): string[] => {
+  const missing: string[] = []
+  if (!asset.chapterRef?.trim()) {
+    missing.push('章节')
+  }
+  if (!asset.tags || asset.tags.length === 0) {
+    missing.push('标签')
+  }
+  if (!asset.ideologicalElements || asset.ideologicalElements.length === 0) {
+    missing.push('思政标签')
+  }
+  return missing
+}
+
+const parseCommaSeparatedValues = (value: string): string[] =>
+  value
+    .split(/[,，]/)
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+const resolveLessonCoursewareFallbackIdeologicalTags = (): string[] => {
+  const tags = parseCommaSeparatedValues(lessonContext.ideologicalElements)
+  return tags.length > 0 ? tags : ['课程思政']
+}
+
+const resolveLessonCoursewareFallbackChapter = (): string =>
+  lessonContext.weekNo ? `第${lessonContext.weekNo}周` : '未标注章节'
+
+const resetLessonCoursewareForm = () => {
+  lessonCoursewareForm.title = ''
+  lessonCoursewareForm.fileName = ''
+  lessonCoursewareForm.fileUrl = ''
+  lessonCoursewareForm.chapterRef = ''
+  lessonCoursewareForm.tagsText = ''
+  lessonCoursewareForm.ideologicalElementsText = ''
+  editingLessonCoursewareAssetId.value = ''
+}
+
+const resetLessonCoursewareBatchForm = () => {
+  lessonCoursewareBatchForm.chapterRef = ''
+  lessonCoursewareBatchForm.tagsText = ''
+  lessonCoursewareBatchForm.ideologicalElementsText = ''
+}
+
+const handleToggleLessonCoursewareAssetSelection = (assetId: string) => {
+  if (selectedLessonCoursewareAssetIds.value.includes(assetId)) {
+    selectedLessonCoursewareAssetIds.value = selectedLessonCoursewareAssetIds.value.filter((id) => id !== assetId)
+    return
+  }
+  selectedLessonCoursewareAssetIds.value = [...selectedLessonCoursewareAssetIds.value, assetId]
+}
+
+const handleToggleAllLessonCoursewareAssetSelection = () => {
+  if (isAllLessonCoursewareSelected.value) {
+    selectedLessonCoursewareAssetIds.value = []
+    return
+  }
+  selectedLessonCoursewareAssetIds.value = lessonCoursewareAssets.value.map((asset) => asset.id)
+}
+
+const handleClearLessonCoursewareAssetSelection = () => {
+  selectedLessonCoursewareAssetIds.value = []
+}
+
+const handleApplyLessonCoursewareBatchUpdate = async (options: { onlyMissing: boolean }) => {
+  if (selectedLessonCoursewareAssets.value.length === 0) {
+    alert('请先选择至少一个课件附件')
+    return
+  }
+
+  const chapterInput = lessonCoursewareBatchForm.chapterRef.trim()
+  const tagsInput = parseCommaSeparatedValues(lessonCoursewareBatchForm.tagsText)
+  const ideologicalInput = parseCommaSeparatedValues(lessonCoursewareBatchForm.ideologicalElementsText)
+  if (!options.onlyMissing && !chapterInput && tagsInput.length === 0 && ideologicalInput.length === 0) {
+    alert('请先填写要批量更新的字段')
+    return
+  }
+
+  isLessonCoursewareBatchUpdating.value = true
+  try {
+    let updatedCount = 0
+    for (const asset of selectedLessonCoursewareAssets.value) {
+      const payload: Record<string, unknown> = {}
+      if (options.onlyMissing) {
+        if (!asset.chapterRef?.trim()) {
+          payload.chapterRef = chapterInput || resolveLessonCoursewareFallbackChapter()
+        }
+        if ((asset.tags || []).length === 0) {
+          payload.tags = tagsInput.length > 0 ? tagsInput : ['课件']
+        }
+        if ((asset.ideologicalElements || []).length === 0) {
+          payload.ideologicalElements = ideologicalInput.length > 0
+            ? ideologicalInput
+            : resolveLessonCoursewareFallbackIdeologicalTags()
+        }
+      } else {
+        if (chapterInput) {
+          payload.chapterRef = chapterInput
+        }
+        if (tagsInput.length > 0) {
+          payload.tags = tagsInput
+        }
+        if (ideologicalInput.length > 0) {
+          payload.ideologicalElements = ideologicalInput
+        }
+      }
+
+      if (Object.keys(payload).length === 0) {
+        continue
+      }
+      await updateCoursewareAsset(asset.id, payload)
+      updatedCount += 1
+    }
+
+    if (updatedCount === 0) {
+      alert(options.onlyMissing ? '所选附件没有可补齐字段' : '未检测到可更新内容')
+      return
+    }
+    await loadLessonCoursewareAssets()
+    await runLessonTraceabilityCheck({ silent: true })
+    if (options.onlyMissing) {
+      alert(`批量补齐完成，共更新 ${updatedCount} 条附件`)
+    } else {
+      alert(`批量更新完成，共更新 ${updatedCount} 条附件`)
+    }
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } }; message?: string }
+    const message = err?.response?.data?.message || err?.message || '批量更新课件附件失败'
+    alert(message)
+  } finally {
+    isLessonCoursewareBatchUpdating.value = false
+  }
+}
+
+const loadLessonCoursewareAssets = async () => {
+  if (!isLessonEditorMode.value || !planId.value) {
+    lessonCoursewareAssets.value = []
+    return
+  }
+
+  isLessonCoursewareLoading.value = true
+  try {
+    const data = await listCoursewareAssets({
+      teachingPlanLessonId: planId.value,
+      limit: 100,
+    })
+    lessonCoursewareAssets.value = data.items
+    const validIdSet = new Set(data.items.map((item) => item.id))
+    selectedLessonCoursewareAssetIds.value = selectedLessonCoursewareAssetIds.value.filter((id) => validIdSet.has(id))
+  } catch {
+    lessonCoursewareAssets.value = []
+    selectedLessonCoursewareAssetIds.value = []
+  } finally {
+    isLessonCoursewareLoading.value = false
+  }
+}
+
+const handleCreateLessonCoursewareAsset = async () => {
+  if (!isLessonEditorMode.value || !planId.value) {
+    return
+  }
+  if (!lessonCoursewareForm.title.trim() || !lessonCoursewareForm.fileName.trim() || !lessonCoursewareForm.fileUrl.trim()) {
+    alert('请先填写附件标题、文件名和文件地址')
+    return
+  }
+
+  const editingAssetId = editingLessonCoursewareAssetId.value
+  isLessonCoursewareSubmitting.value = true
+  try {
+    const payload = {
+      title: lessonCoursewareForm.title.trim(),
+      fileName: lessonCoursewareForm.fileName.trim(),
+      fileUrl: lessonCoursewareForm.fileUrl.trim(),
+      courseOfferingId: lessonCourseOfferingId.value || undefined,
+      deliveryPlanWeekId: lessonContext.deliveryPlanWeekId || undefined,
+      teachingPlanLessonId: planId.value,
+      chapterRef: lessonCoursewareForm.chapterRef.trim() || undefined,
+      tags: parseCommaSeparatedValues(lessonCoursewareForm.tagsText),
+      ideologicalElements: parseCommaSeparatedValues(lessonCoursewareForm.ideologicalElementsText),
+    }
+    if (editingAssetId) {
+      await updateCoursewareAsset(editingAssetId, payload)
+    } else {
+      await createCoursewareAsset(payload)
+    }
+    await loadLessonCoursewareAssets()
+    resetLessonCoursewareForm()
+    await runLessonTraceabilityCheck({ silent: true })
+    alert(editingAssetId ? '课件附件已更新' : '课件附件已添加')
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } }; message?: string }
+    const message = err?.response?.data?.message || err?.message || '保存课件附件失败'
+    alert(message)
+  } finally {
+    isLessonCoursewareSubmitting.value = false
+  }
+}
+
+const handleEditLessonCoursewareAsset = (asset: CoursewareAsset) => {
+  editingLessonCoursewareAssetId.value = asset.id
+  lessonCoursewareForm.title = asset.title || ''
+  lessonCoursewareForm.fileName = asset.fileName || ''
+  lessonCoursewareForm.fileUrl = asset.fileUrl || ''
+  lessonCoursewareForm.chapterRef = asset.chapterRef || ''
+  lessonCoursewareForm.tagsText = (asset.tags || []).join(', ')
+  lessonCoursewareForm.ideologicalElementsText = (asset.ideologicalElements || []).join(', ')
+}
+
+const handleCancelEditLessonCoursewareAsset = () => {
+  resetLessonCoursewareForm()
+}
+
+const handleAutofillLessonCoursewareAsset = async (asset: CoursewareAsset) => {
+  const missingFields = resolveCoursewareMissingFields(asset)
+  if (missingFields.length === 0) {
+    return
+  }
+
+  const lessonIdeologicalDefaults = parseCommaSeparatedValues(lessonContext.ideologicalElements)
+  autofillingLessonCoursewareAssetId.value = asset.id
+  try {
+    await updateCoursewareAsset(asset.id, {
+      chapterRef: asset.chapterRef?.trim() || (lessonContext.weekNo ? `第${lessonContext.weekNo}周` : '未标注章节'),
+      tags: asset.tags.length > 0 ? asset.tags : ['课件'],
+      ideologicalElements:
+        asset.ideologicalElements.length > 0
+          ? asset.ideologicalElements
+          : lessonIdeologicalDefaults.length > 0
+            ? lessonIdeologicalDefaults
+            : ['课程思政'],
+    })
+    await loadLessonCoursewareAssets()
+    await runLessonTraceabilityCheck({ silent: true })
+    alert(`已补齐：${missingFields.join('、')}`)
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } }; message?: string }
+    const message = err?.response?.data?.message || err?.message || '课件附件自动补齐失败'
+    alert(message)
+  } finally {
+    autofillingLessonCoursewareAssetId.value = ''
+  }
+}
+
+const handleAutofillAllMissingLessonCoursewareAssets = async () => {
+  if (lessonCoursewareAssets.value.length === 0) {
+    alert('暂无可处理的课件附件')
+    return
+  }
+  selectedLessonCoursewareAssetIds.value = lessonCoursewareAssets.value.map((asset) => asset.id)
+  await handleApplyLessonCoursewareBatchUpdate({ onlyMissing: true })
+}
+
+const handleDeleteLessonCoursewareAsset = async (assetId: string) => {
+  if (!assetId) {
+    return
+  }
+  if (!window.confirm('确定删除该课件附件吗？删除后将从映证链路中移除。')) {
+    return
+  }
+
+  deletingLessonCoursewareAssetId.value = assetId
+  try {
+    await deleteCoursewareAsset(assetId)
+    await loadLessonCoursewareAssets()
+    if (editingLessonCoursewareAssetId.value === assetId) {
+      resetLessonCoursewareForm()
+    }
+    await runLessonTraceabilityCheck({ silent: true })
+    alert('课件附件已删除')
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } }; message?: string }
+    const message = err?.response?.data?.message || err?.message || '删除课件附件失败'
+    alert(message)
+  } finally {
+    deletingLessonCoursewareAssetId.value = ''
+  }
+}
+
+const handleFocusLessonCoursewareSection = () => {
+  if (typeof document === 'undefined') {
+    return
+  }
+  const element = document.getElementById('lesson-courseware-traceability')
+  if (!element) {
+    return
+  }
+  element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
+
+const handleOpenLessonWarningWorkbench = (tab: 'standards' | 'delivery' | 'courseware') => {
+  if (!isLessonEditorMode.value || !planId.value) {
+    return
+  }
+  const query: Record<string, string> = {
+    source: 'editor-lesson-warning',
+    tab,
+    lessonId: planId.value,
+  }
+  if (lessonContext.deliveryPlanId) {
+    query.deliveryPlanId = lessonContext.deliveryPlanId
+  }
+  if (lessonContext.bookId) {
+    query.bookId = lessonContext.bookId
+  }
+  if (lessonCourseOfferingId.value) {
+    query.courseOfferingId = lessonCourseOfferingId.value
+  }
+  if (lessonContext.weekNo) {
+    query.weekNo = String(lessonContext.weekNo)
+  }
+  router.push({
+    path: '/workbench',
+    query,
+  })
+}
+
+const scrollToLessonField = (fieldId: string) => {
+  if (typeof document === 'undefined') {
+    return
+  }
+  const element = document.getElementById(fieldId)
+  if (!element) {
+    return
+  }
+  element.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  const input = element.querySelector('input, textarea, select') as HTMLElement | null
+  input?.focus()
+}
+
+const buildLessonPublishWarningMessage = (warnings: string[]) => {
+  const lines: string[] = [`映证预检发现 ${warnings.length} 条告警：`]
+  for (const warning of warnings) {
+    lines.push(`- ${warning}`)
+  }
+  const checklist = resolveLessonWarningFixChecklist(warnings)
+  if (checklist.length > 0) {
+    lines.push('', '建议优先处理：')
+    for (const item of checklist) {
+      lines.push(`- ${item}`)
+    }
+  }
+  lines.push('', '可在告警区点击“去处理”快速定位或跳转工作台。')
+  lines.push('是否继续发布？')
+  return lines.join('\n')
+}
+
+const handleApplyLessonWarningAutofix = async () => {
+  if (!lessonWarningHasCoursewareAutofix.value) {
+    alert('当前告警暂无可自动修复项')
+    return
+  }
+  if (lessonCoursewareAssets.value.length === 0) {
+    alert('暂无课件附件可自动修复，请先新增课件附件')
+    handleFocusLessonCoursewareSection()
+    return
+  }
+  await handleAutofillAllMissingLessonCoursewareAssets()
+}
+
+const handleResolveLessonWarning = async (warning: string) => {
+  if (warning.includes('课件附件')) {
+    if (warning.includes('未关联任何课件附件') && lessonCoursewareAssets.value.length === 0) {
+      const openWorkbench = window.confirm('当前单次课尚未关联课件附件，是否前往“教学链路 > 课件附件”补充素材？')
+      if (openWorkbench) {
+        handleOpenLessonWarningWorkbench('courseware')
+        return
+      }
+    }
+    handleFocusLessonCoursewareSection()
+    if (
+      warning.includes('缺少章节标注')
+      || warning.includes('缺少标签')
+      || warning.includes('缺少思政标签')
+    ) {
+      const confirmed = window.confirm('检测到课件附件字段缺失，是否立即执行一键补齐？')
+      if (confirmed) {
+        await handleAutofillAllMissingLessonCoursewareAssets()
+      }
+    }
+    return
+  }
+
+  if (warning.includes('思政元素')) {
+    if (warning.includes('授课计划')) {
+      const openWorkbench = window.confirm('该告警涉及授课计划周次配置，是否前往“教学链路 > 授课计划”处理？')
+      if (openWorkbench) {
+        handleOpenLessonWarningWorkbench('delivery')
+        return
+      }
+    }
+    scrollToLessonField('lesson-field-ideology')
+    return
+  }
+
+  if (warning.includes('融入方式')) {
+    if (warning.includes('授课计划')) {
+      const openWorkbench = window.confirm('该告警涉及授课计划周次配置，是否前往“教学链路 > 授课计划”处理？')
+      if (openWorkbench) {
+        handleOpenLessonWarningWorkbench('delivery')
+        return
+      }
+    }
+    scrollToLessonField('lesson-field-integration')
+    return
+  }
+
+  if (warning.includes('课程标准')) {
+    const openWorkbench = window.confirm('该告警通常需要在“教学链路 > 课程标准”或“授课计划”中核对，是否前往工作台？')
+    if (openWorkbench) {
+      handleOpenLessonWarningWorkbench('standards')
+      return
+    }
+    scrollToLessonField('lesson-field-topic-refs')
+    return
+  }
+
+  if (warning.includes('授课计划') || warning.includes('周次')) {
+    const openWorkbench = window.confirm('该告警通常需要在“教学链路 > 授课计划”中处理，是否前往工作台？')
+    if (openWorkbench) {
+      handleOpenLessonWarningWorkbench('delivery')
+      return
+    }
+    scrollToLessonField('lesson-field-week-no')
+    return
+  }
+
+  scrollToLessonField('lesson-field-week-no')
+}
+
+const buildTraceabilityValidationSummary = (result: TraceabilityValidationResult): string => {
+  if (result.blockers.length > 0) {
+    return `映证阻断项：\n${result.blockers.join('\n')}`
+  }
+  if (result.warnings.length > 0) {
+    return `映证告警项：\n${result.warnings.join('\n')}`
+  }
+  return '映证校验通过，无阻断项和告警项。'
+}
+
+const runLessonTraceabilityCheck = async (options?: { silent?: boolean }) => {
+  if (!isLessonEditorMode.value || !planId.value) {
+    return null
+  }
+
+  isLessonTraceabilityChecking.value = true
+  try {
+    const result = await validateTraceability({
+      type: 'teaching-plan-lesson',
+      id: planId.value,
+    })
+    lessonTraceabilityResult.value = result
+    if (!options?.silent) {
+      alert(buildTraceabilityValidationSummary(result))
+    }
+    return result
+  } catch (error: unknown) {
+    const err = error as { response?: { data?: { message?: string } }; message?: string }
+    const message = err?.response?.data?.message || err?.message || '映证校验失败'
+    lessonTraceabilityResult.value = {
+      passed: false,
+      blockers: [message],
+      warnings: [],
+    }
+    if (!options?.silent) {
+      alert(message)
+    }
+    return null
+  } finally {
+    isLessonTraceabilityChecking.value = false
+  }
+}
+
+const handleRunLessonTraceabilityCheck = async () => {
+  await runLessonTraceabilityCheck()
+}
+
 const loadPlan = async () => {
   try {
+    if (isLessonEditorMode.value) {
+      const lesson = await getTeachingPlanLesson(planId.value)
+      const mapped = mapFetchedPlanToForm(mapLessonToEditorPlan(lesson) as any)
+      lessonStatus.value = lesson.status
+      lessonContext.bookId = lesson.bookId
+      lessonContext.lessonType = lesson.lessonType || ''
+      lessonContext.weekNo = lesson.weekNo || null
+      lessonContext.weekday = lesson.weekday || ''
+      lessonContext.period = lesson.period || ''
+      lessonContext.lessonDate = lesson.lessonDate ? String(lesson.lessonDate).slice(0, 10) : ''
+      lessonHeaderTeacherName.value = lesson.book?.teacherName || ''
+      lessonHeaderCourseName.value = lesson.book?.courseOffering?.course?.name || ''
+      lessonContext.deliveryPlanId = lesson.deliveryPlanId || null
+      lessonContext.deliveryPlanWeekId = lesson.deliveryPlanWeekId || null
+      lessonContext.courseStandardTopicRefs = lesson.courseStandardTopicRefs || []
+      lessonContext.ideologicalElements = lesson.ideologicalElements || ''
+      lessonContext.integrationMethod = lesson.integrationMethod || ''
+      lessonContext.difficulty = lesson.difficulty || ''
+      lessonContext.teachingAids = lesson.teachingAids || ''
+      lessonCourseOfferingId.value = lesson.book?.courseOfferingId || null
+      Object.assign(form, mapped)
+      contentSource.value = 'server'
+      updateSavedDraftSignature()
+      if (lesson.updatedAt) {
+        lastSaved.value = new Date(lesson.updatedAt).toLocaleString('zh-CN')
+      }
+      await loadLessonTopicCandidates()
+      await loadLessonCoursewareAssets()
+      await runLessonTraceabilityCheck({ silent: true })
+      return
+    }
+
+    resetLessonContext()
+    lessonTraceabilityResult.value = null
     const plan = await planStore.fetchPlan(planId.value)
     const mapped = mapFetchedPlanToForm(plan)
     Object.assign(form, mapped)
@@ -4131,6 +7606,77 @@ watch(
   { immediate: true }
 )
 
+watch(
+  () => lessonContext.deliveryPlanId,
+  async () => {
+    if (!isLessonEditorMode.value) {
+      return
+    }
+    await loadLessonTopicCandidates()
+  }
+)
+
+watch(
+  () => lessonContext.weekNo,
+  (weekNo) => {
+    if (!isLessonEditorMode.value || weekNo === null || lessonContext.courseStandardTopicRefs.length > 0) {
+      return
+    }
+    const linked = lessonWeekTopicLinkMap.value[weekNo] || []
+    if (linked.length > 0) {
+      lessonContext.courseStandardTopicRefs = Array.from(new Set(linked))
+    }
+  }
+)
+
+watch(
+  [isFocusMode, collapsedEditorSections],
+  () => {
+    persistEditorViewPreference()
+  },
+  { deep: true }
+)
+
+watch(
+  [showTemplatePanel, isFocusMode, collapsedEditorSections, showOutlineDialog],
+  () => {
+    nextTick(() => {
+      scheduleSyncActiveEditorSectionByViewport()
+    })
+  },
+  { deep: true }
+)
+
+watch(
+  processTimelineDraftSignature,
+  () => {
+    if (isSyncingProcessTimelineDraftHistory.value) {
+      return
+    }
+    processTimelineDraftUndoStack.value = pushEditorTimelineDraftUndoStack(
+      processTimelineDraftUndoStack.value,
+      processTimelineDraftHistoryAnchor.value,
+      processTimelineDraftSteps.value
+    )
+    processTimelineDraftRedoStack.value = []
+    syncProcessTimelineDraftHistoryAnchor()
+  }
+)
+
+watch(
+  () => processTimelineDraftSteps.value.map((step) => step.id),
+  () => {
+    selectedProcessTimelineDraftStepIds.value = normalizeEditorTimelineStepSelectedState(
+      selectedProcessTimelineDraftStepIds.value,
+      processTimelineDraftSteps.value
+    )
+    collapsedProcessTimelineDraftStepIds.value = normalizeEditorTimelineStepCollapsedState(
+      collapsedProcessTimelineDraftStepIds.value,
+      processTimelineDraftSteps.value
+    )
+  }
+)
+
 watch(filteredLocalDraftHistory, (nextHistory) => {
   if (!showDraftDialog.value) {
     return
@@ -4157,7 +7703,35 @@ const handleSave = async () => {
     const data = buildPlanPayload(form)
     
     if (isEditing.value) {
-      await planStore.updatePlan(planId.value, data)
+      if (isLessonEditorMode.value) {
+        isLessonSaving.value = true
+        const lesson = await updateTeachingPlanLesson(planId.value, {
+          title: data.title,
+          lessonType: lessonContext.lessonType || undefined,
+          className: data.className,
+          weekNo: lessonContext.weekNo || undefined,
+          weekday: lessonContext.weekday || undefined,
+          period: lessonContext.period || undefined,
+          lessonDate: lessonContext.lessonDate ? `${lessonContext.lessonDate}T00:00:00.000Z` : undefined,
+          duration: data.duration,
+          objectives: data.objectives,
+          keyPoints: data.keyPoints,
+          difficulty: lessonContext.difficulty || undefined,
+          outline: data.process,
+          reflection: data.reflection,
+          methods: data.methods,
+          teachingAids: lessonContext.teachingAids || data.resources || undefined,
+          contentJson: data.contentJson,
+          ideologicalElements: lessonContext.ideologicalElements || undefined,
+          integrationMethod: lessonContext.integrationMethod || undefined,
+          deliveryPlanId: lessonContext.deliveryPlanId || undefined,
+          deliveryPlanWeekId: lessonContext.deliveryPlanWeekId || undefined,
+          courseStandardTopicRefs: lessonContext.courseStandardTopicRefs,
+        })
+        lessonStatus.value = lesson.status
+      } else {
+        await planStore.updatePlan(planId.value, data)
+      }
     } else {
       const result = await planStore.createPlan(data)
       clearLocalDraft()
@@ -4173,8 +7747,13 @@ const handleSave = async () => {
     updateSavedDraftSignature()
     
     lastSaved.value = new Date().toLocaleString('zh-CN')
+    if (isLessonEditorMode.value) {
+      await runLessonTraceabilityCheck({ silent: true })
+    }
   } catch (error: any) {
-    alert('保存失败: ' + (error.message || '未知错误'))
+    alert('保存失败: ' + (error?.response?.data?.message || error.message || '未知错误'))
+  } finally {
+    isLessonSaving.value = false
   }
 }
 
@@ -4337,6 +7916,11 @@ const handleMobileToggleTemplatePanel = () => {
   closeMobileActions()
 }
 
+const handleMobileToggleFocusMode = () => {
+  handleToggleFocusMode()
+  closeMobileActions()
+}
+
 const handleMobileOpenDraftDialog = () => {
   closeMobileActions()
   handleOpenDraftDialog()
@@ -4345,6 +7929,16 @@ const handleMobileOpenDraftDialog = () => {
 const handleMobileOpenShortcutDialog = () => {
   closeMobileActions()
   handleOpenShortcutDialog()
+}
+
+const handleMobileOpenOutlineDialog = () => {
+  closeMobileActions()
+  showOutlineDialog.value = true
+}
+
+const handleMobileFocusNextIncompleteSection = () => {
+  closeMobileActions()
+  handleFocusNextIncompleteSection()
 }
 
 const handleMobileSave = async () => {
@@ -4363,15 +7957,63 @@ const handleMobilePublish = async () => {
 }
 
 const handlePublish = async () => {
-  if (!confirm('确定要发布这个教案吗？发布后所有人都可以查看。')) {
+  const confirmText = isLessonEditorMode.value
+    ? '确定要发布这个单次课教案吗？发布前会执行映证校验。'
+    : '确定要发布这个教案吗？发布后所有人都可以查看。'
+
+  if (!confirm(confirmText)) {
     return
   }
   
   try {
+    if (isLessonEditorMode.value) {
+      let validation = await runLessonTraceabilityCheck({ silent: true })
+      if (!validation) {
+        return
+      }
+      if (validation.blockers.length > 0) {
+        alert(`发布已阻断：\n${validation.blockers.join('\n')}`)
+        return
+      }
+      if (validation.warnings.length > 0) {
+        const hasCoursewareAutofix = validation.warnings.some((item) => item.includes('课件附件有'))
+        if (hasCoursewareAutofix && lessonCoursewareAssets.value.length > 0) {
+          const autofixConfirmed = window.confirm(
+            '检测到课件附件存在可自动补齐字段，是否先执行自动补齐并重新校验？'
+          )
+          if (autofixConfirmed) {
+            await handleAutofillAllMissingLessonCoursewareAssets()
+            validation = await runLessonTraceabilityCheck({ silent: true })
+            if (!validation) {
+              return
+            }
+            if (validation.blockers.length > 0) {
+              alert(`发布已阻断：\n${validation.blockers.join('\n')}`)
+              return
+            }
+          }
+        }
+      }
+      if (validation.warnings.length > 0) {
+        const confirmed = window.confirm(buildLessonPublishWarningMessage(validation.warnings))
+        if (!confirmed) {
+          return
+        }
+      }
+
+      isLessonSaving.value = true
+      const lesson = await publishTeachingPlanLesson(planId.value)
+      lessonStatus.value = lesson.status
+      alert('单次课教案已发布！')
+      return
+    }
+
     await planStore.publishPlan(planId.value)
     alert('教案已发布！')
   } catch (error: any) {
-    alert('发布失败: ' + (error.message || '未知错误'))
+    alert('发布失败: ' + (error?.response?.data?.message || error.message || '未知错误'))
+  } finally {
+    isLessonSaving.value = false
   }
 }
 
@@ -4389,7 +8031,11 @@ const handleExport = async () => {
 
   try {
     const token = localStorage.getItem('token')
-    const response = await fetch(`/api/export/word/${planId.value}`, {
+    const exportUrl = isLessonEditorMode.value
+      ? `/api/export/word/${planId.value}?sourceType=teaching-plan-lesson`
+      : `/api/export/word/${planId.value}`
+
+    const response = await fetch(exportUrl, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
