@@ -4,6 +4,7 @@
       <div>
         <p class="text-sm font-semibold text-amber-900">标签式编辑分区</p>
         <p class="mt-1 text-xs text-amber-700">将输入项按教学流程分组，避免整页拥挤。</p>
+        <p class="mt-1 text-[11px] text-amber-700/90">快捷切换：Alt/Option + 1~4</p>
       </div>
       <span class="inline-flex items-center rounded-sm border border-amber-200 bg-white px-2 py-1 text-xs font-medium text-amber-700">
         当前标签：{{ activeLabel }}

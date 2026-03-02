@@ -89,6 +89,9 @@ describe('EditorView form and editor visual system', () => {
     expect(editorViewSource).toContain('loadEditorViewPreferenceFromStorage')
     expect(editorViewSource).toContain('activeLayoutTab')
     expect(editorViewSource).toContain('Alt/Option + 1~4')
+    expect(editorViewSource).toContain('标签切换（固定）')
+    expect(editorViewSource).toContain('Alt / Option + 1：基础信息')
+    expect(editorViewSource).toContain('Alt / Option + 4：课后沉淀')
   })
 
   it('adds structured process timeline assistant controls', () => {

@@ -6,10 +6,10 @@ TBD - created by archiving change frontend-warm-redesign. Update Purpose after a
 ### Requirement: Frontend SHALL provide reusable warm UI primitives
 The frontend SHALL provide reusable base UI components that implement consistent warm visual style and interaction behavior.
 
-#### Scenario: Tab component provides current-state accessibility semantics
-- **WHEN** editor tab components render active and inactive tabs
-- **THEN** active tab trigger SHALL expose explicit current-state semantics (for example `aria-current`)
-- **AND** semantics SHALL remain consistent for both main editor tabs and template dialog tabs
+#### Scenario: Editor tab primitive exposes shortcut hint area
+- **WHEN** editor tab component is used in editor page
+- **THEN** it SHALL support rendering shortcut hint copy within the component shell
+- **AND** hint styling SHALL remain aligned with warm visual language
 
 ### Requirement: Frontend SHALL provide shared layout components
 The frontend SHALL provide shared layout components for navigation and page heading.

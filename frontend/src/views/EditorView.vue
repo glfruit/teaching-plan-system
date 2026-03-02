@@ -389,6 +389,18 @@
           </div>
 
           <div class="mt-4 space-y-3 text-sm text-slate-700">
+            <section class="rounded border border-amber-200 bg-amber-50/60 p-2">
+              <p class="px-1 text-xs font-semibold tracking-wide text-amber-700">标签切换（固定）</p>
+              <p class="px-1 pt-0.5 text-[11px] text-amber-700/80">
+                该组快捷键不可自定义，用于快速切换主编辑标签分区。
+              </p>
+              <ul class="mt-2 space-y-1 px-1 text-xs text-amber-800">
+                <li>Alt / Option + 1：基础信息</li>
+                <li>Alt / Option + 2：教学设计</li>
+                <li>Alt / Option + 3：课堂流程</li>
+                <li>Alt / Option + 4：课后沉淀</li>
+              </ul>
+            </section>
             <section
               v-for="section in shortcutActionSections"
               :key="`shortcut-section-${section.id}`"
