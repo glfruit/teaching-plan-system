@@ -6,15 +6,10 @@ TBD - created by archiving change frontend-warm-redesign. Update Purpose after a
 ### Requirement: Frontend SHALL provide reusable warm UI primitives
 The frontend SHALL provide reusable base UI components that implement consistent warm visual style and interaction behavior.
 
-#### Scenario: Base primitives are available for pages
-- **WHEN** page views render forms, cards, and actions
-- **THEN** they SHALL consume shared primitives including `BaseButton`, `BaseCard`, `BaseInput`, and `BaseBadge`
-- **AND** these primitives SHALL expose typed props for size/variant/state customization
-
-#### Scenario: Interaction behavior is standardized
-- **WHEN** users hover/focus/click on interactive primitives
-- **THEN** the component library SHALL apply consistent hover elevation, focus ring, and active press feedback
-- **AND** disabled/loading states SHALL remain visually and behaviorally correct
+#### Scenario: Tab component provides current-state accessibility semantics
+- **WHEN** editor tab components render active and inactive tabs
+- **THEN** active tab trigger SHALL expose explicit current-state semantics (for example `aria-current`)
+- **AND** semantics SHALL remain consistent for both main editor tabs and template dialog tabs
 
 ### Requirement: Frontend SHALL provide shared layout components
 The frontend SHALL provide shared layout components for navigation and page heading.

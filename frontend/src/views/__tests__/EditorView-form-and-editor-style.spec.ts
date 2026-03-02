@@ -6,6 +6,10 @@ const editorViewPath = resolve(__dirname, '..', 'EditorView.vue')
 const editorViewSource = readFileSync(editorViewPath, 'utf-8')
 const tipTapEditorPath = resolve(__dirname, '..', '..', 'components', 'TipTapEditor.vue')
 const tipTapEditorSource = readFileSync(tipTapEditorPath, 'utf-8')
+const editorLayoutTabsPath = resolve(__dirname, '..', '..', 'components', 'editor', 'EditorLayoutTabs.vue')
+const editorLayoutTabsSource = readFileSync(editorLayoutTabsPath, 'utf-8')
+const templateEditTabsPath = resolve(__dirname, '..', '..', 'components', 'editor', 'TemplateEditTabs.vue')
+const templateEditTabsSource = readFileSync(templateEditTabsPath, 'utf-8')
 
 describe('EditorView form and editor visual system', () => {
   it('uses BaseInput for core metadata fields in basic info card', () => {
@@ -39,6 +43,40 @@ describe('EditorView form and editor visual system', () => {
     expect(editorViewSource).toContain('当前分区')
   })
 
+  it('uses sticky tabbed grouping to reduce crowded inputs', () => {
+    expect(editorViewSource).toContain("import EditorLayoutTabs from '../components/editor/EditorLayoutTabs.vue'")
+    expect(editorViewSource).toContain('<EditorLayoutTabs')
+    expect(editorViewSource).toContain('activeEditorLayoutTab')
+    expect(editorViewSource).toContain('handleSelectEditorLayoutTab')
+    expect(editorLayoutTabsSource).toContain('标签式编辑分区')
+    expect(editorLayoutTabsSource).toContain('sticky top-[4.5rem] z-10')
+    expect(editorLayoutTabsSource).toContain('bg-gradient-to-r from-amber-400 to-orange-400')
+    expect(editorLayoutTabsSource).toContain('overflow-x-auto')
+    expect(editorLayoutTabsSource).toContain('min-w-[12rem] shrink-0')
+    expect(editorLayoutTabsSource).toContain(':aria-current="activeTab === tab.id ? \'page\' : undefined"')
+    expect(editorViewSource).toContain("v-show=\"activeEditorLayoutTab === 'design'\"")
+    expect(editorViewSource).toContain("v-show=\"activeEditorLayoutTab === 'process'\"")
+    expect(editorViewSource).toContain("v-show=\"activeEditorLayoutTab === 'review'\"")
+  })
+
+  it('adds tabbed grouping in template edit dialog', () => {
+    expect(editorViewSource).toContain("import TemplateEditTabs from '../components/editor/TemplateEditTabs.vue'")
+    expect(editorViewSource).toContain('<TemplateEditTabs')
+    expect(editorViewSource).toContain('templateEditActiveTab')
+    expect(editorViewSource).toContain('templateEditTabs')
+    expect(editorViewSource).toContain('handleSelectTemplateEditTab')
+    expect(templateEditTabsSource).toContain('模板编辑标签')
+    expect(templateEditTabsSource).toContain('overflow-x-auto')
+    expect(templateEditTabsSource).toContain('min-w-[9rem] shrink-0')
+    expect(templateEditTabsSource).toContain(':aria-current="activeTab === tab.id ? \'page\' : undefined"')
+    expect(editorViewSource).toContain('下一待完善标签')
+    expect(editorViewSource).toContain('nextIncompleteTemplateEditTab')
+    expect(editorViewSource).toContain('handleFocusNextIncompleteTemplateEditTab')
+    expect(editorViewSource).toContain("v-show=\"templateEditActiveTab === 'basic'\"")
+    expect(editorViewSource).toContain("v-show=\"templateEditActiveTab === 'process'\"")
+    expect(editorViewSource).toContain("v-show=\"templateEditActiveTab === 'review'\"")
+  })
+
   it('shows process minute summary and quick align action', () => {
     expect(editorViewSource).toContain('环节分钟')
     expect(editorViewSource).toContain('对齐课时')
@@ -49,6 +87,8 @@ describe('EditorView form and editor visual system', () => {
     expect(editorViewSource).toContain('handleMobileFocusNextIncompleteSection')
     expect(editorViewSource).toContain('EDITOR_VIEW_PREFERENCE_STORAGE_KEY')
     expect(editorViewSource).toContain('loadEditorViewPreferenceFromStorage')
+    expect(editorViewSource).toContain('activeLayoutTab')
+    expect(editorViewSource).toContain('Alt/Option + 1~4')
   })
 
   it('adds structured process timeline assistant controls', () => {

@@ -86,10 +86,14 @@ import {
   applyEditorExportPrecheckFix,
   shouldPersistLocalDraftOnLeave,
   shouldShowEditorTemplatePanel,
+  resolveEditorLayoutTabBySection,
+  resolveEditorSectionForLayoutTab,
+  buildEditorLayoutTabSummaries,
   isEditorSectionCollapsedInState,
   setEditorSectionCollapsedState,
   toggleEditorSectionCollapsedState,
   normalizeEditorCollapsibleSections,
+  normalizeEditorLayoutTab,
   parseEditorViewPreference,
   serializeEditorViewPreference,
   buildPlanPayload,
@@ -2269,17 +2273,128 @@ describe('EditorView teaching layout persistence', () => {
     const serialized = serializeEditorViewPreference({
       focusMode: true,
       collapsedSections: ['process', 'objectives'],
+      activeLayoutTab: 'design',
     })
     const parsed = parseEditorViewPreference(serialized)
     expect(parsed).toEqual({
       focusMode: true,
       collapsedSections: ['process', 'objectives'],
+      activeLayoutTab: 'design',
     })
   })
 
   it('returns null for invalid editor view preference payload', () => {
     expect(parseEditorViewPreference(null)).toBeNull()
     expect(parseEditorViewPreference('{"focusMode":"yes"}')).toBeNull()
+  })
+
+  it('normalizes invalid active layout tab to basic', () => {
+    expect(normalizeEditorLayoutTab('design')).toBe('design')
+    expect(normalizeEditorLayoutTab('unknown')).toBe('basic')
+    expect(
+      parseEditorViewPreference(
+        JSON.stringify({
+          focusMode: false,
+          collapsedSections: [],
+          activeLayoutTab: 'mystery',
+        })
+      )
+    ).toEqual({
+      focusMode: false,
+      collapsedSections: [],
+      activeLayoutTab: 'basic',
+    })
+  })
+
+  it('maps editor sections to layout tabs for tabbed editing flow', () => {
+    expect(resolveEditorLayoutTabBySection('basic')).toBe('basic')
+    expect(resolveEditorLayoutTabBySection('objectives')).toBe('design')
+    expect(resolveEditorLayoutTabBySection('keyPoints')).toBe('design')
+    expect(resolveEditorLayoutTabBySection('process')).toBe('process')
+    expect(resolveEditorLayoutTabBySection('blackboard')).toBe('review')
+    expect(resolveEditorLayoutTabBySection('reflection')).toBe('review')
+  })
+
+  it('resolves focus section by selected layout tab', () => {
+    expect(resolveEditorSectionForLayoutTab('design', 'basic')).toBe('objectives')
+    expect(resolveEditorSectionForLayoutTab('design', 'keyPoints')).toBe('keyPoints')
+    expect(resolveEditorSectionForLayoutTab('review', 'process')).toBe('blackboard')
+  })
+
+  it('builds layout tab summaries from section completion items', () => {
+    const summaries = buildEditorLayoutTabSummaries([
+      {
+        section: 'basic',
+        label: '基本信息',
+        filledCount: 4,
+        totalCount: 6,
+        requiredMissingLabels: ['课时长度'],
+        status: 'partial',
+        progress: 67,
+      },
+      {
+        section: 'objectives',
+        label: '教学目标',
+        filledCount: 1,
+        totalCount: 1,
+        requiredMissingLabels: [],
+        status: 'complete',
+        progress: 100,
+      },
+      {
+        section: 'keyPoints',
+        label: '重点难点',
+        filledCount: 0,
+        totalCount: 1,
+        requiredMissingLabels: [],
+        status: 'empty',
+        progress: 0,
+      },
+      {
+        section: 'process',
+        label: '教学过程',
+        filledCount: 1,
+        totalCount: 1,
+        requiredMissingLabels: [],
+        status: 'complete',
+        progress: 100,
+      },
+      {
+        section: 'blackboard',
+        label: '板书设计',
+        filledCount: 0,
+        totalCount: 1,
+        requiredMissingLabels: [],
+        status: 'empty',
+        progress: 0,
+      },
+      {
+        section: 'reflection',
+        label: '教学反思',
+        filledCount: 1,
+        totalCount: 1,
+        requiredMissingLabels: [],
+        status: 'complete',
+        progress: 100,
+      },
+    ])
+
+    expect(summaries.map((item) => item.id)).toEqual(['basic', 'design', 'process', 'review'])
+    expect(summaries.find((item) => item.id === 'basic')).toMatchObject({
+      filledCount: 4,
+      totalCount: 6,
+      requiredMissingCount: 1,
+    })
+    expect(summaries.find((item) => item.id === 'design')).toMatchObject({
+      filledCount: 1,
+      totalCount: 2,
+      requiredMissingCount: 0,
+    })
+    expect(summaries.find((item) => item.id === 'review')).toMatchObject({
+      filledCount: 1,
+      totalCount: 2,
+      requiredMissingCount: 0,
+    })
   })
 
   it('resolves active editor section from viewport positions', () => {

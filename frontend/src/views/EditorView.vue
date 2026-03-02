@@ -794,7 +794,23 @@
             </button>
           </div>
 
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <TemplateEditTabs
+            :tabs="templateEditTabs"
+            :active-tab="templateEditActiveTab"
+            @select="handleSelectTemplateEditTab"
+          />
+          <div class="mb-4 flex justify-end">
+            <button
+              type="button"
+              @click="handleFocusNextIncompleteTemplateEditTab"
+              class="h-8 rounded border border-slate-300 bg-white px-3 text-xs text-slate-700 hover:bg-slate-50"
+            >
+              下一待完善标签
+              <span v-if="nextIncompleteTemplateEditTab">（{{ nextIncompleteTemplateEditTab.label }}）</span>
+            </button>
+          </div>
+
+          <div v-show="templateEditActiveTab === 'basic'" class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div class="md:col-span-2">
               <label class="block text-sm font-medium text-slate-700 mb-2">模板标题</label>
               <input
@@ -847,47 +863,47 @@
                 class="w-full px-3 sm:px-4 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
               />
             </div>
-          </div>
-          <div class="mb-4">
-            <label class="block text-sm font-medium text-slate-700 mb-2">模板标签</label>
-            <div class="flex flex-wrap gap-2">
-              <button
-                v-for="tag in PRESET_TEMPLATE_TAGS"
-                :key="`edit-${tag}`"
-                @click="handleAddEditTag(tag)"
-                class="px-2 py-1 text-xs text-slate-700 bg-slate-100 rounded-sm hover:bg-slate-200"
-              >
-                +{{ tag }}
-              </button>
-            </div>
-            <div class="mt-2 flex gap-2">
-              <input
-                v-model="templateEditTagInput"
-                type="text"
-                placeholder="自定义标签（回车添加）"
-                @keydown.enter.prevent="handleAddEditTag(templateEditTagInput)"
-                class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
-              />
-              <button
-                @click="handleAddEditTag(templateEditTagInput)"
-                class="px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded hover:bg-slate-50"
-              >
-                添加
-              </button>
-            </div>
-            <div class="mt-2 flex flex-wrap gap-2">
-              <span
-                v-for="tag in templateEditTags"
-                :key="`edit-chip-${tag}`"
-                class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-[#eef3f0] text-[#435549] rounded-sm"
-              >
-                {{ tag }}
-                <button @click="handleRemoveEditTag(tag)">×</button>
-              </span>
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium text-slate-700 mb-2">模板标签</label>
+              <div class="flex flex-wrap gap-2">
+                <button
+                  v-for="tag in PRESET_TEMPLATE_TAGS"
+                  :key="`edit-${tag}`"
+                  @click="handleAddEditTag(tag)"
+                  class="px-2 py-1 text-xs text-slate-700 bg-slate-100 rounded-sm hover:bg-slate-200"
+                >
+                  +{{ tag }}
+                </button>
+              </div>
+              <div class="mt-2 flex gap-2">
+                <input
+                  v-model="templateEditTagInput"
+                  type="text"
+                  placeholder="自定义标签（回车添加）"
+                  @keydown.enter.prevent="handleAddEditTag(templateEditTagInput)"
+                  class="w-full px-3 py-2 border border-slate-300 rounded focus:ring-2 focus:ring-[#647269] focus:border-[#647269] transition-colors"
+                />
+                <button
+                  @click="handleAddEditTag(templateEditTagInput)"
+                  class="px-3 py-2 text-sm text-slate-700 border border-slate-300 rounded hover:bg-slate-50"
+                >
+                  添加
+                </button>
+              </div>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <span
+                  v-for="tag in templateEditTags"
+                  :key="`edit-chip-${tag}`"
+                  class="inline-flex items-center gap-1 px-2 py-1 text-xs bg-[#eef3f0] text-[#435549] rounded-sm"
+                >
+                  {{ tag }}
+                  <button @click="handleRemoveEditTag(tag)">×</button>
+                </span>
+              </div>
             </div>
           </div>
 
-          <div class="space-y-4">
+          <div v-show="templateEditActiveTab === 'design'" class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-2">教学目标</label>
               <TipTapEditor
@@ -904,6 +920,9 @@
                 :shortcut-config="tiptapShortcutConfig"
               />
             </div>
+          </div>
+
+          <div v-show="templateEditActiveTab === 'process'" class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-2">教学过程</label>
               <TipTapEditor
@@ -912,6 +931,9 @@
                 :shortcut-config="tiptapShortcutConfig"
               />
             </div>
+          </div>
+
+          <div v-show="templateEditActiveTab === 'review'" class="space-y-4">
             <div>
               <label class="block text-sm font-medium text-slate-700 mb-2">板书设计</label>
               <TipTapEditor
@@ -928,21 +950,22 @@
                 :shortcut-config="tiptapShortcutConfig"
               />
             </div>
-            <div class="flex items-center justify-end gap-2">
-              <button
-                @click="handleCancelTemplateEdit"
-                class="px-4 py-2 text-sm text-slate-700 border border-slate-300 rounded hover:bg-slate-50"
-              >
-                取消
-              </button>
-              <button
-                @click="handleSaveTemplateEdits"
-                :disabled="templateStore.isSaving"
-                class="px-4 py-2 text-sm text-white bg-[#647269] rounded hover:bg-[#55645b] disabled:opacity-50"
-              >
-                保存修改
-              </button>
-            </div>
+          </div>
+
+          <div class="mt-4 flex items-center justify-end gap-2">
+            <button
+              @click="handleCancelTemplateEdit"
+              class="px-4 py-2 text-sm text-slate-700 border border-slate-300 rounded hover:bg-slate-50"
+            >
+              取消
+            </button>
+            <button
+              @click="handleSaveTemplateEdits"
+              :disabled="templateStore.isSaving"
+              class="px-4 py-2 text-sm text-white bg-[#647269] rounded hover:bg-[#55645b] disabled:opacity-50"
+            >
+              保存修改
+            </button>
           </div>
         </div>
       </div>
@@ -951,8 +974,18 @@
         class="min-w-0 space-y-4 sm:space-y-6"
         :class="shouldRenderTemplatePanel ? '' : 'w-full max-w-4xl'"
       >
+      <EditorLayoutTabs
+        :tabs="editorLayoutTabs"
+        :active-tab="activeEditorLayoutTab"
+        :active-label="resolveEditorLayoutTabLabelForView(activeEditorLayoutTab)"
+        @select="handleSelectEditorLayoutTab"
+      />
       <!-- Basic Info -->
-      <section id="editor-section-basic" class="bg-white rounded shadow-sm border border-slate-100 p-4 sm:p-6">
+      <section
+        v-show="activeEditorLayoutTab === 'basic'"
+        id="editor-section-basic"
+        class="bg-white rounded shadow-sm border border-slate-100 p-4 sm:p-6"
+      >
         <h2 class="text-base sm:text-lg font-semibold text-slate-800 mb-3 sm:mb-4 flex items-center gap-2">
           <svg class="w-5 h-5 text-[#647269]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -1070,6 +1103,7 @@
 
       <section
         v-if="isLessonEditorMode"
+        v-show="activeEditorLayoutTab === 'basic'"
         class="bg-white rounded shadow-sm border border-slate-100 p-4 sm:p-6"
       >
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -1627,7 +1661,11 @@
       </section>
 
       <!-- Teaching Objectives -->
-      <section id="editor-section-objectives" class="bg-white rounded shadow-sm border border-slate-100 p-6">
+      <section
+        v-show="activeEditorLayoutTab === 'design'"
+        id="editor-section-objectives"
+        class="bg-white rounded shadow-sm border border-slate-100 p-6"
+      >
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <svg class="w-5 h-5 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1661,7 +1699,11 @@
       </section>
 
       <!-- Key Points -->
-      <section id="editor-section-keypoints" class="bg-white rounded shadow-sm border border-slate-100 p-6">
+      <section
+        v-show="activeEditorLayoutTab === 'design'"
+        id="editor-section-keypoints"
+        class="bg-white rounded shadow-sm border border-slate-100 p-6"
+      >
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <svg class="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1695,7 +1737,11 @@
       </section>
 
       <!-- Teaching Process -->
-      <section id="editor-section-process" class="bg-white rounded shadow-sm border border-slate-100 p-6">
+      <section
+        v-show="activeEditorLayoutTab === 'process'"
+        id="editor-section-process"
+        class="bg-white rounded shadow-sm border border-slate-100 p-6"
+      >
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <svg class="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1986,7 +2032,11 @@
       </section>
 
       <!-- Blackboard Design -->
-      <section id="editor-section-blackboard" class="bg-white rounded shadow-sm border border-slate-100 p-6">
+      <section
+        v-show="activeEditorLayoutTab === 'review'"
+        id="editor-section-blackboard"
+        class="bg-white rounded shadow-sm border border-slate-100 p-6"
+      >
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -2020,7 +2070,11 @@
       </section>
 
       <!-- Teaching Reflection -->
-      <section id="editor-section-reflection" class="bg-white rounded shadow-sm border border-slate-100 p-6">
+      <section
+        v-show="activeEditorLayoutTab === 'review'"
+        id="editor-section-reflection"
+        class="bg-white rounded shadow-sm border border-slate-100 p-6"
+      >
         <div class="flex flex-wrap items-center justify-between gap-2">
           <h2 class="text-lg font-semibold text-slate-800 flex items-center gap-2">
             <svg class="w-5 h-5 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3699,6 +3753,7 @@ export type EditorSectionCompletionItem = {
 export type EditorViewPreference = {
   focusMode: boolean
   collapsedSections: EditorCollapsibleSectionKey[]
+  activeLayoutTab: EditorLayoutTabKey
 }
 
 export type EditorQualityTip = {
@@ -3766,6 +3821,33 @@ export type EditorTimelineApplyPreviewDiff = {
   after: EditorTimelinePreviewDiffSegment[]
   changedCount: number
 }
+type EditorLayoutTabKey = 'basic' | 'design' | 'process' | 'review'
+
+type EditorLayoutTabMeta = {
+  id: EditorLayoutTabKey
+  label: string
+  description: string
+}
+
+type EditorLayoutTabSummary = EditorLayoutTabMeta & {
+  filledCount: number
+  totalCount: number
+  requiredMissingCount: number
+}
+
+type TemplateEditTabKey = 'basic' | 'design' | 'process' | 'review'
+
+type TemplateEditTabMeta = {
+  id: TemplateEditTabKey
+  label: string
+  description: string
+  fields: EditorDraftComparableField[]
+}
+
+type TemplateEditTabSummary = TemplateEditTabMeta & {
+  filledCount: number
+  totalCount: number
+}
 
 type EditorLessonSkeletonDefinition = {
   label: string
@@ -3816,6 +3898,63 @@ const EDITOR_SECTION_ORDER: EditorSectionKey[] = [
   'reflection',
 ]
 
+const EDITOR_LAYOUT_TAB_ORDER: EditorLayoutTabKey[] = ['basic', 'design', 'process', 'review']
+
+export const normalizeEditorLayoutTab = (value: string): EditorLayoutTabKey =>
+  EDITOR_LAYOUT_TAB_ORDER.includes(value as EditorLayoutTabKey)
+    ? (value as EditorLayoutTabKey)
+    : 'basic'
+
+const EDITOR_LAYOUT_TABS: readonly EditorLayoutTabMeta[] = [
+  { id: 'basic', label: '基础信息', description: '标题、课程班级、课时与方法资源' },
+  { id: 'design', label: '教学设计', description: '教学目标与重点难点' },
+  { id: 'process', label: '课堂流程', description: '教学过程与时间轴草案' },
+  { id: 'review', label: '课后沉淀', description: '板书设计与教学反思' },
+] as const
+
+const EDITOR_LAYOUT_TAB_SECTIONS: Record<EditorLayoutTabKey, EditorSectionKey[]> = {
+  basic: ['basic'],
+  design: ['objectives', 'keyPoints'],
+  process: ['process'],
+  review: ['blackboard', 'reflection'],
+}
+
+const EDITOR_SECTION_TO_LAYOUT_TAB: Record<EditorSectionKey, EditorLayoutTabKey> = {
+  basic: 'basic',
+  objectives: 'design',
+  keyPoints: 'design',
+  process: 'process',
+  blackboard: 'review',
+  reflection: 'review',
+}
+
+const TEMPLATE_EDIT_TABS: readonly TemplateEditTabMeta[] = [
+  {
+    id: 'basic',
+    label: '基础',
+    description: '标题、课程班级、课时与标签',
+    fields: ['title', 'courseName', 'className', 'duration', 'methods', 'resources'],
+  },
+  {
+    id: 'design',
+    label: '教学设计',
+    description: '教学目标与重点难点',
+    fields: ['objectives', 'keyPoints'],
+  },
+  {
+    id: 'process',
+    label: '流程',
+    description: '教学过程正文',
+    fields: ['process'],
+  },
+  {
+    id: 'review',
+    label: '复盘',
+    description: '板书设计与教学反思',
+    fields: ['blackboard', 'reflection'],
+  },
+] as const
+
 export const normalizeEditorCollapsibleSections = (
   sections: string[]
 ): EditorCollapsibleSectionKey[] => {
@@ -3850,12 +3989,17 @@ export const parseEditorViewPreference = (
     if (!Array.isArray(payload.collapsedSections)) {
       return null
     }
+    const activeLayoutTab =
+      typeof payload.activeLayoutTab === 'string'
+        ? normalizeEditorLayoutTab(payload.activeLayoutTab)
+        : 'basic'
     const collapsedSections = normalizeEditorCollapsibleSections(
       payload.collapsedSections.filter((item): item is string => typeof item === 'string')
     )
     return {
       focusMode: payload.focusMode,
       collapsedSections,
+      activeLayoutTab,
     }
   } catch {
     return null
@@ -3868,6 +4012,7 @@ export const serializeEditorViewPreference = (
   JSON.stringify({
     focusMode: Boolean(preference.focusMode),
     collapsedSections: normalizeEditorCollapsibleSections(preference.collapsedSections),
+    activeLayoutTab: normalizeEditorLayoutTab(preference.activeLayoutTab),
   })
 
 const EDITOR_REQUIRED_COMPLETION_LABELS = new Set([
@@ -4092,6 +4237,38 @@ export const resolveEditorSectionLabel = (section: EditorSectionKey): string =>
 
 export const resolveEditorSectionElementId = (section: EditorSectionKey): string =>
   EDITOR_SECTION_ELEMENT_IDS[section]
+
+export const resolveEditorLayoutTabBySection = (
+  section: EditorSectionKey
+): EditorLayoutTabKey => EDITOR_SECTION_TO_LAYOUT_TAB[section]
+
+export const resolveEditorSectionForLayoutTab = (
+  tab: EditorLayoutTabKey,
+  currentSection: EditorSectionKey
+): EditorSectionKey => {
+  const sections = EDITOR_LAYOUT_TAB_SECTIONS[tab]
+  if (sections.includes(currentSection)) {
+    return currentSection
+  }
+  return sections[0]
+}
+
+export const buildEditorLayoutTabSummaries = (
+  sections: EditorSectionCompletionItem[]
+): EditorLayoutTabSummary[] =>
+  EDITOR_LAYOUT_TABS.map((tab) => {
+    const sectionSet = new Set(EDITOR_LAYOUT_TAB_SECTIONS[tab.id])
+    const sectionItems = sections.filter((item) => sectionSet.has(item.section))
+    return {
+      ...tab,
+      filledCount: sectionItems.reduce((sum, item) => sum + item.filledCount, 0),
+      totalCount: sectionItems.reduce((sum, item) => sum + item.totalCount, 0),
+      requiredMissingCount: sectionItems.reduce(
+        (sum, item) => sum + item.requiredMissingLabels.length,
+        0
+      ),
+    }
+  })
 
 export const shouldShowEditorTemplatePanel = (
   showTemplatePanel: boolean,
@@ -5129,6 +5306,8 @@ import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { usePlanStore } from '../stores/plan'
 import { usePlanTemplateStore } from '../stores/planTemplate'
 import BaseInput from '../components/ui/BaseInput.vue'
+import EditorLayoutTabs from '../components/editor/EditorLayoutTabs.vue'
+import TemplateEditTabs from '../components/editor/TemplateEditTabs.vue'
 import { normalizeTemplateTags } from '../stores/planTemplate'
 import {
   type CoursewareAsset,
@@ -5318,6 +5497,7 @@ const editingTemplateId = ref('')
 const templateEditTitle = ref('')
 const templateEditTagInput = ref('')
 const templateEditTags = ref<string[]>([])
+const templateEditActiveTab = ref<TemplateEditTabKey>('basic')
 const selectedLessonSkeletonPreset = ref<EditorLessonSkeletonPreset>('lecture')
 const selectedProcessTimelinePreset = ref<EditorProcessTimelinePreset>('balanced')
 const processTimelineDraftSteps = ref<EditorTimelineDraftStep[]>([])
@@ -5340,6 +5520,7 @@ const lessonSkeletonOptions = resolveEditorLessonSkeletonOptions()
 const processTimelineOptions = resolveEditorProcessTimelineOptions()
 const showOutlineDialog = ref(false)
 const activeEditorSection = ref<EditorSectionKey>('basic')
+const activeEditorLayoutTab = ref<EditorLayoutTabKey>('basic')
 let editorSectionSyncRafId: number | null = null
 
 const cloneShortcutConfig = (
@@ -5447,6 +5628,7 @@ const loadEditorViewPreferenceFromStorage = () => {
   }
   isFocusMode.value = parsed.focusMode
   collapsedEditorSections.value = [...parsed.collapsedSections]
+  activeEditorLayoutTab.value = parsed.activeLayoutTab
 }
 
 const persistEditorViewPreference = () => {
@@ -5456,6 +5638,7 @@ const persistEditorViewPreference = () => {
   const payload = serializeEditorViewPreference({
     focusMode: isFocusMode.value,
     collapsedSections: collapsedEditorSections.value,
+    activeLayoutTab: activeEditorLayoutTab.value,
   })
   window.localStorage.setItem(EDITOR_VIEW_PREFERENCE_STORAGE_KEY, payload)
 }
@@ -5668,6 +5851,25 @@ const editorCompletionSummary = computed(() =>
 const editorSectionCompletionItems = computed(() =>
   buildEditorSectionCompletion(form as EditorPlanForm)
 )
+const editorLayoutTabs = computed<EditorLayoutTabSummary[]>(() =>
+  buildEditorLayoutTabSummaries(editorSectionCompletionItems.value)
+)
+const templateEditTabs = computed<TemplateEditTabSummary[]>(() =>
+  TEMPLATE_EDIT_TABS.map((tab) => {
+    const filledCount = tab.fields.reduce(
+      (sum, field) => sum + (isEditorPlanFieldEmpty(templateEditForm, field) ? 0 : 1),
+      0
+    )
+    return {
+      ...tab,
+      filledCount,
+      totalCount: tab.fields.length,
+    }
+  })
+)
+const nextIncompleteTemplateEditTab = computed<TemplateEditTabMeta | null>(
+  () => templateEditTabs.value.find((tab) => tab.filledCount < tab.totalCount) || null
+)
 const nextIncompleteEditorSection = computed(() =>
   resolveNextIncompleteEditorSection(editorSectionCompletionItems.value)
 )
@@ -5725,6 +5927,8 @@ const isAllCollapsibleSectionsCollapsed = computed(() =>
 )
 const resolveEditorSectionLabelForView = (section: EditorSectionKey): string =>
   resolveEditorSectionLabel(section)
+const resolveEditorLayoutTabLabelForView = (tab: EditorLayoutTabKey): string =>
+  EDITOR_LAYOUT_TABS.find((item) => item.id === tab)?.label || tab
 const isActiveEditorSectionForView = (section: EditorSectionKey): boolean =>
   activeEditorSection.value === section
 const isProcessTimelineDraftStepCollapsed = (id: string): boolean =>
@@ -5789,7 +5993,7 @@ const collectEditorSectionViewportPositions = (): EditorSectionViewportPosition[
   return EDITOR_SECTION_ORDER.map((section) => {
     const elementId = resolveEditorSectionElementId(section)
     const element = document.getElementById(elementId)
-    if (!element) {
+    if (!element || element.offsetParent === null) {
       return null
     }
     return {
@@ -5807,6 +6011,7 @@ const syncActiveEditorSectionByViewport = () => {
   )
   if (nextSection) {
     activeEditorSection.value = nextSection
+    activeEditorLayoutTab.value = resolveEditorLayoutTabBySection(nextSection)
   }
 }
 
@@ -6034,6 +6239,7 @@ const handleFocusEditorSection = (section: EditorSectionKey) => {
     return
   }
   activeEditorSection.value = section
+  activeEditorLayoutTab.value = resolveEditorLayoutTabBySection(section)
   collapsedEditorSections.value = setEditorSectionCollapsedState(
     collapsedEditorSections.value,
     section,
@@ -6047,6 +6253,23 @@ const handleFocusEditorSection = (section: EditorSectionKey) => {
     }
     target.scrollIntoView({ behavior: 'smooth', block: 'start' })
   })
+}
+
+const handleSelectEditorLayoutTab = (tab: EditorLayoutTabKey) => {
+  handleFocusEditorSection(resolveEditorSectionForLayoutTab(tab, activeEditorSection.value))
+}
+
+const handleSelectTemplateEditTab = (tab: TemplateEditTabKey) => {
+  templateEditActiveTab.value = tab
+}
+
+const handleFocusNextIncompleteTemplateEditTab = () => {
+  const nextTab = nextIncompleteTemplateEditTab.value
+  if (!nextTab) {
+    alert('模板各分区已基本完善。')
+    return
+  }
+  templateEditActiveTab.value = nextTab.id
 }
 
 const isEditorSectionCollapsedForView = (section: EditorSectionKey): boolean =>
@@ -6878,6 +7101,22 @@ const handleEditorKeyboardShortcuts = async (event: KeyboardEvent) => {
     return
   }
 
+  // Alt/Option + 1~4 switches main editor tabs.
+  if (!showTemplateEditDialog.value && event.altKey && !event.metaKey && !event.ctrlKey) {
+    const tabByKey: Record<string, EditorLayoutTabKey> = {
+      '1': 'basic',
+      '2': 'design',
+      '3': 'process',
+      '4': 'review',
+    }
+    const targetTab = tabByKey[event.key]
+    if (targetTab) {
+      event.preventDefault()
+      handleSelectEditorLayoutTab(targetTab)
+      return
+    }
+  }
+
   if (event.repeat || !(event.metaKey || event.ctrlKey) || event.altKey) {
     return
   }
@@ -7630,7 +7869,7 @@ watch(
 )
 
 watch(
-  [isFocusMode, collapsedEditorSections],
+  [isFocusMode, collapsedEditorSections, activeEditorLayoutTab],
   () => {
     persistEditorViewPreference()
   },
@@ -7844,6 +8083,7 @@ const handleOpenTemplateEditor = async () => {
     templateEditTags.value = normalizeTemplateTags(detail.tags)
     templateEditTagInput.value = ''
     editingTemplateId.value = selectedTemplateId.value
+    templateEditActiveTab.value = 'basic'
     showTemplateEditDialog.value = true
   } catch (error: any) {
     alert('加载模板详情失败: ' + (error.message || '未知错误'))
@@ -7865,6 +8105,7 @@ const handleSaveTemplateEdits = async () => {
     })
     showTemplateEditDialog.value = false
     editingTemplateId.value = ''
+    templateEditActiveTab.value = 'basic'
     await loadTemplates()
     alert('模板修改成功')
   } catch (error: any) {
@@ -7881,6 +8122,7 @@ const handleCancelTemplateEdit = () => {
     templateEditTitle.value = ''
     templateEditTags.value = []
     templateEditTagInput.value = ''
+    templateEditActiveTab.value = 'basic'
   }
 }
 
