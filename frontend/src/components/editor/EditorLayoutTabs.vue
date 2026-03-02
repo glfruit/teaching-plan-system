@@ -12,7 +12,7 @@
     </div>
     <div class="mt-3 flex gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 xl:grid-cols-4">
       <button
-        v-for="tab in tabs"
+        v-for="(tab, index) in tabs"
         :key="`editor-layout-tab-${tab.id}`"
         type="button"
         @click="emit('select', tab.id)"
@@ -25,7 +25,12 @@
             : 'border-slate-200 bg-white hover:bg-slate-50'"
       >
         <div class="flex items-center justify-between gap-2">
-          <p class="text-sm font-semibold text-slate-800">{{ tab.label }}</p>
+          <div class="flex items-center gap-1.5">
+            <span class="inline-flex h-4 min-w-4 items-center justify-center rounded border border-amber-200 bg-amber-50 px-1 text-[10px] font-semibold text-amber-700">
+              {{ index + 1 }}
+            </span>
+            <p class="text-sm font-semibold text-slate-800">{{ tab.label }}</p>
+          </div>
           <span class="text-[11px] font-medium" :class="tab.requiredMissingCount > 0 ? 'text-amber-700' : 'text-slate-500'">
             {{ tab.filledCount }}/{{ tab.totalCount }}
           </span>

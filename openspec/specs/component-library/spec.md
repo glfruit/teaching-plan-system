@@ -6,10 +6,10 @@ TBD - created by archiving change frontend-warm-redesign. Update Purpose after a
 ### Requirement: Frontend SHALL provide reusable warm UI primitives
 The frontend SHALL provide reusable base UI components that implement consistent warm visual style and interaction behavior.
 
-#### Scenario: Editor tab primitive exposes shortcut hint area
-- **WHEN** editor tab component is used in editor page
-- **THEN** it SHALL support rendering shortcut hint copy within the component shell
-- **AND** hint styling SHALL remain aligned with warm visual language
+#### Scenario: Tab primitive shows ordered index badge
+- **WHEN** tab primitive renders multiple tabs
+- **THEN** each tab SHALL optionally render ordered index badge
+- **AND** badge style SHALL remain visually consistent with warm UI language
 
 ### Requirement: Frontend SHALL provide shared layout components
 The frontend SHALL provide shared layout components for navigation and page heading.

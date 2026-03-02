@@ -3,7 +3,7 @@
     <p class="text-xs font-semibold text-amber-800">模板编辑标签</p>
     <div class="mt-2 flex gap-2 overflow-x-auto pb-1 lg:grid lg:grid-cols-4 lg:overflow-visible lg:pb-0">
       <button
-        v-for="tab in tabs"
+        v-for="(tab, index) in tabs"
         :key="`template-edit-tab-${tab.id}`"
         type="button"
         @click="emit('select', tab.id)"
@@ -14,7 +14,12 @@
           : 'border-slate-200 bg-white hover:bg-slate-50'"
       >
         <div class="flex items-center justify-between gap-1">
-          <p class="text-xs font-semibold text-slate-800">{{ tab.label }}</p>
+          <p class="inline-flex items-center gap-1 text-xs font-semibold text-slate-800">
+            <span class="inline-flex h-4 min-w-4 items-center justify-center rounded border border-amber-200 bg-amber-50 px-1 text-[10px] font-semibold text-amber-700">
+              {{ index + 1 }}
+            </span>
+            <span>{{ tab.label }}</span>
+          </p>
           <span class="text-[10px] font-medium text-slate-500">{{ tab.filledCount }}/{{ tab.totalCount }}</span>
         </div>
         <p class="mt-0.5 text-[10px] text-slate-500">{{ tab.description }}</p>
