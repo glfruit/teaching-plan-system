@@ -94,6 +94,7 @@ import {
   toggleEditorSectionCollapsedState,
   normalizeEditorCollapsibleSections,
   normalizeEditorLayoutTab,
+  resolveEditorLayoutTabByShortcutKey,
   parseEditorViewPreference,
   serializeEditorViewPreference,
   buildPlanPayload,
@@ -2304,6 +2305,14 @@ describe('EditorView teaching layout persistence', () => {
       collapsedSections: [],
       activeLayoutTab: 'basic',
     })
+  })
+
+  it('resolves editor layout tab by shortcut key', () => {
+    expect(resolveEditorLayoutTabByShortcutKey('1')).toBe('basic')
+    expect(resolveEditorLayoutTabByShortcutKey('2')).toBe('design')
+    expect(resolveEditorLayoutTabByShortcutKey('3')).toBe('process')
+    expect(resolveEditorLayoutTabByShortcutKey('4')).toBe('review')
+    expect(resolveEditorLayoutTabByShortcutKey('9')).toBeNull()
   })
 
   it('maps editor sections to layout tabs for tabbed editing flow', () => {

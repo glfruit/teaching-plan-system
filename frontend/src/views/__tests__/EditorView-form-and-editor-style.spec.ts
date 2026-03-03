@@ -94,8 +94,10 @@ describe('EditorView form and editor visual system', () => {
     expect(editorViewSource).toContain('activeLayoutTab')
     expect(editorViewSource).toContain('Alt/Option + 1~4')
     expect(editorViewSource).toContain('标签切换（固定）')
-    expect(editorViewSource).toContain('Alt / Option + 1：基础信息')
-    expect(editorViewSource).toContain('Alt / Option + 4：课后沉淀')
+    expect(editorViewSource).toContain('EDITOR_LAYOUT_SHORTCUT_HINTS')
+    expect(editorViewSource).toContain('resolveEditorLayoutTabByShortcutKey')
+    expect(editorViewSource).toContain('v-for="item in EDITOR_LAYOUT_SHORTCUT_HINTS"')
+    expect(editorViewSource).toContain('Alt / Option + {{ item.key }}：{{ item.label }}')
   })
 
   it('adds structured process timeline assistant controls', () => {

@@ -395,10 +395,12 @@
                 该组快捷键不可自定义，用于快速切换主编辑标签分区。
               </p>
               <ul class="mt-2 space-y-1 px-1 text-xs text-amber-800">
-                <li>Alt / Option + 1：基础信息</li>
-                <li>Alt / Option + 2：教学设计</li>
-                <li>Alt / Option + 3：课堂流程</li>
-                <li>Alt / Option + 4：课后沉淀</li>
+                <li
+                  v-for="item in EDITOR_LAYOUT_SHORTCUT_HINTS"
+                  :key="`layout-shortcut-hint-${item.key}`"
+                >
+                  Alt / Option + {{ item.key }}：{{ item.label }}
+                </li>
               </ul>
             </section>
             <section
@@ -3846,6 +3848,11 @@ type EditorLayoutTabSummary = EditorLayoutTabMeta & {
   totalCount: number
   requiredMissingCount: number
 }
+type EditorLayoutShortcutHint = {
+  key: string
+  tab: EditorLayoutTabKey
+  label: string
+}
 
 type TemplateEditTabKey = 'basic' | 'design' | 'process' | 'review'
 
@@ -3911,11 +3918,22 @@ const EDITOR_SECTION_ORDER: EditorSectionKey[] = [
 ]
 
 const EDITOR_LAYOUT_TAB_ORDER: EditorLayoutTabKey[] = ['basic', 'design', 'process', 'review']
+const EDITOR_LAYOUT_SHORTCUT_HINTS: readonly EditorLayoutShortcutHint[] = [
+  { key: '1', tab: 'basic', label: '基础信息' },
+  { key: '2', tab: 'design', label: '教学设计' },
+  { key: '3', tab: 'process', label: '课堂流程' },
+  { key: '4', tab: 'review', label: '课后沉淀' },
+] as const
 
 export const normalizeEditorLayoutTab = (value: string): EditorLayoutTabKey =>
   EDITOR_LAYOUT_TAB_ORDER.includes(value as EditorLayoutTabKey)
     ? (value as EditorLayoutTabKey)
     : 'basic'
+
+export const resolveEditorLayoutTabByShortcutKey = (
+  key: string
+): EditorLayoutTabKey | null =>
+  EDITOR_LAYOUT_SHORTCUT_HINTS.find((item) => item.key === key)?.tab || null
 
 const EDITOR_LAYOUT_TABS: readonly EditorLayoutTabMeta[] = [
   { id: 'basic', label: '基础信息', description: '标题、课程班级、课时与方法资源' },
@@ -7115,13 +7133,7 @@ const handleEditorKeyboardShortcuts = async (event: KeyboardEvent) => {
 
   // Alt/Option + 1~4 switches main editor tabs.
   if (!showTemplateEditDialog.value && event.altKey && !event.metaKey && !event.ctrlKey) {
-    const tabByKey: Record<string, EditorLayoutTabKey> = {
-      '1': 'basic',
-      '2': 'design',
-      '3': 'process',
-      '4': 'review',
-    }
-    const targetTab = tabByKey[event.key]
+    const targetTab = resolveEditorLayoutTabByShortcutKey(event.key)
     if (targetTab) {
       event.preventDefault()
       handleSelectEditorLayoutTab(targetTab)
